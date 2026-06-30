@@ -157,30 +157,93 @@ function renderRanking(elements, ranking, onAction) {
     ...ranking.map((id, index) => {
       const design = comparisonDesigns.find((item) => item.id === id);
       const item = document.createElement("li");
+      item.className = "ranking-card";
+      item.dataset.rankId = id;
+      item.tabIndex = 0;
+      item.setAttribute("role", "option");
+      item.setAttribute(
+        "aria-label",
+        `${index + 1}. ${design.title}. Drag to reorder, or use arrow keys while focused.`,
+      );
+
+      const rank = document.createElement("span");
+      rank.className = "rank-index";
+      rank.textContent = String(index + 1);
+
+      const thumb = createComparisonThumb(design.id);
 
       const copy = document.createElement("span");
+      copy.className = "ranking-copy";
       copy.innerHTML = `<strong>${design.label}. ${design.title}</strong><small>${design.summary}</small>`;
 
-      const controls = document.createElement("span");
-      controls.className = "rank-buttons";
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          onAction("moveRank", { id, direction: -1 });
+        }
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          onAction("moveRank", { id, direction: 1 });
+        }
+      });
+      bindRankDrag(item, elements.rankingList, onAction);
 
-      const up = document.createElement("button");
-      up.type = "button";
-      up.textContent = "Up";
-      up.disabled = index === 0;
-      up.addEventListener("click", () => onAction("moveRank", { id, direction: -1 }));
-
-      const down = document.createElement("button");
-      down.type = "button";
-      down.textContent = "Down";
-      down.disabled = index === ranking.length - 1;
-      down.addEventListener("click", () => onAction("moveRank", { id, direction: 1 }));
-
-      controls.append(up, down);
-      item.append(copy, controls);
+      item.append(rank, thumb, copy);
       return item;
     }),
   );
+}
+
+function createComparisonThumb(id) {
+  const thumb = document.createElement("span");
+  thumb.className = `comparison-thumb comparison-thumb--${id}`;
+  thumb.setAttribute("aria-hidden", "true");
+  for (let index = 0; index < 7; index += 1) {
+    const cell = document.createElement("span");
+    cell.className = "comparison-thumb-cell";
+    thumb.append(cell);
+  }
+  return thumb;
+}
+
+function bindRankDrag(item, list, onAction) {
+  let dragging = false;
+
+  item.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    dragging = true;
+    item.classList.add("is-dragging");
+    document.addEventListener("pointermove", moveDrag);
+    document.addEventListener("pointerup", finishDrag);
+    document.addEventListener("pointercancel", finishDrag);
+    event.preventDefault();
+  });
+
+  function moveDrag(event) {
+    if (!dragging) return;
+    const afterElement = getDragAfterElement(list, event.clientY);
+    if (afterElement) list.insertBefore(item, afterElement);
+    else list.append(item);
+  }
+
+  function finishDrag() {
+    if (!dragging) return;
+    dragging = false;
+    item.classList.remove("is-dragging");
+    document.removeEventListener("pointermove", moveDrag);
+    document.removeEventListener("pointerup", finishDrag);
+    document.removeEventListener("pointercancel", finishDrag);
+    const nextRanking = [...list.querySelectorAll("[data-rank-id]")].map((rankItem) => rankItem.dataset.rankId);
+    onAction("setRanking", { ranking: nextRanking });
+  }
+}
+
+function getDragAfterElement(list, pointerY) {
+  const candidates = [...list.querySelectorAll("[data-rank-id]:not(.is-dragging)")];
+  return candidates.find((candidate) => {
+    const box = candidate.getBoundingClientRect();
+    return pointerY < box.top + box.height / 2;
+  });
 }
 
 function getSettings(elements) {

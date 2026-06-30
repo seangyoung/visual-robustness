@@ -15,7 +15,7 @@ const state = {
     robustness: 0,
     revealRedesign: false,
   },
-  ranking: ["redundant", "simplified", "hue-only"],
+  ranking: ["hue-only", "redundant", "simplified"],
   reflections: Object.fromEntries(reflectionPrompts.map((prompt) => [prompt.id, ""])),
 };
 
@@ -85,6 +85,10 @@ function handleAction(action, payload = {}) {
     moveRank(payload.id, payload.direction);
   }
 
+  if (action === "setRanking") {
+    setRanking(payload.ranking);
+  }
+
   if (action === "exportReflection") {
     exportReflection();
   }
@@ -116,6 +120,13 @@ function moveRank(id, direction) {
   const next = [...state.ranking];
   const [item] = next.splice(index, 1);
   next.splice(nextIndex, 0, item);
+  state.ranking = next;
+}
+
+function setRanking(ranking) {
+  const validIds = new Set(state.ranking);
+  const next = Array.isArray(ranking) ? ranking.filter((id) => validIds.has(id)) : [];
+  if (next.length !== state.ranking.length) return;
   state.ranking = next;
 }
 
