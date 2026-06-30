@@ -167,7 +167,6 @@ export const comparisonDesigns = [
     id: "redundant",
     title: "Redundant encodings",
     label: "A",
-    robustness: 94,
     summary: "Colorblind-safe ramp, labels, patterns, and ordered value.",
     reason: "Meaning survives when hue is unreliable because multiple cues carry the class.",
   },
@@ -175,7 +174,6 @@ export const comparisonDesigns = [
     id: "simplified",
     title: "Fewer classes",
     label: "B",
-    robustness: 72,
     summary: "A reduced classification scheme lowers comparison burden.",
     reason: "Fewer groups help, but some meaning is still carried by hue and legend lookup.",
   },
@@ -183,11 +181,12 @@ export const comparisonDesigns = [
     id: "hue-only",
     title: "Hue-only categories",
     label: "C",
-    robustness: 34,
     summary: "Many similarly valued hues with a distant legend.",
     reason: "It is efficient in ideal conditions but fragile under color or contrast shifts.",
   },
 ];
+
+export const recommendedComparisonRanking = ["redundant", "simplified", "hue-only"];
 
 export const reflectionPrompts = [
   {

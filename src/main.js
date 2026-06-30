@@ -1,5 +1,5 @@
 import "./styles.css";
-import { moduleScenes, reflectionPrompts } from "./config/lesson.js";
+import { moduleScenes, recommendedComparisonRanking, reflectionPrompts } from "./config/lesson.js";
 import { createGalleryApp } from "./scene/gallery.js";
 import { createDomUi } from "./ui/dom.js";
 
@@ -15,7 +15,8 @@ const state = {
     robustness: 0,
     revealRedesign: false,
   },
-  ranking: ["redundant", "simplified", "hue-only"],
+  ranking: ["hue-only", "redundant", "simplified"],
+  rankingCheck: { attempts: 0, status: "idle" },
   reflections: Object.fromEntries(reflectionPrompts.map((prompt) => [prompt.id, ""])),
 };
 
@@ -85,6 +86,14 @@ function handleAction(action, payload = {}) {
     moveRank(payload.id, payload.direction);
   }
 
+  if (action === "setRanking") {
+    setRanking(payload.ranking);
+  }
+
+  if (action === "checkRanking") {
+    checkRanking();
+  }
+
   if (action === "exportReflection") {
     exportReflection();
   }
@@ -117,6 +126,29 @@ function moveRank(id, direction) {
   const [item] = next.splice(index, 1);
   next.splice(nextIndex, 0, item);
   state.ranking = next;
+  clearRankingFeedback();
+}
+
+function setRanking(ranking) {
+  const validIds = new Set(state.ranking);
+  const next = Array.isArray(ranking) ? ranking.filter((id) => validIds.has(id)) : [];
+  if (next.length !== state.ranking.length) return;
+  if (arraysEqual(next, state.ranking)) return;
+  state.ranking = next;
+  clearRankingFeedback();
+}
+
+function checkRanking() {
+  const attempts = state.rankingCheck.attempts + 1;
+  const isCorrect = arraysEqual(state.ranking, recommendedComparisonRanking);
+  state.rankingCheck = {
+    attempts,
+    status: isCorrect ? "correct" : attempts >= 2 ? "reveal" : "hint",
+  };
+}
+
+function clearRankingFeedback() {
+  state.rankingCheck = { attempts: 0, status: "idle" };
 }
 
 function exportReflection() {
@@ -173,6 +205,10 @@ function syncUrl() {
 function clamp(value, min, max) {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, value));
+}
+
+function arraysEqual(a, b) {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
 const MODULE_EXPORT_TITLE = "Visual Robustness Reflection";

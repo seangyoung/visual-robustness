@@ -217,7 +217,7 @@ function drawContrastPanel(ctx, canvas, kind, scene, state) {
 function drawComparisonPanel(ctx, canvas, kind, scene, state) {
   if (kind === "task") {
     drawTaskPanel(ctx, canvas, scene, state, {
-      lead: "Use the browser controls to reorder the designs. In VR, inspect the ranked workbench and advance when ready.",
+      lead: "Grab and reorder the visualization cards from most robust to least robust. Use the visual evidence, not a score.",
       hint: "A strong explanation names the encoding strategy, not just the palette.",
     });
     return;
@@ -233,24 +233,29 @@ function drawComparisonPanel(ctx, canvas, kind, scene, state) {
   }
 
   if (kind === "chart") {
-    panelBase(ctx, canvas, "Why the ranking matters", "Transfer from one figure to another", state);
-    state.ranking.forEach((id, index) => {
-      const design = comparisonDesigns.find((item) => item.id === id);
+    panelBase(ctx, canvas, "Evidence to consider", "Use these cues before deciding", state);
+    const cues = [
+      "Does meaning survive without hue as the only cue?",
+      "Are there labels, patterns, value, or shapes that reduce legend lookup?",
+      "Does reducing the number of groups clarify or oversimplify the message?",
+      "What does your eye notice first, and is that the intended hierarchy?",
+    ];
+    cues.forEach((cue, index) => {
       const y = 230 + index * 190;
       ctx.fillStyle = "#151d20";
       ctx.font = "900 34px Arial";
-      ctx.fillText(`${index + 1}. ${design.title}`, 110, y);
+      ctx.fillText(`Question ${index + 1}`, 110, y);
       ctx.fillStyle = "#536164";
       ctx.font = "600 27px Arial";
-      wrapText(ctx, design.reason, 110, y + 48, 1080, 40);
+      wrapText(ctx, cue, 110, y + 48, 1080, 40);
     });
     return;
   }
 
   drawSidePanel(ctx, canvas, scene, state, [
-    "Most robust: redundant encodings plus clear hierarchy.",
-    "Middle: fewer classes can reduce load but may lose nuance.",
-    "Least robust: many hue-only categories with a distant legend.",
+    "Look for redundant cues rather than better-looking colors alone.",
+    "Ask whether fewer classes clarify the task or hide needed detail.",
+    "Notice whether legend lookup is doing too much interpretive work.",
   ]);
 }
 
@@ -579,8 +584,8 @@ function drawComparisonCard(ctx, design, x, y, w, h, rank) {
   ctx.fillStyle = "#f1f4ef";
   roundRect(ctx, x, y, w, h, 16);
   ctx.fill();
-  ctx.strokeStyle = rank === 1 ? "#55c6ba" : "#d3d8d2";
-  ctx.lineWidth = rank === 1 ? 8 : 5;
+  ctx.strokeStyle = "#d3d8d2";
+  ctx.lineWidth = 5;
   roundRect(ctx, x, y, w, h, 16);
   ctx.stroke();
 
@@ -596,15 +601,10 @@ function drawComparisonCard(ctx, design, x, y, w, h, rank) {
 
   ctx.fillStyle = "#1f282b";
   ctx.font = "800 27px Arial";
-  wrapText(ctx, design.summary, x + 36, y + 405, w - 72, 36);
-  ctx.fillStyle = "#236e66";
-  roundRect(ctx, x + 36, y + h - 84, w - 72, 34, 17);
-  ctx.fill();
-  ctx.fillStyle = "#f8f6ee";
-  ctx.font = "900 21px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(`${design.robustness}% robustness`, x + w / 2, y + h - 60);
-  ctx.textAlign = "start";
+  wrapText(ctx, design.summary, x + 36, y + 405, w - 72, 38);
+  ctx.fillStyle = "#536164";
+  ctx.font = "700 22px Arial";
+  ctx.fillText("Use the ranking panel to reorder.", x + 36, y + h - 58);
 }
 
 function drawComparisonThumbnail(ctx, id, x, y, w, h) {

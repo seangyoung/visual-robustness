@@ -65,7 +65,7 @@ Qualtrics, or another approved form system:
 - Robustness Test slider visibly compresses color distinctions in Scene 1.
 - Reveal redesign adds labels, patterns, ordered value, and stronger figure-ground separation.
 - Reflection scene accepts text and can download a local `.txt` file.
-- Robust comparison scene supports ranking changes in browser fallback.
+- Robust comparison scene supports direct drag-to-reorder ranking in browser fallback.
 - WebXR entry is available on a Quest-compatible browser over HTTPS.
 - In-world controls respond to controller selection.
 - High contrast and reduced motion settings update the experience.
