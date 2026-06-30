@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Visual Robustness is a WebXR learning module about perceptual accessibility in data visualization."
+    />
+    <title>Visual Robustness | WebXR Learning Module</title>
+  </head>
+  <body>
+    <main id="app-shell" aria-label="Visual Robustness WebXR learning module">
+      <canvas id="xr-canvas" aria-label="Interactive research gallery scene"></canvas>
+
+      <header class="topbar">
+        <div class="brand" aria-label="Visual Robustness">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>Visual Robustness</h1>
+            <p id="mode-label">Browser learning module</p>
+          </div>
+        </div>
+        <button id="enter-vr" class="primary-action" type="button">Enter VR</button>
+      </header>
+
+      <section class="module-panel" aria-live="polite" aria-label="Current module scene">
+        <div class="step-kicker" id="step-kicker">Scene 0 of 4</div>
+        <h2 id="step-title">Loading</h2>
+        <p id="step-prompt"></p>
+
+        <div class="progress-track" aria-label="Module progress">
+          <span id="progress-fill"></span>
+        </div>
+
+        <div class="control-row">
+          <button id="back-step" type="button">Back</button>
+          <button id="next-step" class="next-action" type="button">Next</button>
+        </div>
+
+        <section class="workbench-controls" aria-label="Visualization Workbench controls">
+          <div class="workbench-title">
+            <span>Visualization Workbench</span>
+            <strong id="workbench-title">Loading</strong>
+          </div>
+
+          <label class="range-control" for="robustness-slider">
+            <span>Robustness Test</span>
+            <output id="robustness-value" for="robustness-slider">0%</output>
+          </label>
+          <input id="robustness-slider" type="range" min="0" max="100" value="0" />
+
+          <label class="toggle-control">
+            <input id="reveal-redesign" type="checkbox" />
+            <span>Reveal redesign</span>
+          </label>
+        </section>
+
+        <section id="ranking-panel" class="ranking-panel" aria-label="Robust design ranking">
+          <h3>Rank most robust to least robust</h3>
+          <ol id="ranking-list"></ol>
+        </section>
+
+        <section id="notebook-panel" class="notebook-panel" aria-label="Observation notebook">
+          <h3>Observation notebook</h3>
+          <div id="reflection-fields"></div>
+          <button id="export-reflection" type="button">Download reflection</button>
+        </section>
+
+        <fieldset class="settings-group">
+          <legend>Accessibility settings</legend>
+          <label>
+            <input id="high-contrast" type="checkbox" />
+            <span>High contrast</span>
+          </label>
+          <label>
+            <input id="reduced-motion" type="checkbox" />
+            <span>Reduced motion</span>
+          </label>
+        </fieldset>
+
+        <details class="assessment-note">
+          <summary>Course pilot assessment</summary>
+          <p>
+            Pre/post diagnostics, design revision rubrics, and reflection responses should be
+            collected in the LMS or Qualtrics. This prototype stores no student data.
+          </p>
+        </details>
+      </section>
+
+      <details class="gallery-note" aria-label="Module context">
+        <summary>Why it matters</summary>
+        <p id="context-note">
+          Stress-test maps and figures under changing perceptual conditions, then examine
+          alternative designs that preserve interpretation.
+        </p>
+      </details>
+
+      <div id="status-line" class="status-line" role="status"></div>
+
+      <section class="sr-only" aria-label="Text equivalent">
+        <h2>Text Equivalent</h2>
+        <p id="text-equivalent"></p>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

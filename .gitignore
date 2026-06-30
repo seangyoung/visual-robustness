@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Logs and reports
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local screenshots and temporary QA artifacts
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mov
+*.mp4

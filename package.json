@@ -1,0 +1,16 @@
+{
+  "name": "visual-robustness-webxr",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "vite": "^8.1.1",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {}
+}
