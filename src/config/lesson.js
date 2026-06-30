@@ -186,6 +186,8 @@ export const comparisonDesigns = [
   },
 ];
 
+export const recommendedComparisonRanking = ["redundant", "simplified", "hue-only"];
+
 export const reflectionPrompts = [
   {
     id: "surprise",

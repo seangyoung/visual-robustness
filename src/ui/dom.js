@@ -2,6 +2,7 @@ import {
   comparisonDesigns,
   galleryCopy,
   moduleScenes,
+  recommendedComparisonRanking,
   reflectionPrompts,
 } from "../config/lesson.js";
 
@@ -27,6 +28,8 @@ export function createDomUi({
     revealRedesign: document.getElementById("reveal-redesign"),
     rankingPanel: document.getElementById("ranking-panel"),
     rankingList: document.getElementById("ranking-list"),
+    checkRanking: document.getElementById("check-ranking"),
+    rankingFeedback: document.getElementById("ranking-feedback"),
     notebookPanel: document.getElementById("notebook-panel"),
     reflectionFields: document.getElementById("reflection-fields"),
     exportReflection: document.getElementById("export-reflection"),
@@ -48,6 +51,7 @@ export function createDomUi({
     onWorkbenchChange({ revealRedesign: event.target.checked });
   });
   elements.exportReflection.addEventListener("click", () => onAction("exportReflection"));
+  elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
 
   [elements.highContrast, elements.reducedMotion].forEach((input) => {
     input.addEventListener("change", () => {
@@ -95,8 +99,10 @@ export function createDomUi({
       elements.revealRedesign.disabled = !supportsRedesign;
 
       elements.rankingPanel.hidden = scene.type !== "comparison";
+      elements.checkRanking.disabled = scene.type !== "comparison";
       elements.notebookPanel.hidden = scene.type !== "reflection";
       renderRanking(elements, state.ranking, onAction);
+      renderRankingFeedback(elements, state.rankingCheck);
       renderReflectionValues(elements, state.reflections);
 
       elements.textEquivalent.textContent = [
@@ -192,6 +198,53 @@ function renderRanking(elements, ranking, onAction) {
       return item;
     }),
   );
+}
+
+function renderRankingFeedback(elements, rankingCheck) {
+  const status = rankingCheck?.status ?? "idle";
+  elements.rankingFeedback.hidden = status === "idle";
+  elements.rankingFeedback.className = `ranking-feedback ranking-feedback--${status}`;
+
+  if (status === "idle") {
+    elements.rankingFeedback.replaceChildren();
+    return;
+  }
+
+  const title = document.createElement("strong");
+  const message = document.createElement("p");
+  const details = document.createElement("ol");
+
+  if (status === "correct") {
+    title.textContent = "This ordering is well supported.";
+    message.textContent =
+      "The strongest design distributes meaning across multiple cues; the weakest asks hue and legend lookup to do most of the work.";
+    details.append(...recommendedComparisonRanking.map((id) => feedbackDetail(id)));
+  } else if (status === "reveal") {
+    title.textContent = "Compare your order with this design rationale.";
+    message.textContent =
+      "This is not a score. It is a suggested reading based on redundancy, hierarchy, and dependence on hue.";
+    details.append(...recommendedComparisonRanking.map((id) => feedbackDetail(id)));
+  } else {
+    title.textContent = "Try one more look.";
+    message.textContent =
+      "Which design still works when hue becomes unreliable? Which one simplifies the task but still leans on color? Which one asks viewers to keep returning to the legend?";
+  }
+
+  elements.rankingFeedback.replaceChildren(title, message);
+  if (details.childElementCount > 0) elements.rankingFeedback.append(details);
+}
+
+function feedbackDetail(id) {
+  const design = comparisonDesigns.find((item) => item.id === id);
+  const item = document.createElement("li");
+  const title = document.createElement("strong");
+  const reason = document.createElement("span");
+
+  title.textContent = `${design.label}. ${design.title}`;
+  reason.textContent = design.reason;
+  item.append(title, reason);
+
+  return item;
 }
 
 function createComparisonThumb(id) {
