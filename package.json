@@ -2,7 +2,16 @@
   "name": "visual-robustness-webxr",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
+  "homepage": "https://seangyoung.github.io/visual-robustness/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seangyoung/visual-robustness.git"
+  },
+  "bugs": {
+    "url": "https://github.com/seangyoung/visual-robustness/issues"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",

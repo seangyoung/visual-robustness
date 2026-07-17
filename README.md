@@ -66,6 +66,7 @@ Device smoke test:
 - Confirm controller selection works on in-world controls.
 - Confirm panels are readable without artificial locomotion.
 - Complete Scene 1 and test Scene 3 ranking in browser fallback.
+
 ## Implemented Interaction Model
 
 - Shared Visualization Workbench state for browser and WebXR modes.
@@ -91,6 +92,34 @@ Qualtrics, or another approved form system:
 - Design revision assignment: improve a flawed visualization.
 - Rubric dimensions: color robustness, luminance contrast, hierarchy, redundancy,
   classification/encoding fit, and explanation quality.
+
+## Public Release And Licensing
+
+This repository is prepared as a public prototype for future OER release.
+
+License summary:
+
+- Software code, build scripts, and configuration files: MIT License.
+- Educational content, lesson text, prompts, documentation, and original non-code
+  learning materials: Creative Commons Attribution 4.0 International (CC BY 4.0).
+- Third-party dependencies and externally sourced materials retain their own
+  licenses.
+
+Suggested attribution for OER reuse:
+
+> Perception Workbench: Perceptual Accessibility in Data Visualization by the
+> Perception Workbench contributors, licensed under CC BY 4.0. Source:
+> https://github.com/seangyoung/visual-robustness
+
+See [LICENSE.md](./LICENSE.md), [LICENSE-CODE.md](./LICENSE-CODE.md), and
+[LICENSE-CONTENT.md](./LICENSE-CONTENT.md) for details.
+
+Data statement:
+
+- The app does not collect, transmit, or store student-identifiable data.
+- Course assessment should remain in approved external systems such as the LMS,
+  Qualtrics, or institutionally approved forms.
+- See [SECURITY.md](./SECURITY.md) for the public security and data statement.
 
 ## Prototype Test Checklist
 
