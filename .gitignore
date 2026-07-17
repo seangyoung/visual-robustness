@@ -29,3 +29,6 @@ Thumbs.db
 *.webp
 *.mov
 *.mp4
+
+# Personal local notes
+DEVELOPMENT_CHEAT_SHEET.md
