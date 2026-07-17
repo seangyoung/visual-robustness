@@ -32,6 +32,40 @@ after interaction.
 For visual QA, the workbench can also be initialized from the URL:
 
 - `?scene=color-dependence&robustness=75&reveal=1`
+
+## Deploy To GitHub Pages
+
+The repository is configured to build and deploy the Vite app to GitHub Pages when
+changes are pushed to `main`.
+
+Expected Pages URL:
+
+- `https://seangyoung.github.io/visual-robustness/`
+
+GitHub repository setup:
+
+1. Open the repository on GitHub.
+2. Go to Settings -> Pages.
+3. Under Build and deployment, set Source to GitHub Actions.
+4. Push to `main`, or run the deploy workflow manually from the Actions tab.
+
+The Vite config uses `/visual-robustness/` as the production base path for GitHub
+Pages while keeping local development at `/`.
+
+## Quest Device Testing
+
+Use the GitHub Pages URL in Meta Quest Browser for headset testing. WebXR
+immersive mode requires a secure context, so the deployed `https://` URL is the
+recommended test target.
+
+Device smoke test:
+
+- Open `https://seangyoung.github.io/visual-robustness/` in Meta Quest Browser.
+- Confirm the page loads and the `Enter VR` button is available.
+- Enter VR from a direct user click or controller selection.
+- Confirm controller selection works on in-world controls.
+- Confirm panels are readable without artificial locomotion.
+- Complete Scene 1 and test Scene 3 ranking in browser fallback.
 ## Implemented Interaction Model
 
 - Shared Visualization Workbench state for browser and WebXR modes.
