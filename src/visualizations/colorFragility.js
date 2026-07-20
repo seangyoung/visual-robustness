@@ -2,6 +2,7 @@ import {
   comparisonDesigns,
   galleryCopy,
   landCoverCategories,
+  recommendedComparisonRanking,
   reflectionPrompts,
   watershedZones,
 } from "../config/lesson.js";
@@ -216,10 +217,7 @@ function drawContrastPanel(ctx, canvas, kind, scene, state) {
 
 function drawComparisonPanel(ctx, canvas, kind, scene, state) {
   if (kind === "task") {
-    drawTaskPanel(ctx, canvas, scene, state, {
-      lead: "Grab and reorder the visualization cards from most robust to least robust. Use the visual evidence, not a score.",
-      hint: "A strong explanation names the encoding strategy, not just the palette.",
-    });
+    drawTaskPanel(ctx, canvas, scene, state, comparisonTaskCopy(state));
     return;
   }
 
@@ -253,10 +251,47 @@ function drawComparisonPanel(ctx, canvas, kind, scene, state) {
   }
 
   drawSidePanel(ctx, canvas, scene, state, [
+    "In VR, use the A/B/C earlier and later buttons below the ranked set, then select Check.",
     "Look for redundant cues rather than better-looking colors alone.",
     "Ask whether fewer classes clarify the task or hide needed detail.",
     "Notice whether legend lookup is doing too much interpretive work.",
   ]);
+}
+
+function comparisonTaskCopy(state) {
+  const status = state.rankingCheck?.status ?? "idle";
+  const recommendedOrder = recommendedComparisonRanking
+    .map((id) => {
+      const design = comparisonDesigns.find((item) => item.id === id);
+      return `${design.label}. ${design.title}`;
+    })
+    .join(", then ");
+
+  if (status === "correct") {
+    return {
+      lead: "This ordering is well supported.",
+      hint: "The strongest design distributes meaning across multiple cues; the weakest asks hue and legend lookup to do most of the work.",
+    };
+  }
+
+  if (status === "reveal") {
+    return {
+      lead: "Compare your order with this design rationale.",
+      hint: `This is not a score. A defensible order is ${recommendedOrder}.`,
+    };
+  }
+
+  if (status === "hint") {
+    return {
+      lead: "Try one more look before revealing the rationale.",
+      hint: "Which design still works when hue becomes unreliable? Which one simplifies the task? Which one depends most on legend lookup?",
+    };
+  }
+
+  return {
+    lead: "Browser: drag cards. VR: select A/B/C earlier or later below the ranked set, then select Check.",
+    hint: "Use the visual evidence, not a score. A strong explanation names the encoding strategy, not just the palette.",
+  };
 }
 
 function drawReflectionPanel(ctx, canvas, kind, scene, state) {

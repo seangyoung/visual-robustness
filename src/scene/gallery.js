@@ -30,6 +30,63 @@ const BUTTONS = [
   { id: "test-up", action: "adjustRobustness", label: "Test +", x: 0.82, payload: { delta: 15 } },
   { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 1.56 },
 ];
+const RANKING_BUTTONS = [
+  { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 1.16, z: -3.2, width: 1.02 },
+  {
+    id: "rank-a-earlier",
+    action: "moveRank",
+    label: "A earlier",
+    x: -3.34,
+    y: 0.9,
+    z: -3.18,
+    payload: { id: "redundant", direction: -1 },
+  },
+  {
+    id: "rank-b-earlier",
+    action: "moveRank",
+    label: "B earlier",
+    x: -2.62,
+    y: 0.9,
+    z: -3.18,
+    payload: { id: "simplified", direction: -1 },
+  },
+  {
+    id: "rank-c-earlier",
+    action: "moveRank",
+    label: "C earlier",
+    x: -1.9,
+    y: 0.9,
+    z: -3.18,
+    payload: { id: "hue-only", direction: -1 },
+  },
+  {
+    id: "rank-a-later",
+    action: "moveRank",
+    label: "A later",
+    x: -3.34,
+    y: 0.68,
+    z: -3.1,
+    payload: { id: "redundant", direction: 1 },
+  },
+  {
+    id: "rank-b-later",
+    action: "moveRank",
+    label: "B later",
+    x: -2.62,
+    y: 0.68,
+    z: -3.1,
+    payload: { id: "simplified", direction: 1 },
+  },
+  {
+    id: "rank-c-later",
+    action: "moveRank",
+    label: "C later",
+    x: -1.9,
+    y: 0.68,
+    z: -3.1,
+    payload: { id: "hue-only", direction: 1 },
+  },
+];
 
 export function createGalleryApp({ canvas, ui, onAction }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -57,7 +114,9 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   const world = createWorld(scene);
   const panels = createPanels(scene);
-  const inWorldButtons = createButtons(scene);
+  const mainButtons = createButtons(scene, BUTTONS);
+  const rankingButtons = createButtons(scene, RANKING_BUTTONS, { width: 0.68, height: 0.18, rotationX: -0.24 });
+  const inWorldButtons = [...mainButtons, ...rankingButtons];
   const controllers = createControllers(renderer, scene);
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -77,7 +136,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     currentState = state;
     const sceneState = moduleScenes[state.sceneIndex];
     const isImmersive = Boolean(currentSession);
-    setInWorldControlsVisible(inWorldButtons, isImmersive);
+    updateInWorldControlVisibility(mainButtons, rankingButtons, sceneState, isImmersive);
     panels.side.visible = isImmersive;
     panels.caption.visible = isImmersive;
     updatePanel(panels.map, "map", sceneState, state);
@@ -106,7 +165,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
       });
       currentSession = session;
-      setInWorldControlsVisible(inWorldButtons, true);
+      updateInWorldControlVisibility(mainButtons, rankingButtons, moduleScenes[currentState.sceneIndex], true);
       session.addEventListener("end", () => {
         currentSession = null;
         setInWorldControlsVisible(inWorldButtons, false);
@@ -342,13 +401,17 @@ function panelMesh(name, position, rotation, width, height) {
   return mesh;
 }
 
-function createButtons(scene) {
-  return BUTTONS.map((button) => {
+function createButtons(scene, buttons, defaults = {}) {
+  const width = defaults.width ?? 0.66;
+  const height = defaults.height ?? 0.2;
+  const rotationX = defaults.rotationX ?? -0.18;
+  return buttons.map((button) => {
     const texture = textureFromCanvas(createButtonTexture(button.label, false));
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, toneMapped: false });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.2), material);
-    mesh.position.set(button.x, LAYOUT.buttonY, LAYOUT.buttonZ);
-    mesh.rotation.x = -0.18;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(button.width ?? width, button.height ?? height), material);
+    mesh.position.set(button.x, button.y ?? LAYOUT.buttonY, button.z ?? LAYOUT.buttonZ);
+    mesh.rotation.x = button.rotationX ?? rotationX;
+    mesh.rotation.y = button.rotationY ?? 0;
     mesh.visible = false;
     mesh.userData.controlId = button.id;
     mesh.userData.action = button.action;
@@ -356,6 +419,11 @@ function createButtons(scene) {
     scene.add(mesh);
     return { ...button, mesh };
   });
+}
+
+function updateInWorldControlVisibility(mainButtons, rankingButtons, sceneState, isImmersive) {
+  setInWorldControlsVisible(mainButtons, isImmersive);
+  setInWorldControlsVisible(rankingButtons, isImmersive && sceneState.type === "comparison");
 }
 
 function setInWorldControlsVisible(buttons, visible) {
