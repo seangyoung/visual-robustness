@@ -6,12 +6,29 @@ import { createButtonTexture, createPanelTexture } from "../visualizations/color
 
 const PANEL_W = 3.3;
 const PANEL_H = 2.28;
+const LAYOUT = {
+  desktopCameraZ: 6.2,
+  desktopTargetZ: -3.15,
+  floorZ: -2.7,
+  wallZ: -5.9,
+  workbenchY: 0.58,
+  workbenchZ: -2.55,
+  buttonY: 0.9,
+  buttonZ: -1.82,
+  panelY: 1.84,
+  panelZ: -4.18,
+  taskZ: -3.92,
+  sideX: 4.24,
+  sideZ: -2.82,
+  captionY: 0.66,
+  captionZ: -2.12,
+};
 const BUTTONS = [
-  { id: "back", action: "back", label: "Back", x: -1.46, y: 0.92 },
-  { id: "next", action: "next", label: "Next", x: -0.72, y: 0.92 },
-  { id: "test-down", action: "adjustRobustness", label: "Test -", x: 0.08, y: 0.92, payload: { delta: -15 } },
-  { id: "test-up", action: "adjustRobustness", label: "Test +", x: 0.82, y: 0.92, payload: { delta: 15 } },
-  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 1.56, y: 0.92 },
+  { id: "back", action: "back", label: "Back", x: -1.46 },
+  { id: "next", action: "next", label: "Next", x: -0.72 },
+  { id: "test-down", action: "adjustRobustness", label: "Test -", x: 0.08, payload: { delta: -15 } },
+  { id: "test-up", action: "adjustRobustness", label: "Test +", x: 0.82, payload: { delta: 15 } },
+  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 1.56 },
 ];
 
 export function createGalleryApp({ canvas, ui, onAction }) {
@@ -25,14 +42,14 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   scene.background = new THREE.Color("#080d0f");
 
   const camera = new THREE.PerspectiveCamera(64, window.innerWidth / window.innerHeight, 0.05, 80);
-  camera.position.set(0, 1.55, 4.8);
+  camera.position.set(0, 1.55, LAYOUT.desktopCameraZ);
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 1.46, -1.9);
+  controls.target.set(0, 1.5, LAYOUT.desktopTargetZ);
   controls.enablePan = false;
   controls.enableZoom = true;
-  controls.minDistance = 3.8;
-  controls.maxDistance = 5.8;
+  controls.minDistance = 4.8;
+  controls.maxDistance = 7.4;
   controls.rotateSpeed = 0.55;
   controls.minPolarAngle = Math.PI * 0.34;
   controls.maxPolarAngle = Math.PI * 0.58;
@@ -178,10 +195,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     if (!currentSession) controls.update();
     if (!currentState.settings.reducedMotion) {
       const float = Math.sin(time * 0.0012) * 0.025;
-      panels.map.position.y = 1.65 + float;
-      panels.chart.position.y = 1.65 - float * 0.75;
-      panels.task.position.y = 1.55 + float * 0.45;
-      panels.side.position.y = 1.45 - float * 0.4;
+      panels.map.position.y = LAYOUT.panelY + float;
+      panels.chart.position.y = LAYOUT.panelY - float * 0.75;
+      panels.task.position.y = LAYOUT.panelY - 0.08 + float * 0.45;
+      panels.side.position.y = LAYOUT.panelY - 0.24 - float * 0.4;
     }
     updateControllerHover(controllers, raycaster, interactive, (controlId) => {
       if (controlId !== hoverControl) {
@@ -211,7 +228,7 @@ function createWorld(scene) {
   scene.add(room);
 
   const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(9, 8),
+    new THREE.PlaneGeometry(10, 10),
     new THREE.MeshStandardMaterial({
       color: "#121719",
       roughness: 0.72,
@@ -219,30 +236,30 @@ function createWorld(scene) {
     }),
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(0, 0, -1.2);
+  floor.position.set(0, 0, LAYOUT.floorZ);
   room.add(floor);
 
-  const grid = new THREE.GridHelper(9, 18, "#2b3e41", "#223034");
-  grid.position.set(0, 0.01, -1.2);
+  const grid = new THREE.GridHelper(10, 20, "#2b3e41", "#223034");
+  grid.position.set(0, 0.01, LAYOUT.floorZ);
   room.add(grid);
 
   const backWall = new THREE.Mesh(
     new THREE.PlaneGeometry(9, 3.6),
     new THREE.MeshStandardMaterial({ color: "#11191c", roughness: 0.82 }),
   );
-  backWall.position.set(0, 1.8, -4.2);
+  backWall.position.set(0, 1.8, LAYOUT.wallZ);
   room.add(backWall);
 
   const leftWall = new THREE.Mesh(
-    new THREE.PlaneGeometry(7.2, 3.6),
+    new THREE.PlaneGeometry(9.2, 3.6),
     new THREE.MeshStandardMaterial({ color: "#0e1518", roughness: 0.86 }),
   );
-  leftWall.position.set(-4.5, 1.8, -1.1);
+  leftWall.position.set(-5, 1.8, -2.4);
   leftWall.rotation.y = Math.PI / 2;
   room.add(leftWall);
 
   const rightWall = leftWall.clone();
-  rightWall.position.x = 4.5;
+  rightWall.position.x = 5;
   rightWall.rotation.y = -Math.PI / 2;
   room.add(rightWall);
 
@@ -250,7 +267,7 @@ function createWorld(scene) {
     new THREE.BoxGeometry(7.1, 0.06, 0.08),
     new THREE.MeshStandardMaterial({ color: "#202b2e", roughness: 0.5 }),
   );
-  ceilingRail.position.set(0, 3.38, -2.6);
+  ceilingRail.position.set(0, 3.38, -3.85);
   room.add(ceilingRail);
 
   for (const x of [-2.6, 0, 2.6]) {
@@ -258,7 +275,7 @@ function createWorld(scene) {
       new THREE.BoxGeometry(1.6, 0.06, 0.08),
       new THREE.MeshBasicMaterial({ color: "#f8f6ee" }),
     );
-    lightBar.position.set(x, 3.24, -2.9);
+    lightBar.position.set(x, 3.24, -4.1);
     room.add(lightBar);
   }
 
@@ -272,22 +289,22 @@ function createWorld(scene) {
     new THREE.PlaneGeometry(8.6, 0.08),
     new THREE.MeshBasicMaterial({ color: "#245f5b", transparent: true, opacity: 0.55 }),
   );
-  accent.position.set(0, 0.02, -1.6);
+  accent.position.set(0, 0.02, -2.65);
   accent.rotation.x = -Math.PI / 2;
   room.add(accent);
 
   const workbenchTop = new THREE.Mesh(
-    new THREE.BoxGeometry(3.8, 0.1, 1.15),
+    new THREE.BoxGeometry(3.8, 0.08, 1.02),
     new THREE.MeshStandardMaterial({ color: "#182124", roughness: 0.68, metalness: 0.08 }),
   );
-  workbenchTop.position.set(0, 0.72, -1.32);
+  workbenchTop.position.set(0, LAYOUT.workbenchY, LAYOUT.workbenchZ);
   room.add(workbenchTop);
 
   const workbenchEdge = new THREE.Mesh(
-    new THREE.BoxGeometry(3.92, 0.08, 1.28),
+    new THREE.BoxGeometry(3.92, 0.07, 1.14),
     new THREE.MeshStandardMaterial({ color: "#2b383b", roughness: 0.56 }),
   );
-  workbenchEdge.position.set(0, 0.66, -1.32);
+  workbenchEdge.position.set(0, LAYOUT.workbenchY - 0.06, LAYOUT.workbenchZ);
   room.add(workbenchEdge);
 
   return { room, accent };
@@ -296,11 +313,11 @@ function createWorld(scene) {
 function createPanels(scene) {
   const group = new THREE.Group();
   scene.add(group);
-  const map = panelMesh("map", [-2.62, 1.65, -2.58], [0, 0.25, 0], PANEL_W, PANEL_H);
-  const task = panelMesh("task", [0, 1.55, -2.36], [0, 0, 0], 2.35, 2.05);
-  const chart = panelMesh("chart", [2.62, 1.65, -2.58], [0, -0.25, 0], PANEL_W, PANEL_H);
-  const side = panelMesh("side", [4.02, 1.45, -1.12], [0, -Math.PI / 2, 0], 1.52, 2.08);
-  const caption = panelMesh("caption", [0, 0.52, -1.48], [-0.18, 0, 0], 3.15, 0.62);
+  const map = panelMesh("map", [-2.62, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.2, 0], PANEL_W, PANEL_H);
+  const task = panelMesh("task", [0, LAYOUT.panelY - 0.08, LAYOUT.taskZ], [0, 0, 0], 2.35, 2.05);
+  const chart = panelMesh("chart", [2.62, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.2, 0], PANEL_W, PANEL_H);
+  const side = panelMesh("side", [LAYOUT.sideX, LAYOUT.panelY - 0.24, LAYOUT.sideZ], [0, -1.18, 0], 1.52, 2.08);
+  const caption = panelMesh("caption", [0, LAYOUT.captionY, LAYOUT.captionZ], [-0.28, 0, 0], 3.05, 0.56);
   [map, task, chart, side, caption].forEach((panel) => group.add(panel));
   return { group, map, task, chart, side, caption };
 }
@@ -329,9 +346,9 @@ function createButtons(scene) {
   return BUTTONS.map((button) => {
     const texture = textureFromCanvas(createButtonTexture(button.label, false));
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, toneMapped: false });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.22), material);
-    mesh.position.set(button.x, button.y, -0.62);
-    mesh.rotation.x = -0.1;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.2), material);
+    mesh.position.set(button.x, LAYOUT.buttonY, LAYOUT.buttonZ);
+    mesh.rotation.x = -0.18;
     mesh.visible = false;
     mesh.userData.controlId = button.id;
     mesh.userData.action = button.action;
