@@ -184,8 +184,10 @@ function initialSceneIndex() {
 function initialWorkbenchOverrides() {
   const params = new URLSearchParams(window.location.search);
   const overrides = {};
-  const robustness = Number(params.get("robustness"));
-  if (Number.isFinite(robustness)) overrides.robustness = clamp(robustness, 0, 100);
+  if (params.has("robustness")) {
+    const robustness = Number(params.get("robustness"));
+    if (Number.isFinite(robustness)) overrides.robustness = clamp(robustness, 0, 100);
+  }
   if (params.has("reveal")) {
     overrides.revealRedesign = ["1", "true", "yes"].includes(params.get("reveal")?.toLowerCase());
   }

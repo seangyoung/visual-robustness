@@ -65,6 +65,21 @@ export function createButtonTexture(label, active = false) {
   return canvas;
 }
 
+export function createComparisonCardTexture(design, rank, active = false) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 760;
+  canvas.height = 1080;
+  const ctx = canvas.getContext("2d");
+  drawComparisonCard(ctx, design, 46, 46, 668, 988, rank);
+  if (active) {
+    ctx.strokeStyle = "#2d837b";
+    ctx.lineWidth = 14;
+    roundRect(ctx, 32, 32, canvas.width - 64, canvas.height - 64, 26);
+    ctx.stroke();
+  }
+  return canvas;
+}
+
 function drawOrientationPanel(ctx, canvas, kind, scene, state) {
   if (kind === "task") {
     drawTaskPanel(ctx, canvas, scene, state, {
@@ -251,7 +266,7 @@ function drawComparisonPanel(ctx, canvas, kind, scene, state) {
   }
 
   drawSidePanel(ctx, canvas, scene, state, [
-    "In VR, use the A/B/C earlier and later buttons below the ranked set, then select Check.",
+    "In VR, point at a card, hold trigger or grip, drag it to a rank slot, and release.",
     "Look for redundant cues rather than better-looking colors alone.",
     "Ask whether fewer classes clarify the task or hide needed detail.",
     "Notice whether legend lookup is doing too much interpretive work.",
@@ -289,7 +304,7 @@ function comparisonTaskCopy(state) {
   }
 
   return {
-    lead: "Browser: drag cards. VR: select A/B/C earlier or later below the ranked set, then select Check.",
+    lead: "Browser: drag cards. VR: grab a card with trigger or grip, drop it into a rank slot, then select Check.",
     hint: "Use the visual evidence, not a score. A strong explanation names the encoding strategy, not just the palette.",
   };
 }
@@ -639,7 +654,7 @@ function drawComparisonCard(ctx, design, x, y, w, h, rank) {
   wrapText(ctx, design.summary, x + 36, y + 405, w - 72, 38);
   ctx.fillStyle = "#536164";
   ctx.font = "700 22px Arial";
-  ctx.fillText("Use the ranking panel to reorder.", x + 36, y + h - 58);
+  ctx.fillText("Drag to reorder, then Check.", x + 36, y + h - 58);
 }
 
 function drawComparisonThumbnail(ctx, id, x, y, w, h) {

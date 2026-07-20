@@ -62,7 +62,7 @@ export const moduleScenes = [
     prompt:
       "Three designs show the same message with different levels of perceptual robustness.",
     task:
-      "Rank the designs. Browser: drag cards. VR: use A/B/C earlier or later, then Check.",
+      "Rank the designs. Browser: drag cards. VR: grab and drop cards into rank slots, then Check.",
     status: "Scene 3: rank designs by robustness and inspect why each one succeeds or fails.",
     workbenchTitle: "Ranking bench",
     defaultWorkbench: { robustness: 55, revealRedesign: true },

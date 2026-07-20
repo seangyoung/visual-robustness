@@ -1,8 +1,12 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
-import { moduleScenes, MODULE_SUBTITLE, MODULE_TITLE } from "../config/lesson.js";
-import { createButtonTexture, createPanelTexture } from "../visualizations/colorFragility.js";
+import { comparisonDesigns, moduleScenes, MODULE_SUBTITLE, MODULE_TITLE } from "../config/lesson.js";
+import {
+  createButtonTexture,
+  createComparisonCardTexture,
+  createPanelTexture,
+} from "../visualizations/colorFragility.js";
 
 const PANEL_W = 3.3;
 const PANEL_H = 2.28;
@@ -24,68 +28,25 @@ const LAYOUT = {
   captionZ: -2.12,
 };
 const BUTTONS = [
-  { id: "back", action: "back", label: "Back", x: -1.46 },
-  { id: "next", action: "next", label: "Next", x: -0.72 },
-  { id: "test-down", action: "adjustRobustness", label: "Test -", x: 0.08, payload: { delta: -15 } },
-  { id: "test-up", action: "adjustRobustness", label: "Test +", x: 0.82, payload: { delta: 15 } },
-  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 1.56 },
+  { id: "back", action: "back", label: "Back", x: -0.84 },
+  { id: "next", action: "next", label: "Next", x: 0 },
+  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 0.84 },
 ];
-const RANKING_BUTTONS = [
-  { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 1.16, z: -3.2, width: 1.02 },
-  {
-    id: "rank-a-earlier",
-    action: "moveRank",
-    label: "A earlier",
-    x: -3.34,
-    y: 0.9,
-    z: -3.18,
-    payload: { id: "redundant", direction: -1 },
-  },
-  {
-    id: "rank-b-earlier",
-    action: "moveRank",
-    label: "B earlier",
-    x: -2.62,
-    y: 0.9,
-    z: -3.18,
-    payload: { id: "simplified", direction: -1 },
-  },
-  {
-    id: "rank-c-earlier",
-    action: "moveRank",
-    label: "C earlier",
-    x: -1.9,
-    y: 0.9,
-    z: -3.18,
-    payload: { id: "hue-only", direction: -1 },
-  },
-  {
-    id: "rank-a-later",
-    action: "moveRank",
-    label: "A later",
-    x: -3.34,
-    y: 0.68,
-    z: -3.1,
-    payload: { id: "redundant", direction: 1 },
-  },
-  {
-    id: "rank-b-later",
-    action: "moveRank",
-    label: "B later",
-    x: -2.62,
-    y: 0.68,
-    z: -3.1,
-    payload: { id: "simplified", direction: 1 },
-  },
-  {
-    id: "rank-c-later",
-    action: "moveRank",
-    label: "C later",
-    x: -1.9,
-    y: 0.68,
-    z: -3.1,
-    payload: { id: "hue-only", direction: 1 },
-  },
+const CHECK_BUTTONS = [
+  { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
+];
+const SLIDER_WIDTH = 1.55;
+const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
+const SLIDER_MAX_X = SLIDER_WIDTH / 2;
+const SLIDER_CENTER = new THREE.Vector3(0.08, 0.96, -1.86);
+const RANK_CARD_W = 0.82;
+const RANK_CARD_H = 1.22;
+const RANK_CARD_Z = -3.54;
+const RANK_CARD_Y = 1.76;
+const RANK_CARD_SLOTS = [
+  new THREE.Vector3(-3.62, RANK_CARD_Y, RANK_CARD_Z),
+  new THREE.Vector3(-2.62, RANK_CARD_Y, RANK_CARD_Z),
+  new THREE.Vector3(-1.62, RANK_CARD_Y, RANK_CARD_Z),
 ];
 
 export function createGalleryApp({ canvas, ui, onAction }) {
@@ -115,14 +76,21 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   const world = createWorld(scene);
   const panels = createPanels(scene);
   const mainButtons = createButtons(scene, BUTTONS);
-  const rankingButtons = createButtons(scene, RANKING_BUTTONS, { width: 0.68, height: 0.18, rotationX: -0.24 });
-  const inWorldButtons = [...mainButtons, ...rankingButtons];
+  const checkButtons = createButtons(scene, CHECK_BUTTONS, { width: 0.82, height: 0.2, rotationX: -0.18 });
+  const inWorldButtons = [...mainButtons, ...checkButtons];
+  const robustnessSlider = createRobustnessSlider(scene);
+  const rankingSet = createRankingSet(scene);
   const controllers = createControllers(renderer, scene);
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
-  const interactive = inWorldButtons.map((button) => button.mesh);
+  const interactive = [
+    ...inWorldButtons.map((button) => button.mesh),
+    robustnessSlider.handle,
+    ...rankingSet.cards.map((card) => card.mesh),
+  ];
 
   let hoverControl = null;
+  let dragState = null;
   let currentState = {
     sceneIndex: 0,
     settings: ui.getSettings(),
@@ -136,14 +104,17 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     currentState = state;
     const sceneState = moduleScenes[state.sceneIndex];
     const isImmersive = Boolean(currentSession);
-    updateInWorldControlVisibility(mainButtons, rankingButtons, sceneState, isImmersive);
+    updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSlider, rankingSet, sceneState, isImmersive);
     panels.side.visible = isImmersive;
     panels.caption.visible = isImmersive;
+    panels.map.visible = !(isImmersive && sceneState.type === "comparison");
     updatePanel(panels.map, "map", sceneState, state);
     updatePanel(panels.task, "task", sceneState, state);
     updatePanel(panels.chart, "chart", sceneState, state);
     updatePanel(panels.side, "side", sceneState, state);
     updateButtonTextures(inWorldButtons, hoverControl);
+    updateRobustnessSlider(robustnessSlider, state.workbench.robustness, hoverControl, dragState);
+    updateRankingSet(rankingSet, state, hoverControl, dragState);
     panels.caption.material.map = textureFromCanvas(createCaptionTexture(sceneState, state));
     panels.caption.material.map.needsUpdate = true;
     panels.caption.material.needsUpdate = true;
@@ -165,11 +136,23 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
       });
       currentSession = session;
-      updateInWorldControlVisibility(mainButtons, rankingButtons, moduleScenes[currentState.sceneIndex], true);
+      updateInWorldControlVisibility(
+        mainButtons,
+        checkButtons,
+        robustnessSlider,
+        rankingSet,
+        moduleScenes[currentState.sceneIndex],
+        true,
+      );
       session.addEventListener("end", () => {
         currentSession = null;
+        dragState = null;
         setInWorldControlsVisible(inWorldButtons, false);
+        robustnessSlider.group.visible = false;
+        rankingSet.group.visible = false;
+        panels.map.visible = true;
         ui.setVrMode(false);
+        renderState(currentState);
       });
       await renderer.xr.setSession(session);
       ui.setVrMode(true);
@@ -207,7 +190,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(interactive, false)[0];
+    const hit = raycaster.intersectObjects(getVisibleInteractiveObjects(interactive), false)[0];
     const nextHover = hit?.object.userData.controlId ?? null;
     if (nextHover !== hoverControl) {
       hoverControl = nextHover;
@@ -222,10 +205,87 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(interactive, false)[0];
+    const hit = raycaster.intersectObjects(getVisibleInteractiveObjects(interactive), false)[0];
     if (hit?.object.userData.action) {
       selectAction(hit.object.userData.action, hit.object.userData.payload ?? {});
     }
+  }
+
+  function beginControllerInteraction(controller) {
+    const hit = intersectController(controller, raycaster, getVisibleInteractiveObjects(interactive));
+    const target = hit?.object;
+    if (!target) return;
+
+    if (target.userData.action) {
+      pulseController(controller);
+      selectAction(target.userData.action, target.userData.payload ?? {});
+      return;
+    }
+
+    if (target.userData.kind === "slider") {
+      dragState = { type: "slider", controller };
+      hoverControl = target.userData.controlId;
+      pulseController(controller);
+      updateSliderFromController(controller);
+      updateRobustnessSlider(robustnessSlider, currentState.workbench.robustness, hoverControl, dragState);
+      return;
+    }
+
+    if (target.userData.kind === "rank-card") {
+      const card = rankingSet.cardsById.get(target.userData.designId);
+      if (!card) return;
+      dragState = { type: "rank-card", controller, card };
+      hoverControl = target.userData.controlId;
+      pulseController(controller);
+      updateDraggedRankCard(controller, card);
+      updateRankingSet(rankingSet, currentState, hoverControl, dragState);
+    }
+  }
+
+  function endControllerInteraction(controller) {
+    if (!dragState || dragState.controller !== controller) return;
+    const endedDrag = dragState;
+    dragState = null;
+
+    if (endedDrag.type === "rank-card") {
+      const nextRanking = rankingAfterDrop(currentState.ranking, endedDrag.card.id, endedDrag.card.mesh.position.x);
+      selectAction("setRanking", { ranking: nextRanking });
+      return;
+    }
+
+    updateRobustnessSlider(robustnessSlider, currentState.workbench.robustness, hoverControl, dragState);
+  }
+
+  function updateDragState(activeDrag) {
+    if (activeDrag.type === "slider") {
+      updateSliderFromController(activeDrag.controller);
+      return;
+    }
+    if (activeDrag.type === "rank-card") {
+      updateDraggedRankCard(activeDrag.controller, activeDrag.card);
+    }
+  }
+
+  function updateSliderFromController(controller) {
+    const point = controllerPlanePoint(controller, raycaster, SLIDER_CENTER.z);
+    if (!point) return;
+    const localX = clamp(point.x - SLIDER_CENTER.x, SLIDER_MIN_X, SLIDER_MAX_X);
+    const value = Math.round(((localX - SLIDER_MIN_X) / SLIDER_WIDTH) * 100);
+    if (value !== Math.round(currentState.workbench.robustness)) {
+      selectAction("setRobustness", { value });
+    }
+  }
+
+  function updateDraggedRankCard(controller, card) {
+    const point = controllerPlanePoint(controller, raycaster, RANK_CARD_Z + 0.16);
+    if (!point) return;
+    const minX = RANK_CARD_SLOTS[0].x;
+    const maxX = RANK_CARD_SLOTS[RANK_CARD_SLOTS.length - 1].x;
+    card.mesh.position.set(
+      clamp(point.x, minX, maxX),
+      clamp(point.y, RANK_CARD_Y - 0.2, RANK_CARD_Y + 0.2),
+      RANK_CARD_Z + 0.16,
+    );
   }
 
   function onResize() {
@@ -241,17 +301,15 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   window.addEventListener("resize", onResize);
 
   controllers.forEach((controller) => {
-    controller.addEventListener("selectstart", () => {
-      const hit = intersectController(controller, raycaster, interactive);
-      if (hit?.object.userData.action) {
-        pulseController(controller);
-        selectAction(hit.object.userData.action, hit.object.userData.payload ?? {});
-      }
-    });
+    controller.addEventListener("selectstart", () => beginControllerInteraction(controller));
+    controller.addEventListener("selectend", () => endControllerInteraction(controller));
+    controller.addEventListener("squeezestart", () => beginControllerInteraction(controller));
+    controller.addEventListener("squeezeend", () => endControllerInteraction(controller));
   });
 
   renderer.setAnimationLoop((time) => {
     if (!currentSession) controls.update();
+    if (dragState) updateDragState(dragState);
     if (!currentState.settings.reducedMotion) {
       const float = Math.sin(time * 0.0012) * 0.025;
       panels.map.position.y = LAYOUT.panelY + float;
@@ -263,6 +321,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       if (controlId !== hoverControl) {
         hoverControl = controlId;
         updateButtonTextures(inWorldButtons, hoverControl);
+        updateRobustnessSlider(robustnessSlider, currentState.workbench.robustness, hoverControl, dragState);
+        updateRankingSet(rankingSet, currentState, hoverControl, dragState);
       }
     });
     renderer.render(scene, camera);
@@ -413,6 +473,7 @@ function createButtons(scene, buttons, defaults = {}) {
     mesh.rotation.x = button.rotationX ?? rotationX;
     mesh.rotation.y = button.rotationY ?? 0;
     mesh.visible = false;
+    mesh.userData.kind = "button";
     mesh.userData.controlId = button.id;
     mesh.userData.action = button.action;
     mesh.userData.payload = button.payload ?? {};
@@ -421,9 +482,149 @@ function createButtons(scene, buttons, defaults = {}) {
   });
 }
 
-function updateInWorldControlVisibility(mainButtons, rankingButtons, sceneState, isImmersive) {
-  setInWorldControlsVisible(mainButtons, isImmersive);
-  setInWorldControlsVisible(rankingButtons, isImmersive && sceneState.type === "comparison");
+function createRobustnessSlider(scene) {
+  const group = new THREE.Group();
+  group.position.copy(SLIDER_CENTER);
+  group.visible = false;
+  scene.add(group);
+
+  const label = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.72, 0.32),
+    new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false }),
+  );
+  label.position.y = 0.24;
+  group.add(label);
+
+  const rail = new THREE.Mesh(
+    new THREE.BoxGeometry(SLIDER_WIDTH, 0.035, 0.05),
+    new THREE.MeshStandardMaterial({ color: "#dfe5df", roughness: 0.55 }),
+  );
+  group.add(rail);
+
+  const fill = new THREE.Mesh(
+    new THREE.BoxGeometry(SLIDER_WIDTH, 0.044, 0.058),
+    new THREE.MeshStandardMaterial({ color: "#2d837b", roughness: 0.42 }),
+  );
+  fill.position.z = 0.012;
+  group.add(fill);
+
+  const handleMaterial = new THREE.MeshStandardMaterial({
+    color: "#f8f6ee",
+    emissive: "#000000",
+    roughness: 0.38,
+    metalness: 0.04,
+  });
+  const handle = new THREE.Mesh(new THREE.SphereGeometry(0.085, 28, 18), handleMaterial);
+  handle.position.z = 0.04;
+  handle.userData.kind = "slider";
+  handle.userData.controlId = "robustness-slider";
+  group.add(handle);
+
+  return { group, label, fill, handle, handleMaterial };
+}
+
+function createRankingSet(scene) {
+  const group = new THREE.Group();
+  group.visible = false;
+  scene.add(group);
+
+  const board = new THREE.Mesh(
+    new THREE.PlaneGeometry(PANEL_W, PANEL_H),
+    new THREE.MeshBasicMaterial({ transparent: false, toneMapped: false }),
+  );
+  board.position.set(-2.62, LAYOUT.panelY, LAYOUT.panelZ + 0.04);
+  board.rotation.y = 0.2;
+  group.add(board);
+
+  const cards = comparisonDesigns.map((design) => {
+    const material = new THREE.MeshBasicMaterial({
+      map: textureFromCanvas(createComparisonCardTexture(design, 1)),
+      transparent: true,
+      toneMapped: false,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(RANK_CARD_W, RANK_CARD_H), material);
+    mesh.position.copy(RANK_CARD_SLOTS[0]);
+    mesh.userData.kind = "rank-card";
+    mesh.userData.controlId = `rank-card-${design.id}`;
+    mesh.userData.designId = design.id;
+
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(RANK_CARD_W + 0.045, RANK_CARD_H + 0.045, 0.026),
+      new THREE.MeshStandardMaterial({ color: "#263236", roughness: 0.62 }),
+    );
+    frame.position.z = -0.03;
+    mesh.add(frame);
+
+    group.add(mesh);
+    return { id: design.id, design, mesh, material, frame, rank: null };
+  });
+
+  return {
+    group,
+    board,
+    cards,
+    cardsById: new Map(cards.map((card) => [card.id, card])),
+  };
+}
+
+function updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSlider, rankingSet, sceneState, isImmersive) {
+  const supportsRedesign = sceneState.type === "color" || sceneState.type === "contrast";
+  const supportsSlider =
+    sceneState.type === "orientation" || sceneState.type === "color" || sceneState.type === "contrast";
+
+  mainButtons.forEach((button) => {
+    button.mesh.visible = isImmersive && (button.id !== "reveal" || supportsRedesign);
+  });
+  setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
+  robustnessSlider.group.visible = isImmersive && supportsSlider;
+  rankingSet.group.visible = isImmersive && sceneState.type === "comparison";
+}
+
+function updateRobustnessSlider(slider, value, hoverControl, dragState) {
+  const normalized = clamp(value / 100, 0, 1);
+  const x = SLIDER_MIN_X + normalized * SLIDER_WIDTH;
+  const active = hoverControl === slider.handle.userData.controlId || dragState?.type === "slider";
+  const oldMap = slider.label.material.map;
+
+  slider.handle.position.x = x;
+  slider.handle.scale.setScalar(active ? 1.16 : 1);
+  slider.handleMaterial.color.set(active ? "#ffffff" : "#f8f6ee");
+  slider.handleMaterial.emissive.set(active ? "#123331" : "#000000");
+  slider.fill.scale.x = Math.max(normalized, 0.001);
+  slider.fill.position.x = SLIDER_MIN_X + (SLIDER_WIDTH * normalized) / 2;
+  slider.label.material.map = textureFromCanvas(createSliderLabelTexture(value, active));
+  slider.label.material.map.needsUpdate = true;
+  slider.label.material.needsUpdate = true;
+  if (oldMap) oldMap.dispose();
+}
+
+function updateRankingSet(rankingSet, state, hoverControl, dragState) {
+  const oldBoardMap = rankingSet.board.material.map;
+  rankingSet.board.material.map = textureFromCanvas(createRankingBoardTexture(state));
+  rankingSet.board.material.map.needsUpdate = true;
+  rankingSet.board.material.needsUpdate = true;
+  if (oldBoardMap) oldBoardMap.dispose();
+
+  state.ranking.forEach((id, index) => {
+    const card = rankingSet.cardsById.get(id);
+    if (!card) return;
+    const isDragging = dragState?.type === "rank-card" && dragState.card.id === id;
+    const isHovered = hoverControl === card.mesh.userData.controlId || isDragging;
+    if (card.rank !== index + 1 || card.isHovered !== isHovered) {
+      const oldMap = card.material.map;
+      card.material.map = textureFromCanvas(createComparisonCardTexture(card.design, index + 1, isHovered));
+      card.material.map.needsUpdate = true;
+      card.rank = index + 1;
+      card.isHovered = isHovered;
+      if (oldMap) oldMap.dispose();
+    }
+    if (!isDragging) {
+      card.mesh.position.copy(RANK_CARD_SLOTS[index]);
+      card.mesh.position.z += index * 0.012;
+    }
+    card.mesh.scale.setScalar(isHovered ? 1.045 : 1);
+    card.frame.material.color.set(isHovered ? "#2d837b" : "#263236");
+  });
 }
 
 function setInWorldControlsVisible(buttons, visible) {
@@ -443,7 +644,7 @@ function createControllers(renderer, scene) {
     const controller = renderer.xr.getController(index);
     controller.userData.index = index;
     const ray = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -4)]),
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -7)]),
       new THREE.LineBasicMaterial({ color: "#8be0d5", transparent: true, opacity: 0.75 }),
     );
     ray.name = "controller-ray";
@@ -510,6 +711,69 @@ function createCaptionTexture(sceneState, state) {
   return canvas;
 }
 
+function createSliderLabelTexture(value, active) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 900;
+  canvas.height = 180;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = active ? "#132628" : "#11191c";
+  roundRect(ctx, 12, 14, canvas.width - 24, canvas.height - 28, 18);
+  ctx.fill();
+  ctx.strokeStyle = active ? "#88e0d6" : "#3d4d50";
+  ctx.lineWidth = active ? 7 : 4;
+  roundRect(ctx, 12, 14, canvas.width - 24, canvas.height - 28, 18);
+  ctx.stroke();
+  ctx.fillStyle = "#f8f6ee";
+  ctx.font = "900 44px Arial";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Robustness Test", 52, 90);
+  ctx.fillStyle = active ? "#88e0d6" : "#c5ccc7";
+  ctx.font = "900 42px Arial";
+  ctx.textAlign = "right";
+  ctx.fillText(`${Math.round(value)}%`, canvas.width - 52, 90);
+  return canvas;
+}
+
+function createRankingBoardTexture(state) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1400;
+  canvas.height = 980;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = state.settings.highContrast ? "#ffffff" : "#f8f6ee";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = state.settings.highContrast ? "#111719" : "#d3d8d2";
+  ctx.lineWidth = 12;
+  ctx.strokeRect(6, 6, canvas.width - 12, canvas.height - 12);
+  ctx.fillStyle = "#151d20";
+  ctx.font = "900 52px Arial";
+  ctx.fillText("Ranked design set", 84, 88);
+  ctx.fillStyle = "#536164";
+  ctx.font = "700 28px Arial";
+  ctx.fillText("Most robust to least robust", 86, 126);
+
+  const slots = ["Most robust", "Middle", "Least robust"];
+  slots.forEach((label, index) => {
+    const x = 96 + index * 420;
+    ctx.fillStyle = "#e7ece7";
+    roundRect(ctx, x, 188, 360, 640, 18);
+    ctx.fill();
+    ctx.strokeStyle = "#bfc8c0";
+    ctx.lineWidth = 5;
+    roundRect(ctx, x, 188, 360, 640, 18);
+    ctx.stroke();
+    ctx.fillStyle = "#151d20";
+    ctx.font = "900 30px Arial";
+    ctx.fillText(`${index + 1}. ${label}`, x + 34, 878);
+  });
+
+  ctx.fillStyle = "#536164";
+  ctx.font = "700 25px Arial";
+  ctx.fillText("Point, hold trigger or grip, drag a card, and release into a slot. Then select Check.", 96, 932);
+  return canvas;
+}
+
 function textureFromCanvas(canvas) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -518,16 +782,27 @@ function textureFromCanvas(canvas) {
   return texture;
 }
 
-function intersectController(controller, raycaster, objects) {
+function setRayFromController(controller, raycaster) {
   const tempMatrix = new THREE.Matrix4();
   tempMatrix.identity().extractRotation(controller.matrixWorld);
   raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
   raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+}
+
+function intersectController(controller, raycaster, objects) {
+  setRayFromController(controller, raycaster);
   return raycaster.intersectObjects(objects, false)[0] ?? null;
 }
 
+function controllerPlanePoint(controller, raycaster, z) {
+  setRayFromController(controller, raycaster);
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -z);
+  const point = new THREE.Vector3();
+  return raycaster.ray.intersectPlane(plane, point) ? point : null;
+}
+
 function updateControllerHover(controllers, raycaster, objects, onHover) {
-  const visibleObjects = objects.filter((object) => object.visible);
+  const visibleObjects = getVisibleInteractiveObjects(objects);
   if (!visibleObjects.length) {
     onHover(null);
     return;
@@ -535,7 +810,7 @@ function updateControllerHover(controllers, raycaster, objects, onHover) {
   for (const controller of controllers) {
     if (!controller.visible) continue;
     const hit = intersectController(controller, raycaster, visibleObjects);
-    if (hit?.object.userData.action) {
+    if (hit?.object.userData.controlId) {
       onHover(hit.object.userData.controlId);
       return;
     }
@@ -543,10 +818,40 @@ function updateControllerHover(controllers, raycaster, objects, onHover) {
   onHover(null);
 }
 
+function getVisibleInteractiveObjects(objects) {
+  return objects.filter((object) => isObjectVisibleInWorld(object));
+}
+
+function isObjectVisibleInWorld(object) {
+  let current = object;
+  while (current) {
+    if (!current.visible) return false;
+    current = current.parent;
+  }
+  return true;
+}
+
+function rankingAfterDrop(ranking, droppedId, droppedX) {
+  const targetIndex = RANK_CARD_SLOTS.reduce(
+    (best, slot, index) => {
+      const distance = Math.abs(slot.x - droppedX);
+      return distance < best.distance ? { index, distance } : best;
+    },
+    { index: 0, distance: Number.POSITIVE_INFINITY },
+  ).index;
+  const next = ranking.filter((id) => id !== droppedId);
+  next.splice(targetIndex, 0, droppedId);
+  return next;
+}
+
 function pulseController(controller) {
   const gamepad = controller.inputSource?.gamepad;
   const actuator = gamepad?.hapticActuators?.[0];
   if (actuator?.pulse) actuator.pulse(0.35, 60);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
