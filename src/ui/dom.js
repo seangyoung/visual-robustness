@@ -34,6 +34,7 @@ export function createDomUi({
     nextExample: document.getElementById("next-example"),
     robustnessSlider: document.getElementById("robustness-slider"),
     robustnessValue: document.getElementById("robustness-value"),
+    stressTestTicks: document.getElementById("stress-test-ticks"),
     revealRedesign: document.getElementById("reveal-redesign"),
     revealRedesignLabel: document.getElementById("reveal-redesign-label"),
     rankingPanel: document.getElementById("ranking-panel"),
@@ -120,6 +121,7 @@ export function createDomUi({
       elements.robustnessValue.textContent = stressTest.shortLabel;
       elements.robustnessValue.title = stressTest.description;
       elements.robustnessSlider.disabled = !supportsRobustness;
+      renderStressTestTicks(elements, stressTestIndex, supportsRobustness);
 
       elements.revealRedesign.checked = state.workbench.revealRedesign;
       elements.revealRedesign.disabled = !supportsRedesign;
@@ -151,6 +153,20 @@ export function createDomUi({
     },
     getSettings: () => getSettings(elements),
   };
+}
+
+function renderStressTestTicks(elements, activeIndex, enabled) {
+  elements.stressTestTicks.style.gridTemplateColumns = `repeat(${stressTests.length}, minmax(0, 1fr))`;
+  elements.stressTestTicks.replaceChildren(
+    ...stressTests.map((test, index) => {
+      const tick = document.createElement("span");
+      tick.className = "stress-test-tick";
+      tick.classList.toggle("is-active", index === activeIndex);
+      tick.classList.toggle("is-disabled", !enabled);
+      tick.title = test.label;
+      return tick;
+    }),
+  );
 }
 
 function renderRanking(elements, ranking, onAction) {

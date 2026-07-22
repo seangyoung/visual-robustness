@@ -541,10 +541,10 @@ function createRobustnessSlider(scene) {
   scene.add(group);
 
   const label = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.9, 0.36),
+    new THREE.PlaneGeometry(1.58, 0.2),
     new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false }),
   );
-  label.position.y = 0.27;
+  label.position.y = 0.22;
   group.add(label);
 
   const hitArea = new THREE.Mesh(
@@ -810,28 +810,28 @@ function buttonTextureSpec(button, state) {
 
 function createSliderLabelTexture(stressTest, active) {
   const canvas = document.createElement("canvas");
-  canvas.width = 980;
-  canvas.height = 210;
+  canvas.width = 900;
+  canvas.height = 140;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = active ? "#132628" : "#11191c";
-  roundRect(ctx, 12, 14, canvas.width - 24, canvas.height - 28, 18);
+  roundRect(ctx, 10, 10, canvas.width - 20, canvas.height - 20, 14);
   ctx.fill();
   ctx.strokeStyle = active ? "#88e0d6" : "#3d4d50";
-  ctx.lineWidth = active ? 7 : 4;
-  roundRect(ctx, 12, 14, canvas.width - 24, canvas.height - 28, 18);
+  ctx.lineWidth = active ? 6 : 3;
+  roundRect(ctx, 10, 10, canvas.width - 20, canvas.height - 20, 14);
   ctx.stroke();
   ctx.fillStyle = "#f8f6ee";
-  ctx.font = "900 43px Arial";
+  ctx.font = "900 28px Arial";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("Stress Test", 52, 76);
+  ctx.fillText("Stress Test", 38, 50);
   ctx.fillStyle = active ? "#88e0d6" : "#c5ccc7";
-  ctx.font = "900 38px Arial";
-  ctx.fillText(stressTest.shortLabel, 52, 136);
+  ctx.font = "900 29px Arial";
+  ctx.fillText(stressTest.shortLabel, 38, 96);
   ctx.fillStyle = "#9eadac";
-  ctx.font = "700 24px Arial";
+  ctx.font = "700 20px Arial";
   ctx.textAlign = "right";
-  ctx.fillText(`${stressTests.indexOf(stressTest) + 1}/${stressTests.length}`, canvas.width - 52, 136);
+  ctx.fillText(`${stressTests.indexOf(stressTest) + 1}/${stressTests.length}`, canvas.width - 38, 96);
   return canvas;
 }
 

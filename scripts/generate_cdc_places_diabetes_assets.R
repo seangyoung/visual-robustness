@@ -3,6 +3,7 @@
 suppressPackageStartupMessages({
   library(dplyr)
   library(ggplot2)
+  library(grid)
   library(readr)
   library(sf)
   library(tigris)
@@ -213,12 +214,7 @@ map_theme <- function() {
       plot.title = element_text(color = "#151d20", face = "bold", size = 22, margin = margin(b = 3)),
       plot.subtitle = element_text(color = "#4c5a5d", size = 11, margin = margin(b = 12)),
       plot.caption = element_text(color = "#687375", size = 8, hjust = 0, margin = margin(t = 12)),
-      legend.position = c(0.83, 0.24),
-      legend.title = element_text(color = "#151d20", face = "bold", size = 9),
-      legend.text = element_text(color = "#283235", size = 8),
-      legend.background = element_rect(fill = "#f8f6ee", color = "#d4d9d3", linewidth = 0.35),
-      legend.key.height = unit(13, "pt"),
-      legend.key.width = unit(18, "pt"),
+      legend.position = "none",
       plot.margin = margin(24, 28, 20, 28)
     )
 }
@@ -252,6 +248,82 @@ average_caption <- sprintf(
   "Estimated Texas average: %.1f%% (county population-weighted).",
   texas_average
 )
+
+map_legend_grob <- function(title, labels, palette, stipple_labels = character()) {
+  x <- unit(0.092, "npc")
+  y <- unit(0.79, "npc")
+  width <- unit(0.2, "npc")
+  title_height <- unit(0.033, "npc")
+  row_height <- unit(0.025, "npc")
+  padding_x <- unit(0.012, "npc")
+  padding_top <- unit(0.013, "npc")
+  padding_bottom <- unit(0.012, "npc")
+  height <- padding_top + title_height + row_height * length(labels) + padding_bottom
+
+  grobs <- list(
+    rectGrob(
+      x = x,
+      y = y,
+      width = width,
+      height = height,
+      just = c("left", "top"),
+      gp = gpar(fill = "#f8f6ee", col = "#d4d9d3", lwd = 0.7)
+    ),
+    textGrob(
+      title,
+      x = x + padding_x,
+      y = y - padding_top,
+      just = c("left", "top"),
+      gp = gpar(col = "#151d20", fontsize = 9, fontface = "bold", fontfamily = "Arial")
+    )
+  )
+
+  key_left <- x + padding_x
+  key_width <- unit(0.034, "npc")
+  key_height <- unit(0.017, "npc")
+  label_x <- key_left + key_width + unit(0.01, "npc")
+
+  for (index in seq_along(labels)) {
+    label <- labels[[index]]
+    row_y <- y - padding_top - title_height - row_height * (index - 0.5)
+    fill <- unname(palette[[label]])
+
+    grobs <- append(grobs, list(
+      rectGrob(
+        x = key_left,
+        y = row_y,
+        width = key_width,
+        height = key_height,
+        just = c("left", "center"),
+        gp = gpar(fill = fill, col = "#d4d9d3", lwd = 0.6)
+      )
+    ))
+
+    if (label %in% stipple_labels) {
+      grobs <- append(grobs, list(
+        pointsGrob(
+          x = key_left + unit(rep(c(0.007, 0.016, 0.025), 2), "npc"),
+          y = row_y + unit(rep(c(-0.004, 0.004), each = 3), "npc"),
+          pch = 16,
+          size = unit(0.55, "mm"),
+          gp = gpar(col = "#151d20", alpha = 0.68)
+        )
+      ))
+    }
+
+    grobs <- append(grobs, list(
+      textGrob(
+        label,
+        x = label_x,
+        y = row_y,
+        just = c("left", "center"),
+        gp = gpar(col = "#283235", fontsize = 8, fontfamily = "Arial")
+      )
+    ))
+  }
+
+  do.call(grobTree, grobs)
+}
 
 baseline_map <- ggplot(tx_map) +
   geom_sf(aes(fill = diabetes_class), color = "#ffffff", linewidth = 0.12) +
@@ -474,21 +546,45 @@ diverging_chart_redesign <- ggplot(
   ) +
   chart_theme()
 
-save_png <- function(plot, filename) {
+save_png <- function(plot, filename, legend = NULL) {
   path <- file.path(output_dir, filename)
   ragg::agg_png(path, width = 1400, height = 980, units = "px", res = 144, background = "#f8f6ee")
   print(plot)
+  if (!is.null(legend)) {
+    grid.draw(legend)
+  }
   dev.off()
   message("Wrote ", normalizePath(path))
 }
 
-save_png(baseline_map, "cdc-places-diabetes-map-baseline.png")
+save_png(
+  baseline_map,
+  "cdc-places-diabetes-map-baseline.png",
+  legend = map_legend_grob("Diagnosed diabetes", rev(class_labels), fragile_palette)
+)
 save_png(baseline_chart, "cdc-places-diabetes-chart-baseline.png")
-save_png(redesign_map, "cdc-places-diabetes-map-redesign.png")
+save_png(
+  redesign_map,
+  "cdc-places-diabetes-map-redesign.png",
+  legend = map_legend_grob("Diagnosed diabetes", rev(class_labels), robust_palette)
+)
 save_png(redesign_chart, "cdc-places-diabetes-chart-redesign.png")
-save_png(diverging_map_baseline, "cdc-places-diabetes-diverging-map-baseline.png")
+save_png(
+  diverging_map_baseline,
+  "cdc-places-diabetes-diverging-map-baseline.png",
+  legend = map_legend_grob("Difference", rev(deviation_labels), diverging_palette)
+)
 save_png(diverging_chart_baseline, "cdc-places-diabetes-diverging-chart-baseline.png")
-save_png(diverging_map_redesign, "cdc-places-diabetes-diverging-map-redesign.png")
+save_png(
+  diverging_map_redesign,
+  "cdc-places-diabetes-diverging-map-redesign.png",
+  legend = map_legend_grob(
+    "Difference",
+    rev(deviation_labels),
+    diverging_redesign_palette,
+    stipple_labels = rev(deviation_labels)[grepl("above", rev(deviation_labels))]
+  )
+)
 save_png(diverging_chart_redesign, "cdc-places-diabetes-diverging-chart-redesign.png")
 
 readr::write_csv(

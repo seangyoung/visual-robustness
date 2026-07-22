@@ -298,6 +298,43 @@ input[type="range"] {
   accent-color: var(--teal);
 }
 
+.stress-test-ticks {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: start;
+  height: 16px;
+  margin: -6px 0 2px;
+  padding: 0 7px;
+  pointer-events: none;
+}
+
+.stress-test-tick {
+  position: relative;
+  height: 16px;
+}
+
+.stress-test-tick::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(248, 246, 238, 0.5);
+  transform: translateX(-50%);
+}
+
+.stress-test-tick.is-active::before {
+  width: 4px;
+  height: 13px;
+  background: var(--amber);
+}
+
+.stress-test-tick.is-disabled {
+  opacity: 0.42;
+}
+
 input[type="range"]:disabled,
 .toggle-control input:disabled + span {
   opacity: 0.45;
