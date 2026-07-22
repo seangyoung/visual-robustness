@@ -1,5 +1,5 @@
 import "./styles.css";
-import { moduleScenes, recommendedComparisonRanking, reflectionPrompts } from "./config/lesson.js";
+import { moduleScenes, recommendedComparisonRanking } from "./config/lesson.js";
 import { createGalleryApp } from "./scene/gallery.js";
 import { createDomUi } from "./ui/dom.js";
 
@@ -17,7 +17,6 @@ const state = {
   },
   ranking: ["hue-only", "redundant", "simplified"],
   rankingCheck: { attempts: 0, status: "idle" },
-  reflections: Object.fromEntries(reflectionPrompts.map((prompt) => [prompt.id, ""])),
 };
 
 applySceneDefaults();
@@ -33,10 +32,6 @@ const ui = createDomUi({
   },
   onWorkbenchChange(workbenchPatch) {
     state.workbench = { ...state.workbench, ...workbenchPatch };
-    render();
-  },
-  onReflectionChange(reflectionPatch) {
-    state.reflections = { ...state.reflections, ...reflectionPatch };
     render();
   },
 });
@@ -94,10 +89,6 @@ function handleAction(action, payload = {}) {
     checkRanking();
   }
 
-  if (action === "exportReflection") {
-    exportReflection();
-  }
-
   syncUrl();
   render();
 }
@@ -151,26 +142,6 @@ function clearRankingFeedback() {
   state.rankingCheck = { attempts: 0, status: "idle" };
 }
 
-function exportReflection() {
-  const scene = moduleScenes[state.sceneIndex];
-  const lines = [
-    MODULE_EXPORT_TITLE,
-    `${scene.title}`,
-    "",
-    ...reflectionPrompts.flatMap((prompt) => [
-      prompt.label,
-      state.reflections[prompt.id]?.trim() || "[No response entered]",
-      "",
-    ]),
-  ];
-  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "visual-robustness-reflection.txt";
-  link.click();
-  URL.revokeObjectURL(link.href);
-}
-
 function initialSceneIndex() {
   const params = new URLSearchParams(window.location.search);
   const requested = params.get("scene") || params.get("step") || window.location.hash.replace("#", "");
@@ -212,5 +183,3 @@ function clamp(value, min, max) {
 function arraysEqual(a, b) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
-
-const MODULE_EXPORT_TITLE = "Visual Robustness Reflection";

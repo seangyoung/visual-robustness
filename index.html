@@ -38,7 +38,7 @@
           <button id="next-step" class="next-action" type="button">Next</button>
         </div>
 
-        <section class="workbench-controls" aria-label="Visualization Workbench controls">
+        <section id="workbench-controls" class="workbench-controls" aria-label="Visualization Workbench controls">
           <div class="workbench-title">
             <span>Visualization Workbench</span>
             <strong id="workbench-title">Loading</strong>
@@ -64,12 +64,6 @@
           <ol id="ranking-list" role="listbox" aria-label="Current visualization ranking"></ol>
         </section>
 
-        <section id="notebook-panel" class="notebook-panel" aria-label="Observation notebook">
-          <h3>Observation notebook</h3>
-          <div id="reflection-fields"></div>
-          <button id="export-reflection" type="button">Download reflection</button>
-        </section>
-
         <fieldset class="settings-group">
           <legend>Accessibility settings</legend>
           <label>
@@ -81,23 +75,7 @@
             <span>Reduced motion</span>
           </label>
         </fieldset>
-
-        <details class="assessment-note">
-          <summary>Course pilot assessment</summary>
-          <p>
-            Pre/post diagnostics, design revision rubrics, and reflection responses should be
-            collected in the LMS or Qualtrics. This prototype stores no student data.
-          </p>
-        </details>
       </section>
-
-      <details class="gallery-note" aria-label="Module context">
-        <summary>Why it matters</summary>
-        <p id="context-note">
-          Stress-test maps and figures under changing perceptual conditions, then examine
-          alternative designs that preserve interpretation.
-        </p>
-      </details>
 
       <div id="status-line" class="status-line" role="status"></div>
 

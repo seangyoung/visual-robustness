@@ -1,9 +1,7 @@
 import {
   comparisonDesigns,
-  galleryCopy,
   landCoverCategories,
   recommendedComparisonRanking,
-  reflectionPrompts,
   watershedZones,
 } from "../config/lesson.js";
 
@@ -83,8 +81,8 @@ export function createComparisonCardTexture(design, rank, active = false) {
 function drawOrientationPanel(ctx, canvas, kind, scene, state) {
   if (kind === "task") {
     drawTaskPanel(ctx, canvas, scene, state, {
-      lead: "You are not diagnosing a visual condition. You are stress-testing visualization design.",
-      hint: "Use Next when you are ready for the first map.",
+      lead: "Stress-test the design, not the viewer.",
+      hint: "Use Next for the first map.",
     });
     return;
   }
@@ -96,8 +94,8 @@ function drawOrientationPanel(ctx, canvas, kind, scene, state) {
   }
 
   if (kind === "chart") {
-    panelBase(ctx, canvas, "Module path", "A 10-12 minute perceptual robustness studio", state);
-    const scenes = ["Orientation", "Color dependence", "Contrast + hierarchy", "Robust comparison", "Reflection"];
+    panelBase(ctx, canvas, "Module path", "Practice, test, compare", state);
+    const scenes = ["Orient", "Color", "Contrast", "Rank", "Reflect"];
     scenes.forEach((label, index) => {
       const x = 130 + index * 238;
       const y = 365;
@@ -122,25 +120,8 @@ function drawOrientationPanel(ctx, canvas, kind, scene, state) {
         line(ctx, x + 58, y, x + 180, y);
       }
     });
-    ctx.fillStyle = "#364245";
-    ctx.font = "500 32px Arial";
-    wrapText(
-      ctx,
-      "Each scene keeps the same interaction grammar: inspect the object, run a robustness test, compare what changes, and record a design judgment.",
-      118,
-      650,
-      1120,
-      44,
-    );
     return;
   }
-
-  drawSidePanel(ctx, canvas, scene, state, [
-    "No free-roam traversal.",
-    "Stationary workbench layout.",
-    "Minimal motion and large readable panels.",
-    "Browser and headset users share the same lesson state.",
-  ]);
 }
 
 function drawColorPanel(ctx, canvas, kind, scene, state) {
@@ -148,7 +129,7 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
     drawTaskPanel(ctx, canvas, scene, state, {
       lead: state.workbench.revealRedesign
         ? scene.reveal
-        : "The initial design answers the question quickly, but most of its meaning is carried by hue.",
+        : "The answer starts easy. Hue carries most of the work.",
       hint: scene.answer,
     });
     return;
@@ -156,18 +137,6 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
 
   if (kind === "map") {
     panelBase(ctx, canvas, "1. Land-cover map", "Hue-only categories under stress", state);
-    ctx.fillStyle = "#303638";
-    ctx.font = "500 31px Arial";
-    wrapText(
-      ctx,
-      state.workbench.revealRedesign
-        ? "The robust version adds direct labels, texture, and value contrast while preserving the original geography."
-        : "The map starts readable. As hue distinctions compress, Wetland, Forest, and Grassland become harder to separate.",
-      86,
-      142,
-      1120,
-      39,
-    );
     drawWatershedMap(ctx, 118, 214, state);
     drawLandCoverLegend(ctx, 990, 268, state);
     drawStressMeter(ctx, 124, 882, state.workbench.robustness);
@@ -176,27 +145,9 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
 
   if (kind === "chart") {
     panelBase(ctx, canvas, "2. Category area", "Same data in a related chart", state);
-    ctx.fillStyle = "#303638";
-    ctx.font = "500 31px Arial";
-    wrapText(
-      ctx,
-      state.workbench.revealRedesign
-        ? "The redesigned chart reduces legend travel with direct labels, patterns, and ordered bars."
-        : "The chart repeats the same hue mapping. Under stress, color alone becomes a weaker lookup key.",
-      86,
-      142,
-      1120,
-      39,
-    );
     drawLandCoverChart(ctx, 160, 262, state);
     return;
   }
-
-  drawSidePanel(ctx, canvas, scene, state, [
-    "Fragility is subtle: the original can remain plausible while confidence drops.",
-    "Redundancy does not require spectacle; small cues can make interpretation easier.",
-    "ColorBrewer-style palette support helps, but palette choice is only one part of robustness.",
-  ]);
 }
 
 function drawContrastPanel(ctx, canvas, kind, scene, state) {
@@ -204,8 +155,8 @@ function drawContrastPanel(ctx, canvas, kind, scene, state) {
     drawTaskPanel(ctx, canvas, scene, state, {
       lead: state.workbench.revealRedesign
         ? scene.reveal
-        : "The figure uses contrast to separate what should be noticed first from what should remain contextual.",
-      hint: "Ask what your eye reaches first, not only whether every object exists.",
+        : "Contrast controls what appears first.",
+      hint: "Watch the attention order change.",
     });
     return;
   }
@@ -222,12 +173,6 @@ function drawContrastPanel(ctx, canvas, kind, scene, state) {
     drawAttentionChart(ctx, state);
     return;
   }
-
-  drawSidePanel(ctx, canvas, scene, state, [
-    "Hierarchy is a reading path.",
-    "Low contrast can hide priority areas without removing them.",
-    "A robust version separates foreground, support layers, labels, and background.",
-  ]);
 }
 
 function drawComparisonPanel(ctx, canvas, kind, scene, state) {
@@ -246,31 +191,23 @@ function drawComparisonPanel(ctx, canvas, kind, scene, state) {
   }
 
   if (kind === "chart") {
-    panelBase(ctx, canvas, "Evidence to consider", "Use these cues before deciding", state);
-    const cues = [
-      "Does meaning survive without hue as the only cue?",
-      "Are there labels, patterns, value, or shapes that reduce legend lookup?",
-      "Does reducing the number of groups clarify or oversimplify the message?",
-      "What does your eye notice first, and is that the intended hierarchy?",
-    ];
+    panelBase(ctx, canvas, "Evidence cues", "Use before checking", state);
+    const cues = ["Redundant cues", "Fewer classes", "Legend burden", "Clear hierarchy"];
     cues.forEach((cue, index) => {
-      const y = 230 + index * 190;
+      const x = 140 + (index % 2) * 560;
+      const y = 330 + Math.floor(index / 2) * 255;
+      ctx.fillStyle = index % 2 === 0 ? "#55c6ba" : "#f2c75e";
+      roundRect(ctx, x, y - 90, 84, 84, 14);
+      ctx.fill();
       ctx.fillStyle = "#151d20";
-      ctx.font = "900 34px Arial";
-      ctx.fillText(`Question ${index + 1}`, 110, y);
+      ctx.font = "900 42px Arial";
+      ctx.fillText(String(index + 1), x + 28, y - 34);
       ctx.fillStyle = "#536164";
-      ctx.font = "600 27px Arial";
-      wrapText(ctx, cue, 110, y + 48, 1080, 40);
+      ctx.font = "900 34px Arial";
+      wrapText(ctx, cue, x + 118, y - 44, 360, 42);
     });
     return;
   }
-
-  drawSidePanel(ctx, canvas, scene, state, [
-    "In VR, point at a card, hold trigger or grip, drag it to a rank slot, and release.",
-    "Look for redundant cues rather than better-looking colors alone.",
-    "Ask whether fewer classes clarify the task or hide needed detail.",
-    "Notice whether legend lookup is doing too much interpretive work.",
-  ]);
 }
 
 function comparisonTaskCopy(state) {
@@ -304,59 +241,31 @@ function comparisonTaskCopy(state) {
   }
 
   return {
-    lead: "Browser: drag cards. VR: grab a card with trigger or grip, drop it into a rank slot, then select Check.",
-    hint: "Use the visual evidence, not a score. A strong explanation names the encoding strategy, not just the palette.",
+    lead: "Drag cards into rank order, then Check.",
+    hint: "Look for redundancy, hierarchy, and legend burden.",
   };
 }
 
 function drawReflectionPanel(ctx, canvas, kind, scene, state) {
   if (kind === "task") {
     drawTaskPanel(ctx, canvas, scene, state, {
-      lead: "The prototype does not send responses anywhere. Download your notes or paste them into the course tool.",
-      hint: galleryCopy.assessment,
+      lead: "Leave the prototype and complete the reflection in the course tool.",
+      hint: "No responses are collected here.",
     });
     return;
   }
 
   if (kind === "map") {
-    panelBase(ctx, canvas, "Observation notebook", "Local reflection draft", state);
-    reflectionPrompts.forEach((prompt, index) => {
-      const y = 205 + index * 210;
-      ctx.fillStyle = "#151d20";
-      ctx.font = "900 31px Arial";
-      wrapText(ctx, prompt.label, 96, y, 1120, 38);
-      ctx.fillStyle = "#f1f4ef";
-      roundRect(ctx, 96, y + 54, 1120, 106, 12);
-      ctx.fill();
-      ctx.strokeStyle = "#d3d8d2";
-      ctx.lineWidth = 4;
-      roundRect(ctx, 96, y + 54, 1120, 106, 12);
-      ctx.stroke();
-      ctx.fillStyle = "#536164";
-      ctx.font = "500 26px Arial";
-      wrapText(
-        ctx,
-        state.reflections[prompt.id]?.trim() || prompt.placeholder,
-        126,
-        y + 102,
-        1048,
-        34,
-      );
-    });
+    panelBase(ctx, canvas, "External reflection", "Use the LMS or course form", state);
+    drawHandoffMark(ctx, state);
     return;
   }
 
   if (kind === "chart") {
-    panelBase(ctx, canvas, "Robustness checklist", "Use after the module", state);
-    const checks = [
-      "Does hue carry the only categorical cue?",
-      "Would grayscale preserve the main message?",
-      "Can a viewer read the figure without repeated legend travel?",
-      "Is hierarchy guiding attention toward the argument?",
-      "Would fewer groups or a different chart type improve interpretation?",
-    ];
+    panelBase(ctx, canvas, "Keep testing for", "Use in your next visualization", state);
+    const checks = ["Hue dependence", "Low contrast", "Legend burden", "Weak hierarchy"];
     checks.forEach((check, index) => {
-      const y = 220 + index * 118;
+      const y = 260 + index * 128;
       ctx.strokeStyle = "#55c6ba";
       ctx.lineWidth = 7;
       roundRect(ctx, 96, y - 34, 52, 52, 8);
@@ -367,12 +276,6 @@ function drawReflectionPanel(ctx, canvas, kind, scene, state) {
     });
     return;
   }
-
-  drawSidePanel(ctx, canvas, scene, state, [
-    "The final deliverable belongs outside the app.",
-    "Use course tools for pre/post diagnostics and rubric scoring.",
-    "This workbench pattern can carry later modules on illusions, projection, classification, and 3D/2D comparisons.",
-  ]);
 }
 
 function drawTaskPanel(ctx, canvas, scene, state, copy) {
@@ -405,30 +308,6 @@ function drawTaskPanel(ctx, canvas, scene, state, copy) {
   wrapText(ctx, copy.lead || scene.task, 128, 724, 980, 45);
 
   drawHintBox(ctx, state, copy.hint || scene.task);
-}
-
-function drawSidePanel(ctx, canvas, scene, state, bullets) {
-  const bg = state.settings.highContrast ? "#0d1214" : "#111719";
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = state.settings.highContrast ? "#f8f6ee" : "#3f4b4e";
-  ctx.lineWidth = 8;
-  ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
-  ctx.fillStyle = "#55c6ba";
-  ctx.font = "900 43px Arial";
-  wrapText(ctx, scene.workbenchTitle, 72, 112, 1080, 50);
-  ctx.fillStyle = "#dce3dd";
-  ctx.font = "500 32px Arial";
-  wrapText(ctx, galleryCopy.sideNote, 72, 226, 1080, 45);
-
-  bullets.forEach((bullet, index) => {
-    const y = 500 + index * 108;
-    ctx.fillStyle = ["#55c6ba", "#f2c75e", "#ff7a63", "#7fa7ff"][index % 4];
-    drawShape(ctx, ["circle", "square", "triangle", "diamond"][index % 4], 96, y, 24, ctx.fillStyle);
-    ctx.fillStyle = "#edf2ed";
-    ctx.font = "600 29px Arial";
-    wrapText(ctx, bullet, 150, y - 22, 1010, 40);
-  });
 }
 
 function drawWatershedMap(ctx, originX, originY, state) {
@@ -556,6 +435,33 @@ function drawWorkbenchDiagram(ctx, state) {
   });
 
   drawStressMeter(ctx, 380, 170, state.workbench.robustness);
+}
+
+function drawHandoffMark(ctx, state) {
+  const cx = 700;
+  const cy = 500;
+  ctx.fillStyle = state.settings.highContrast ? "#f8f6ee" : "#edf2ed";
+  roundRect(ctx, cx - 310, cy - 200, 620, 400, 24);
+  ctx.fill();
+  ctx.strokeStyle = "#d3d8d2";
+  ctx.lineWidth = 8;
+  roundRect(ctx, cx - 310, cy - 200, 620, 400, 24);
+  ctx.stroke();
+
+  ctx.fillStyle = "#151d20";
+  ctx.font = "900 54px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Continue in LMS", cx, cy - 40);
+  ctx.fillStyle = "#536164";
+  ctx.font = "700 34px Arial";
+  ctx.fillText("Reflection and assessment happen outside this app.", cx, cy + 32);
+
+  ctx.strokeStyle = "#55c6ba";
+  ctx.lineWidth = 12;
+  line(ctx, cx - 120, cy + 112, cx + 82, cy + 112);
+  line(ctx, cx + 42, cy + 62, cx + 116, cy + 112);
+  line(ctx, cx + 42, cy + 162, cx + 116, cy + 112);
+  ctx.textAlign = "start";
 }
 
 function drawHierarchyMap(ctx, state, x, y, width, height) {

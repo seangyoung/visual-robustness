@@ -3,14 +3,12 @@ import {
   galleryCopy,
   moduleScenes,
   recommendedComparisonRanking,
-  reflectionPrompts,
 } from "../config/lesson.js";
 
 export function createDomUi({
   onAction,
   onSettingsChange,
   onWorkbenchChange,
-  onReflectionChange,
 }) {
   const elements = {
     body: document.body,
@@ -22,6 +20,7 @@ export function createDomUi({
     progressFill: document.getElementById("progress-fill"),
     back: document.getElementById("back-step"),
     next: document.getElementById("next-step"),
+    workbenchControls: document.getElementById("workbench-controls"),
     workbenchTitle: document.getElementById("workbench-title"),
     robustnessSlider: document.getElementById("robustness-slider"),
     robustnessValue: document.getElementById("robustness-value"),
@@ -30,17 +29,11 @@ export function createDomUi({
     rankingList: document.getElementById("ranking-list"),
     checkRanking: document.getElementById("check-ranking"),
     rankingFeedback: document.getElementById("ranking-feedback"),
-    notebookPanel: document.getElementById("notebook-panel"),
-    reflectionFields: document.getElementById("reflection-fields"),
-    exportReflection: document.getElementById("export-reflection"),
     highContrast: document.getElementById("high-contrast"),
     reducedMotion: document.getElementById("reduced-motion"),
     statusLine: document.getElementById("status-line"),
-    contextNote: document.getElementById("context-note"),
     textEquivalent: document.getElementById("text-equivalent"),
   };
-
-  createReflectionFields(elements, onReflectionChange);
 
   elements.back.addEventListener("click", () => onAction("back"));
   elements.next.addEventListener("click", () => onAction("next"));
@@ -50,7 +43,6 @@ export function createDomUi({
   elements.revealRedesign.addEventListener("change", (event) => {
     onWorkbenchChange({ revealRedesign: event.target.checked });
   });
-  elements.exportReflection.addEventListener("click", () => onAction("exportReflection"));
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
 
   [elements.highContrast, elements.reducedMotion].forEach((input) => {
@@ -65,7 +57,7 @@ export function createDomUi({
   window.addEventListener("keydown", (event) => {
     if (event.altKey || event.metaKey || event.ctrlKey) return;
     const activeTag = document.activeElement?.tagName?.toLowerCase();
-    if (activeTag === "textarea" || activeTag === "input") return;
+    if (activeTag === "input") return;
     if (event.key === "ArrowRight") onAction("next");
     if (event.key === "ArrowLeft") onAction("back");
   });
@@ -79,6 +71,8 @@ export function createDomUi({
       const isLast = state.sceneIndex === moduleScenes.length - 1;
       const supportsRedesign = scene.type === "color" || scene.type === "contrast";
       const supportsRobustness = scene.type !== "reflection";
+      const showsWorkbenchControls =
+        scene.type === "orientation" || scene.type === "color" || scene.type === "contrast";
 
       elements.stepKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length - 1} • ${scene.duration}`;
       elements.stepTitle.textContent = scene.title;
@@ -88,9 +82,9 @@ export function createDomUi({
       elements.next.disabled = isLast;
       elements.next.textContent = isLast ? "Complete" : "Next";
       elements.statusLine.textContent = scene.status;
-      elements.contextNote.textContent = contextCopyForScene(scene);
       elements.workbenchTitle.textContent = scene.workbenchTitle;
 
+      elements.workbenchControls.hidden = !showsWorkbenchControls;
       elements.robustnessSlider.value = String(Math.round(state.workbench.robustness));
       elements.robustnessValue.textContent = `${Math.round(state.workbench.robustness)}%`;
       elements.robustnessSlider.disabled = !supportsRobustness;
@@ -100,10 +94,8 @@ export function createDomUi({
 
       elements.rankingPanel.hidden = scene.type !== "comparison";
       elements.checkRanking.disabled = scene.type !== "comparison";
-      elements.notebookPanel.hidden = scene.type !== "reflection";
       renderRanking(elements, state.ranking, onAction);
       renderRankingFeedback(elements, state.rankingCheck);
-      renderReflectionValues(elements, state.reflections);
 
       elements.textEquivalent.textContent = [
         galleryCopy.textEquivalent,
@@ -124,38 +116,6 @@ export function createDomUi({
     },
     getSettings: () => getSettings(elements),
   };
-}
-
-function createReflectionFields(elements, onReflectionChange) {
-  elements.reflectionFields.replaceChildren(
-    ...reflectionPrompts.map((prompt) => {
-      const field = document.createElement("label");
-      field.className = "reflection-field";
-      field.setAttribute("for", `reflection-${prompt.id}`);
-
-      const label = document.createElement("span");
-      label.textContent = prompt.label;
-
-      const textarea = document.createElement("textarea");
-      textarea.id = `reflection-${prompt.id}`;
-      textarea.name = prompt.id;
-      textarea.rows = 3;
-      textarea.placeholder = prompt.placeholder;
-      textarea.addEventListener("input", (event) => {
-        onReflectionChange({ [prompt.id]: event.target.value });
-      });
-
-      field.append(label, textarea);
-      return field;
-    }),
-  );
-}
-
-function renderReflectionValues(elements, reflections) {
-  reflectionPrompts.forEach((prompt) => {
-    const textarea = elements.reflectionFields.querySelector(`#reflection-${prompt.id}`);
-    if (textarea && textarea.value !== reflections[prompt.id]) textarea.value = reflections[prompt.id] ?? "";
-  });
 }
 
 function renderRanking(elements, ranking, onAction) {
@@ -304,20 +264,4 @@ function getSettings(elements) {
     highContrast: elements.highContrast.checked,
     reducedMotion: elements.reducedMotion.checked,
   };
-}
-
-function contextCopyForScene(scene) {
-  if (scene.type === "color") {
-    return "This scene asks whether a viewer can still recover the dominant category when hue distinctions become less reliable.";
-  }
-  if (scene.type === "contrast") {
-    return "This scene focuses on contrast and visual hierarchy: what the viewer notices first is part of the design, not decoration.";
-  }
-  if (scene.type === "comparison") {
-    return "Rank the designs by how much meaning survives when color, contrast, and legend lookup become less dependable.";
-  }
-  if (scene.type === "reflection") {
-    return "Use the notebook to translate the workbench observations into a design habit for your own visualizations.";
-  }
-  return "Stress-test maps and figures under changing perceptual conditions, then examine alternative designs that preserve interpretation.";
 }

@@ -22,8 +22,6 @@ const LAYOUT = {
   panelY: 1.84,
   panelZ: -4.18,
   taskZ: -3.92,
-  sideX: 4.24,
-  sideZ: -2.82,
   captionY: 0.66,
   captionZ: -2.12,
 };
@@ -96,7 +94,6 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     settings: ui.getSettings(),
     workbench: { robustness: 0, revealRedesign: false },
     ranking: [],
-    reflections: {},
   };
   let currentSession = null;
 
@@ -105,13 +102,11 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const sceneState = moduleScenes[state.sceneIndex];
     const isImmersive = Boolean(currentSession);
     updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSlider, rankingSet, sceneState, isImmersive);
-    panels.side.visible = isImmersive;
     panels.caption.visible = isImmersive;
     panels.map.visible = !(isImmersive && sceneState.type === "comparison");
     updatePanel(panels.map, "map", sceneState, state);
     updatePanel(panels.task, "task", sceneState, state);
     updatePanel(panels.chart, "chart", sceneState, state);
-    updatePanel(panels.side, "side", sceneState, state);
     updateButtonTextures(inWorldButtons, hoverControl);
     updateRobustnessSlider(robustnessSlider, state.workbench.robustness, hoverControl, dragState);
     updateRankingSet(rankingSet, state, hoverControl, dragState);
@@ -315,7 +310,6 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       panels.map.position.y = LAYOUT.panelY + float;
       panels.chart.position.y = LAYOUT.panelY - float * 0.75;
       panels.task.position.y = LAYOUT.panelY - 0.08 + float * 0.45;
-      panels.side.position.y = LAYOUT.panelY - 0.24 - float * 0.4;
     }
     updateControllerHover(controllers, raycaster, interactive, (controlId) => {
       if (controlId !== hoverControl) {
@@ -435,10 +429,9 @@ function createPanels(scene) {
   const map = panelMesh("map", [-2.62, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.2, 0], PANEL_W, PANEL_H);
   const task = panelMesh("task", [0, LAYOUT.panelY - 0.08, LAYOUT.taskZ], [0, 0, 0], 2.35, 2.05);
   const chart = panelMesh("chart", [2.62, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.2, 0], PANEL_W, PANEL_H);
-  const side = panelMesh("side", [LAYOUT.sideX, LAYOUT.panelY - 0.24, LAYOUT.sideZ], [0, -1.18, 0], 1.52, 2.08);
   const caption = panelMesh("caption", [0, LAYOUT.captionY, LAYOUT.captionZ], [-0.28, 0, 0], 3.05, 0.56);
-  [map, task, chart, side, caption].forEach((panel) => group.add(panel));
-  return { group, map, task, chart, side, caption };
+  [map, task, chart, caption].forEach((panel) => group.add(panel));
+  return { group, map, task, chart, caption };
 }
 
 function panelMesh(name, position, rotation, width, height) {
@@ -700,15 +693,20 @@ function createCaptionTexture(sceneState, state) {
   ctx.font = "500 27px Arial";
   wrapText(
     ctx,
-    `${sceneState.task} Test ${Math.round(workbench.robustness)}%. ${
-      workbench.revealRedesign ? "Redesign visible." : "Original design visible."
-    }`,
+    captionText(sceneState, workbench),
     56,
     202,
     1130,
     34,
   );
   return canvas;
+}
+
+function captionText(sceneState, workbench) {
+  if (sceneState.type === "comparison" || sceneState.type === "reflection") return sceneState.task;
+  return `${sceneState.task} Test ${Math.round(workbench.robustness)}%. ${
+    workbench.revealRedesign ? "Redesign visible." : "Original visible."
+  }`;
 }
 
 function createSliderLabelTexture(value, active) {

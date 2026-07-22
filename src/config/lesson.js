@@ -9,11 +9,9 @@ export const moduleScenes = [
     shortTitle: "Orientation",
     type: "orientation",
     duration: "1 min",
-    prompt:
-      "Inspect the workbench. Use normal pointer, touch, or headset movement to examine the figures, then use the workbench controls to test the design.",
-    task:
-      "No accessibility judgment yet. Learn the interaction pattern you will reuse across the module.",
-    status: "Orientation: practice workbench controls before the visualization stress tests.",
+    prompt: "Practice the workbench controls before the design tasks begin.",
+    task: "Inspect the figures. Use Next when ready.",
+    status: "Orientation: practice the interaction pattern.",
     workbenchTitle: "Interaction rehearsal",
     defaultWorkbench: { robustness: 0, revealRedesign: false },
   },
@@ -24,16 +22,14 @@ export const moduleScenes = [
     shortTitle: "Color",
     type: "color",
     duration: "3 min",
-    prompt:
-      "A land-cover map looks easy to read when the hue categories are separable. Which category dominates the watershed?",
-    task:
-      "Move the Robustness Test slightly. Notice when the answer becomes less certain, then reveal the redesign.",
-    status: "Scene 1: hue-only encoding is being stress-tested.",
+    prompt: "Which land-cover category dominates the watershed?",
+    task: "Move the Robustness Test, then reveal the redesign.",
+    status: "Scene 1: color dependence.",
     workbenchTitle: "Watershed land-cover map",
     defaultWorkbench: { robustness: 0, revealRedesign: false },
     answer: "Wetland dominates the watershed.",
     reveal:
-      "The redesign keeps color, but does not depend on color alone: patterns, labels, ordered value, and figure-ground separation make Wetland easier to recover.",
+      "The redesign adds labels, patterns, value contrast, and stronger figure-ground separation.",
   },
   {
     id: "contrast-hierarchy",
@@ -42,15 +38,13 @@ export const moduleScenes = [
     shortTitle: "Contrast",
     type: "contrast",
     duration: "2 min",
-    prompt:
-      "A multivariate figure asks you to notice priority areas first. What information reaches your eye before the details?",
-    task:
-      "Increase the Robustness Test to flatten contrast and hierarchy. Then reveal a version with clearer grouping and value separation.",
-    status: "Scene 2: contrast and hierarchy determine what becomes visible first.",
+    prompt: "What information reaches your eye first?",
+    task: "Increase the Robustness Test, then reveal the redesign.",
+    status: "Scene 2: contrast and hierarchy.",
     workbenchTitle: "Priority areas and supporting context",
     defaultWorkbench: { robustness: 0, revealRedesign: false },
     reveal:
-      "Hierarchy is not decoration. The robust version separates priority areas, supporting context, and labels so attention has a reliable path.",
+      "The redesign separates priority areas, context, and labels.",
   },
   {
     id: "robust-comparison",
@@ -59,27 +53,23 @@ export const moduleScenes = [
     shortTitle: "Rank",
     type: "comparison",
     duration: "3 min",
-    prompt:
-      "Three designs show the same message with different levels of perceptual robustness.",
-    task:
-      "Rank the designs. Browser: drag cards. VR: grab and drop cards into rank slots, then Check.",
-    status: "Scene 3: rank designs by robustness and inspect why each one succeeds or fails.",
+    prompt: "Rank the three designs from most robust to least robust.",
+    task: "Drag the cards into order, then Check.",
+    status: "Scene 3: robust design comparison.",
     workbenchTitle: "Ranking bench",
     defaultWorkbench: { robustness: 55, revealRedesign: true },
   },
   {
     id: "reflection",
     sceneNumber: 4,
-    title: "Reflection Notebook",
-    shortTitle: "Reflect",
+    title: "Course Reflection",
+    shortTitle: "Close",
     type: "reflection",
-    duration: "2 min",
-    prompt:
-      "Robust visualization design is a practical habit: meaning should survive changes in perception, display, and context.",
-    task:
-      "Answer the notebook prompts. You can download the responses locally or copy them into the course tool.",
-    status: "Scene 4: connect the experience to your own visualization practice.",
-    workbenchTitle: "Observation notebook",
+    duration: "1 min",
+    prompt: "Complete the reflection in the course tool after leaving the prototype.",
+    task: "This app does not collect responses.",
+    status: "Scene 4: external course reflection.",
+    workbenchTitle: "Course handoff",
     defaultWorkbench: { robustness: 0, revealRedesign: true },
   },
 ];
@@ -188,29 +178,7 @@ export const comparisonDesigns = [
 
 export const recommendedComparisonRanking = ["redundant", "simplified", "hue-only"];
 
-export const reflectionPrompts = [
-  {
-    id: "surprise",
-    label: "What design decision surprised you most?",
-    placeholder: "Example: I expected the original colors to be enough until the categories compressed.",
-  },
-  {
-    id: "change",
-    label: "What will you change in your own visualizations?",
-    placeholder: "Example: I will add direct labels or texture when a category carries the argument.",
-  },
-  {
-    id: "question",
-    label: "What guideline would you now question?",
-    placeholder: "Example: I would question using more categories just because the data supports them.",
-  },
-];
-
 export const galleryCopy = {
-  sideNote:
-    "Perception varies across people, displays, lighting, fatigue, print/export workflows, and presentation rooms. Robust design preserves meaning when those conditions shift.",
   textEquivalent:
-    "The module presents a visualization workbench with five scenes: orientation, color dependence, contrast and hierarchy, robust design comparison, and reflection. In Scene 1, a land-cover map begins as a hue-dependent design. The robustness control compresses color distinctions. The redesign uses labels, patterns, luminance, and stronger figure-ground separation.",
-  assessment:
-    "The app does not store identifiable student data. Course diagnostics, rubric scoring, and submitted reflections should be collected through the LMS, Qualtrics, or another approved external tool.",
+    "The module presents a visualization workbench with scenes on color dependence, contrast and hierarchy, robust design comparison, and an external course reflection handoff. The app does not collect student responses.",
 };
