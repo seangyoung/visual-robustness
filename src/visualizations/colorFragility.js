@@ -2,20 +2,80 @@ import {
   comparisonDesigns,
   landCoverCategories,
   recommendedComparisonRanking,
-  watershedZones,
 } from "../config/lesson.js";
 
-const mapCells = [
-  { id: "A", points: [[272, 96], [390, 82], [488, 148], [462, 258], [340, 282], [246, 210]] },
-  { id: "B", points: [[118, 178], [246, 146], [340, 282], [274, 388], [134, 366], [72, 276]] },
-  { id: "C", points: [[488, 148], [640, 126], [730, 224], [682, 346], [520, 342], [462, 258]] },
-  { id: "D", points: [[274, 388], [340, 282], [462, 258], [520, 342], [470, 480], [326, 504]] },
-  { id: "E", points: [[682, 346], [730, 224], [866, 274], [902, 410], [798, 506], [668, 468]] },
-  { id: "F", points: [[134, 366], [274, 388], [326, 504], [248, 612], [104, 582], [44, 462]] },
-  { id: "G", points: [[470, 480], [520, 342], [668, 468], [642, 620], [500, 668], [402, 596]] },
-  { id: "H", points: [[798, 506], [902, 410], [1016, 482], [996, 628], [866, 694], [760, 628]] },
-  { id: "I", points: [[248, 612], [326, 504], [402, 596], [374, 748], [224, 790], [112, 710]] },
-  { id: "J", points: [[642, 620], [760, 628], [866, 694], [820, 812], [656, 846], [500, 768]] },
+const watershedOutline = [
+  [92, 190],
+  [174, 94],
+  [328, 52],
+  [480, 78],
+  [598, 132],
+  [740, 124],
+  [880, 222],
+  [928, 362],
+  [884, 520],
+  [754, 650],
+  [570, 716],
+  [392, 690],
+  [282, 610],
+  [138, 574],
+  [62, 442],
+  [50, 304],
+];
+
+const landCoverPatches = [
+  {
+    category: "forest",
+    points: [[132, 162], [222, 112], [338, 102], [412, 166], [356, 276], [202, 274], [122, 236]],
+  },
+  {
+    category: "forest",
+    points: [[562, 132], [720, 144], [834, 232], [812, 344], [664, 322], [562, 238]],
+  },
+  {
+    category: "agriculture",
+    points: [[92, 332], [214, 292], [336, 328], [332, 456], [188, 492], [76, 420]],
+  },
+  {
+    category: "grassland",
+    points: [[360, 124], [506, 96], [596, 164], [544, 294], [410, 278], [352, 202]],
+  },
+  {
+    category: "developed",
+    points: [[706, 356], [884, 384], [866, 518], [740, 590], [636, 516], [628, 408]],
+  },
+  {
+    category: "grassland",
+    points: [[350, 498], [520, 468], [640, 542], [590, 690], [420, 674], [320, 594]],
+  },
+  {
+    category: "agriculture",
+    points: [[170, 492], [316, 462], [400, 564], [340, 650], [198, 600], [112, 544]],
+  },
+  {
+    category: "water",
+    points: [[214, 520], [300, 488], [380, 524], [358, 590], [272, 618], [208, 584]],
+  },
+  {
+    category: "wetland",
+    points: [[260, 274], [420, 286], [560, 344], [664, 438], [626, 542], [464, 486], [330, 420]],
+  },
+  {
+    category: "wetland",
+    points: [[454, 300], [570, 238], [684, 318], [654, 430], [530, 402]],
+  },
+  {
+    category: "wetland",
+    points: [[394, 474], [558, 520], [706, 604], [608, 698], [448, 646]],
+  },
+];
+
+const streamLines = [
+  [[212, 116], [278, 210], [370, 298], [482, 368], [592, 448], [700, 552], [780, 640]],
+  [[116, 250], [226, 292], [334, 338]],
+  [[568, 138], [542, 238], [488, 360]],
+  [[782, 270], [690, 336], [590, 448]],
+  [[244, 610], [332, 548], [430, 486]],
 ];
 
 const contrastLayers = [
@@ -26,7 +86,6 @@ const contrastLayers = [
 ];
 
 const categoryById = Object.fromEntries(landCoverCategories.map((category) => [category.id, category]));
-const zoneById = Object.fromEntries(watershedZones.map((zone) => [zone.id, zone]));
 
 export function createPanelTexture(kind, scene, state) {
   const canvas = document.createElement("canvas");
@@ -311,31 +370,54 @@ function drawTaskPanel(ctx, canvas, scene, state, copy) {
 }
 
 function drawWatershedMap(ctx, originX, originY, state) {
-  const scale = 0.78;
-  mapCells.forEach((cell) => {
-    const zone = zoneById[cell.id];
-    const category = categoryById[zone.category];
-    const points = cell.points.map(([x, y]) => [originX + x * scale, originY + y * scale]);
+  const mapW = 810;
+  const mapH = 600;
+  const tx = (point) => [originX + (point[0] / 1000) * mapW, originY + (point[1] / 760) * mapH];
+
+  ctx.save();
+  ctx.fillStyle = "#eef1ec";
+  roundRect(ctx, originX - 18, originY - 18, mapW + 36, mapH + 36, 16);
+  ctx.fill();
+  ctx.strokeStyle = "#c7cec7";
+  ctx.lineWidth = 5;
+  roundRect(ctx, originX - 18, originY - 18, mapW + 36, mapH + 36, 16);
+  ctx.stroke();
+
+  drawMapGrid(ctx, originX, originY, mapW, mapH);
+
+  ctx.save();
+  watershedPath(ctx, tx);
+  ctx.clip();
+  ctx.fillStyle = colorForCategory(categoryById.wetland, state);
+  ctx.fillRect(originX, originY, mapW, mapH);
+
+  drawHillshade(ctx, originX, originY, mapW, mapH);
+
+  landCoverPatches.forEach((patch) => {
+    const category = categoryById[patch.category];
+    const points = patch.points.map(tx);
     polygonPath(ctx, points);
     ctx.fillStyle = colorForCategory(category, state);
     ctx.fill();
     if (state.workbench.revealRedesign) drawPatternInPolygon(ctx, points, category.id);
-    ctx.strokeStyle = state.settings.highContrast ? "#f8f6ee" : "rgba(248,246,238,0.66)";
-    ctx.lineWidth = state.workbench.revealRedesign ? 5 : 2.5;
+    ctx.strokeStyle = state.workbench.revealRedesign ? "rgba(17,23,25,0.42)" : "rgba(248,246,238,0.58)";
+    ctx.lineWidth = state.workbench.revealRedesign ? 2.8 : 1.8;
     ctx.stroke();
-
-    if (state.workbench.revealRedesign) {
-      const center = polygonCenter(points);
-      ctx.fillStyle = "#111719";
-      ctx.font = "900 28px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(cell.id, center[0], center[1] + 8);
-      if (state.workbench.revealRedesign) {
-        drawShape(ctx, category.shape, center[0], center[1] + 42, 14, "#111719");
-      }
-      ctx.textAlign = "start";
-    }
   });
+
+  drawStreams(ctx, tx, state, true);
+  ctx.restore();
+
+  watershedPath(ctx, tx);
+  ctx.strokeStyle = state.settings.highContrast ? "#111719" : "#1c2527";
+  ctx.lineWidth = 5;
+  ctx.stroke();
+
+  drawStreams(ctx, tx, state, false);
+  drawMapLabels(ctx, originX, originY, mapW, mapH, tx, state);
+  drawNorthArrow(ctx, originX + 58, originY + 66);
+  drawScaleBar(ctx, originX + 48, originY + mapH - 44);
+  ctx.restore();
 }
 
 function drawLandCoverLegend(ctx, x, y, state) {
@@ -359,6 +441,148 @@ function drawLandCoverLegend(ctx, x, y, state) {
       ctx.fillText(category.note, x + 62, yy + 50);
     }
   });
+}
+
+function watershedPath(ctx, transform) {
+  const points = watershedOutline.map(transform);
+  polygonPath(ctx, points);
+}
+
+function drawMapGrid(ctx, x, y, width, height) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(54,66,69,0.12)";
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i < 5; i += 1) {
+    const xx = x + (width / 5) * i;
+    line(ctx, xx, y + 12, xx, y + height - 12);
+  }
+  for (let i = 1; i < 4; i += 1) {
+    const yy = y + (height / 4) * i;
+    line(ctx, x + 12, yy, x + width - 12, yy);
+  }
+  ctx.restore();
+}
+
+function drawHillshade(ctx, x, y, width, height) {
+  ctx.save();
+  for (let i = 0; i < 11; i += 1) {
+    ctx.strokeStyle = `rgba(255,255,255,${0.1 + i * 0.008})`;
+    ctx.lineWidth = 10;
+    line(ctx, x - 40 + i * 92, y + height + 40, x + 130 + i * 92, y - 40);
+  }
+  for (let i = 0; i < 7; i += 1) {
+    ctx.strokeStyle = "rgba(17,23,25,0.045)";
+    ctx.lineWidth = 6;
+    line(ctx, x + 20 + i * 130, y + 20, x - 130 + i * 130, y + height - 10);
+  }
+  ctx.restore();
+}
+
+function drawStreams(ctx, transform, state, bufferOnly) {
+  streamLines.forEach((stream, index) => {
+    const points = stream.map(transform);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    if (bufferOnly) {
+      ctx.strokeStyle = state.workbench.revealRedesign ? "rgba(224,240,238,0.72)" : "rgba(224,240,238,0.36)";
+      ctx.lineWidth = index === 0 ? 22 : 12;
+    } else {
+      ctx.strokeStyle = state.workbench.revealRedesign ? "#315f9f" : mixHex("#4979b8", "#8a9ea6", state.workbench.robustness / 100);
+      ctx.lineWidth = index === 0 ? 6 : 3.5;
+    }
+    polyline(ctx, points);
+    ctx.stroke();
+  });
+}
+
+function drawMapLabels(ctx, x, y, width, height, transform, state) {
+  ctx.fillStyle = "#1b2427";
+  ctx.font = "900 25px Arial";
+  ctx.fillText("Clearwater Creek watershed", x + 220, y + 44);
+  ctx.fillStyle = "#536164";
+  ctx.font = "700 20px Arial";
+  ctx.fillText("Land cover classification, 30 m raster generalized for display", x + 220, y + 72);
+
+  const mainRiver = transform([555, 388]);
+  ctx.fillStyle = "#214b86";
+  ctx.font = "800 19px Arial";
+  ctx.fillText("Clearwater Creek", mainRiver[0] + 26, mainRiver[1] + 10);
+
+  if (!state.workbench.revealRedesign) return;
+
+  const labels = [
+    ["Wetland", [454, 405], "circle"],
+    ["Upland forest", [242, 182], "triangle"],
+    ["Agriculture", [188, 404], "diamond"],
+    ["Developed", [758, 458], "square"],
+    ["Open water", [274, 560], "wave"],
+  ];
+
+  labels.forEach(([label, point, shape]) => {
+    const [lx, ly] = transform(point);
+    ctx.fillStyle = "rgba(248,246,238,0.86)";
+    roundRect(ctx, lx - 16, ly - 28, Math.max(112, label.length * 12 + 46), 38, 8);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(17,23,25,0.2)";
+    ctx.lineWidth = 2;
+    roundRect(ctx, lx - 16, ly - 28, Math.max(112, label.length * 12 + 46), 38, 8);
+    ctx.stroke();
+    drawShape(ctx, shape, lx + 3, ly - 9, 8, "#111719");
+    ctx.fillStyle = "#111719";
+    ctx.font = "900 18px Arial";
+    ctx.fillText(label, lx + 22, ly - 3);
+  });
+
+  ctx.fillStyle = "#536164";
+  ctx.font = "700 18px Arial";
+  ctx.fillText("Direct labels and texture remain usable as hue compresses.", x + width - 468, y + height - 22);
+}
+
+function drawNorthArrow(ctx, x, y) {
+  ctx.save();
+  ctx.fillStyle = "rgba(248,246,238,0.88)";
+  roundRect(ctx, x - 28, y - 42, 56, 82, 8);
+  ctx.fill();
+  ctx.strokeStyle = "#c5ccc7";
+  ctx.lineWidth = 2;
+  roundRect(ctx, x - 28, y - 42, 56, 82, 8);
+  ctx.stroke();
+  ctx.fillStyle = "#111719";
+  ctx.beginPath();
+  ctx.moveTo(x, y - 30);
+  ctx.lineTo(x + 14, y + 8);
+  ctx.lineTo(x, y);
+  ctx.lineTo(x - 14, y + 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.font = "900 18px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("N", x, y + 30);
+  ctx.textAlign = "start";
+  ctx.restore();
+}
+
+function drawScaleBar(ctx, x, y) {
+  ctx.save();
+  ctx.fillStyle = "rgba(248,246,238,0.86)";
+  roundRect(ctx, x - 14, y - 30, 186, 56, 8);
+  ctx.fill();
+  ctx.strokeStyle = "#c5ccc7";
+  ctx.lineWidth = 2;
+  roundRect(ctx, x - 14, y - 30, 186, 56, 8);
+  ctx.stroke();
+  ctx.fillStyle = "#111719";
+  ctx.fillRect(x, y - 8, 54, 12);
+  ctx.fillStyle = "#f8f6ee";
+  ctx.fillRect(x + 54, y - 8, 54, 12);
+  ctx.strokeStyle = "#111719";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y - 8, 108, 12);
+  ctx.fillStyle = "#111719";
+  ctx.font = "800 16px Arial";
+  ctx.fillText("0", x, y + 22);
+  ctx.fillText("2 km", x + 88, y + 22);
+  ctx.restore();
 }
 
 function drawLandCoverChart(ctx, x, y, state) {
@@ -590,8 +814,10 @@ function drawComparisonThumbnail(ctx, id, x, y, w, h) {
 }
 
 function colorForCategory(category, state) {
-  if (state.settings.highContrast || state.workbench.revealRedesign) return category.redesign;
-  return mixHex(category.baseline, category.compressed, state.workbench.robustness / 100);
+  const stress = state.workbench.robustness / 100;
+  if (state.settings.highContrast) return category.redesign;
+  if (state.workbench.revealRedesign) return mixHex(category.redesign, category.compressed, stress * 0.48);
+  return mixHex(category.baseline, category.compressed, stress);
 }
 
 function panelBase(ctx, canvas, title, subtitle, state) {
@@ -731,9 +957,12 @@ function polygonPath(ctx, points) {
   ctx.closePath();
 }
 
-function polygonCenter(points) {
-  const sum = points.reduce((acc, point) => [acc[0] + point[0], acc[1] + point[1]], [0, 0]);
-  return [sum[0] / points.length, sum[1] / points.length];
+function polyline(ctx, points) {
+  ctx.beginPath();
+  points.forEach(([x, y], pointIndex) => {
+    if (pointIndex === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
 }
 
 function bounds(points) {
