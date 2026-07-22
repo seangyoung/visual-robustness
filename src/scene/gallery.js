@@ -19,17 +19,20 @@ const LAYOUT = {
   wallZ: -5.9,
   workbenchY: 0.58,
   workbenchZ: -2.55,
-  buttonY: 0.78,
-  buttonZ: -1.86,
+  controlDeckY: 0.68,
+  controlDeckZ: -2.0,
+  controlDeckRotationX: -0.72,
+  buttonY: 0.71,
+  buttonZ: -1.96,
   panelY: 1.84,
   panelZ: -4.18,
   taskZ: -3.92,
 };
 const BUTTONS = [
-  { id: "back", action: "back", label: "Back", x: -0.84 },
-  { id: "next", action: "next", label: "Next", x: 0 },
-  { id: "example", action: "nextExample", label: "Example", x: 0.9, width: 0.82 },
-  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 1.78, width: 0.74 },
+  { id: "back", action: "back", label: "Back", x: -1.54, width: 0.52 },
+  { id: "next", action: "next", label: "Next", x: -1.0, width: 0.52 },
+  { id: "example", action: "nextExample", label: "Switch\nExample", x: 0.38, width: 0.72 },
+  { id: "reveal", action: "toggleRedesign", label: "Show Improved\nDesign", x: 1.32, width: 1.08 },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -37,7 +40,7 @@ const CHECK_BUTTONS = [
 const SLIDER_WIDTH = 1.55;
 const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
 const SLIDER_MAX_X = SLIDER_WIDTH / 2;
-const SLIDER_CENTER = new THREE.Vector3(-0.48, 0.78, -1.86);
+const SLIDER_CENTER = new THREE.Vector3(-0.82, 0.71, -1.96);
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -74,6 +77,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   const world = createWorld(scene);
   const panels = createPanels(scene);
+  const workbenchControlDeck = createWorkbenchControlDeck(scene);
   const mainButtons = createButtons(scene, BUTTONS);
   const checkButtons = createButtons(scene, CHECK_BUTTONS, { width: 0.82, height: 0.2, rotationX: -0.18 });
   const inWorldButtons = [...mainButtons, ...checkButtons];
@@ -93,6 +97,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   let dragState = null;
   let currentState = {
     sceneIndex: 0,
+    exampleIndex: 0,
     settings: ui.getSettings(),
     workbench: { stressTestIndex: 0, revealRedesign: false },
     ranking: [],
@@ -103,12 +108,20 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     currentState = state;
     const sceneState = moduleScenes[state.sceneIndex];
     const isImmersive = Boolean(currentSession);
-    updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSlider, rankingSet, sceneState, isImmersive);
+    updateInWorldControlVisibility(
+      mainButtons,
+      checkButtons,
+      robustnessSlider,
+      rankingSet,
+      workbenchControlDeck,
+      sceneState,
+      isImmersive,
+    );
     panels.map.visible = !(isImmersive && sceneState.type === "comparison");
     updatePanel(panels.map, "map", sceneState, state);
     updatePanel(panels.task, "task", sceneState, state);
     updatePanel(panels.chart, "chart", sceneState, state);
-    updateButtonTextures(inWorldButtons, hoverControl);
+    updateButtonTextures(inWorldButtons, hoverControl, state);
     updateRobustnessSlider(robustnessSlider, state.workbench.stressTestIndex, hoverControl, dragState);
     updateRankingSet(rankingSet, state, hoverControl, dragState);
     world.accent.visible = !state.settings.highContrast;
@@ -134,6 +147,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         checkButtons,
         robustnessSlider,
         rankingSet,
+        workbenchControlDeck,
         moduleScenes[currentState.sceneIndex],
         true,
       );
@@ -143,6 +157,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         setInWorldControlsVisible(inWorldButtons, false);
         robustnessSlider.group.visible = false;
         rankingSet.group.visible = false;
+        workbenchControlDeck.visible = false;
         panels.map.visible = true;
         ui.setVrMode(false);
         renderState(currentState);
@@ -187,7 +202,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const nextHover = hit?.object.userData.controlId ?? null;
     if (nextHover !== hoverControl) {
       hoverControl = nextHover;
-      updateButtonTextures(inWorldButtons, hoverControl);
+      updateButtonTextures(inWorldButtons, hoverControl, currentState);
       renderer.domElement.style.cursor = hoverControl ? "pointer" : "grab";
     }
   }
@@ -260,9 +275,9 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   }
 
   function updateSliderFromController(controller) {
-    const point = controllerPlanePoint(controller, raycaster, SLIDER_CENTER.z);
+    const point = controllerLocalPoint(controller, raycaster, robustnessSlider.group);
     if (!point) return;
-    const localX = clamp(point.x - SLIDER_CENTER.x, SLIDER_MIN_X, SLIDER_MAX_X);
+    const localX = clamp(point.x, SLIDER_MIN_X, SLIDER_MAX_X);
     const normalized = (localX - SLIDER_MIN_X) / SLIDER_WIDTH;
     const index = clampStressTestIndex(normalized * (stressTests.length - 1));
     if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
@@ -313,7 +328,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     updateControllerHover(controllers, raycaster, interactive, (controlId) => {
       if (controlId !== hoverControl) {
         hoverControl = controlId;
-        updateButtonTextures(inWorldButtons, hoverControl);
+        updateButtonTextures(inWorldButtons, hoverControl, currentState);
         updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
         updateRankingSet(rankingSet, currentState, hoverControl, dragState);
       }
@@ -432,6 +447,41 @@ function createPanels(scene) {
   return { group, map, task, chart };
 }
 
+function createWorkbenchControlDeck(scene) {
+  const group = new THREE.Group();
+  group.position.set(0.04, LAYOUT.controlDeckY, LAYOUT.controlDeckZ);
+  group.rotation.x = LAYOUT.controlDeckRotationX;
+  group.visible = false;
+  scene.add(group);
+
+  const deck = new THREE.Mesh(
+    new THREE.BoxGeometry(3.72, 0.7, 0.05),
+    new THREE.MeshStandardMaterial({
+      color: "#11191c",
+      roughness: 0.62,
+      metalness: 0.06,
+    }),
+  );
+  deck.position.z = -0.035;
+  group.add(deck);
+
+  const bevel = new THREE.Mesh(
+    new THREE.BoxGeometry(3.82, 0.08, 0.07),
+    new THREE.MeshStandardMaterial({ color: "#2b383b", roughness: 0.56 }),
+  );
+  bevel.position.set(0, -0.36, -0.015);
+  group.add(bevel);
+
+  const separator = new THREE.Mesh(
+    new THREE.BoxGeometry(0.035, 0.56, 0.018),
+    new THREE.MeshStandardMaterial({ color: "#344346", roughness: 0.5 }),
+  );
+  separator.position.set(0.03, 0.02, 0.012);
+  group.add(separator);
+
+  return group;
+}
+
 function panelMesh(name, position, rotation, width, height) {
   const material = new THREE.MeshBasicMaterial({
     color: "#ffffff",
@@ -454,16 +504,26 @@ function panelMesh(name, position, rotation, width, height) {
 
 function createButtons(scene, buttons, defaults = {}) {
   const width = defaults.width ?? 0.66;
-  const height = defaults.height ?? 0.2;
-  const rotationX = defaults.rotationX ?? -0.18;
+  const height = defaults.height ?? 0.24;
+  const rotationX = defaults.rotationX ?? LAYOUT.controlDeckRotationX;
   return buttons.map((button) => {
     const texture = textureFromCanvas(createButtonTexture(button.label, false));
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, toneMapped: false });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(button.width ?? width, button.height ?? height), material);
+    const buttonWidth = button.width ?? width;
+    const buttonHeight = button.height ?? height;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(buttonWidth, buttonHeight), material);
     mesh.position.set(button.x, button.y ?? LAYOUT.buttonY, button.z ?? LAYOUT.buttonZ);
     mesh.rotation.x = button.rotationX ?? rotationX;
     mesh.rotation.y = button.rotationY ?? 0;
     mesh.visible = false;
+
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(buttonWidth + 0.035, buttonHeight + 0.035, 0.035),
+      new THREE.MeshStandardMaterial({ color: "#263236", roughness: 0.48, metalness: 0.04 }),
+    );
+    base.position.z = -0.026;
+    mesh.add(base);
+
     mesh.userData.kind = "button";
     mesh.userData.controlId = button.id;
     mesh.userData.action = button.action;
@@ -476,6 +536,7 @@ function createButtons(scene, buttons, defaults = {}) {
 function createRobustnessSlider(scene) {
   const group = new THREE.Group();
   group.position.copy(SLIDER_CENTER);
+  group.rotation.x = LAYOUT.controlDeckRotationX;
   group.visible = false;
   scene.add(group);
 
@@ -581,7 +642,15 @@ function createRankingSet(scene) {
   };
 }
 
-function updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSlider, rankingSet, sceneState, isImmersive) {
+function updateInWorldControlVisibility(
+  mainButtons,
+  checkButtons,
+  robustnessSlider,
+  rankingSet,
+  workbenchControlDeck,
+  sceneState,
+  isImmersive,
+) {
   const hasSceneNavigation = moduleScenes.length > 1;
   const supportsRedesign = sceneState.type === "color" || sceneState.type === "contrast";
   const supportsSlider =
@@ -599,6 +668,7 @@ function updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSli
   });
   setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
   robustnessSlider.group.visible = isImmersive && supportsSlider;
+  workbenchControlDeck.visible = isImmersive && supportsSlider;
   rankingSet.group.visible = isImmersive && sceneState.type === "comparison";
 }
 
@@ -694,13 +764,48 @@ function updatePanel(mesh, kind, sceneState, state) {
   if (oldMap) oldMap.dispose();
 }
 
-function updateButtonTextures(buttons, hoverControl) {
+function updateButtonTextures(buttons, hoverControl, state) {
   buttons.forEach((button) => {
+    const textureSpec = buttonTextureSpec(button, state);
+    const isHovered = hoverControl === button.id;
+    const isActive = textureSpec.active || isHovered;
     const oldMap = button.mesh.material.map;
-    button.mesh.material.map = textureFromCanvas(createButtonTexture(button.label, hoverControl === button.id));
+    button.mesh.material.map = textureFromCanvas(
+      createButtonTexture(textureSpec.label, isActive, textureSpec.options),
+    );
     button.mesh.material.map.needsUpdate = true;
     if (oldMap) oldMap.dispose();
   });
+}
+
+function buttonTextureSpec(button, state) {
+  if (button.id === "example") {
+    return {
+      label: "Switch\nExample",
+      active: false,
+      options: {
+        cycle: true,
+        subtitle: `Example ${(state.exampleIndex ?? 0) + 1} of ${visualizationExamples.length}`,
+      },
+    };
+  }
+
+  if (button.id === "reveal") {
+    const improvedIsVisible = Boolean(state.workbench?.revealRedesign);
+    return {
+      label: improvedIsVisible ? "Show Original\nDesign" : "Show Improved\nDesign",
+      active: improvedIsVisible,
+      options: {
+        subtitle: improvedIsVisible ? "Improved view live" : "Original view live",
+      },
+    };
+  }
+
+  return {
+    label: button.label,
+    active: false,
+    options: {},
+  };
 }
 
 function createSliderLabelTexture(stressTest, active) {
@@ -794,6 +899,20 @@ function controllerPlanePoint(controller, raycaster, z) {
   const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -z);
   const point = new THREE.Vector3();
   return raycaster.ray.intersectPlane(plane, point) ? point : null;
+}
+
+function controllerLocalPoint(controller, raycaster, object) {
+  setRayFromController(controller, raycaster);
+  object.updateWorldMatrix(true, false);
+  const worldPosition = new THREE.Vector3();
+  const worldQuaternion = new THREE.Quaternion();
+  object.getWorldPosition(worldPosition);
+  object.getWorldQuaternion(worldQuaternion);
+  const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(worldQuaternion);
+  const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, worldPosition);
+  const worldPoint = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(plane, worldPoint)) return null;
+  return object.worldToLocal(worldPoint);
 }
 
 function updateControllerHover(controllers, raycaster, objects, onHover) {

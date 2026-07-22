@@ -143,11 +143,14 @@ function loadPublicHealthImage(key, url) {
   });
 }
 
-export function createButtonTexture(label, active = false) {
+export function createButtonTexture(label, active = false, options = {}) {
   const canvas = document.createElement("canvas");
   canvas.width = 640;
   canvas.height = 220;
   const ctx = canvas.getContext("2d");
+  const lines = String(label).split("\n").filter(Boolean);
+  const subtitle = options.subtitle;
+
   ctx.fillStyle = active ? "#236e66" : "#151d20";
   roundRect(ctx, 16, 16, 608, 188, 20);
   ctx.fill();
@@ -155,11 +158,34 @@ export function createButtonTexture(label, active = false) {
   ctx.lineWidth = active ? 8 : 5;
   roundRect(ctx, 16, 16, 608, 188, 20);
   ctx.stroke();
+  if (options.cycle) {
+    ctx.fillStyle = active ? "#88e0d6" : "#f2c75e";
+    ctx.font = "900 34px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("<", 42, 112);
+    ctx.textAlign = "right";
+    ctx.fillText(">", canvas.width - 42, 112);
+  }
+
   ctx.fillStyle = "#f8f6ee";
-  ctx.font = label.length > 7 ? "900 44px Arial" : "900 58px Arial";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, 320, 112);
+  ctx.font = lines.length > 1 ? "900 39px Arial" : String(label).length > 12 ? "900 42px Arial" : "900 54px Arial";
+  const centerY = subtitle ? 88 : 112;
+  if (lines.length > 1) {
+    const startY = subtitle ? 65 : 88;
+    lines.forEach((line, index) => ctx.fillText(line, 320, startY + index * 44));
+  } else {
+    ctx.fillText(lines[0] || "", 320, centerY);
+  }
+
+  if (subtitle) {
+    ctx.fillStyle = active ? "#c8fff8" : "#c5ccc7";
+    ctx.font = "800 24px Arial";
+    ctx.fillText(subtitle, 320, 156);
+  }
+
   return canvas;
 }
 

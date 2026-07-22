@@ -35,6 +35,7 @@ export function createDomUi({
     robustnessSlider: document.getElementById("robustness-slider"),
     robustnessValue: document.getElementById("robustness-value"),
     revealRedesign: document.getElementById("reveal-redesign"),
+    revealRedesignLabel: document.getElementById("reveal-redesign-label"),
     rankingPanel: document.getElementById("ranking-panel"),
     rankingList: document.getElementById("ranking-list"),
     checkRanking: document.getElementById("check-ranking"),
@@ -122,6 +123,9 @@ export function createDomUi({
 
       elements.revealRedesign.checked = state.workbench.revealRedesign;
       elements.revealRedesign.disabled = !supportsRedesign;
+      elements.revealRedesignLabel.textContent = state.workbench.revealRedesign
+        ? "Show original design"
+        : "Show improved design";
 
       elements.rankingPanel.hidden = scene.type !== "comparison";
       elements.checkRanking.disabled = scene.type !== "comparison";
