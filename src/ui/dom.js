@@ -156,13 +156,14 @@ export function createDomUi({
 }
 
 function renderStressTestTicks(elements, activeIndex, enabled) {
-  elements.stressTestTicks.style.gridTemplateColumns = `repeat(${stressTests.length}, minmax(0, 1fr))`;
   elements.stressTestTicks.replaceChildren(
     ...stressTests.map((test, index) => {
       const tick = document.createElement("span");
+      const position = stressTests.length <= 1 ? 0 : (index / (stressTests.length - 1)) * 100;
       tick.className = "stress-test-tick";
       tick.classList.toggle("is-active", index === activeIndex);
       tick.classList.toggle("is-disabled", !enabled);
+      tick.style.left = `${position}%`;
       tick.title = test.label;
       return tick;
     }),

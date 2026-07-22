@@ -299,17 +299,16 @@ input[type="range"] {
 }
 
 .stress-test-ticks {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  align-items: start;
+  position: relative;
   height: 16px;
   margin: -6px 0 2px;
-  padding: 0 7px;
   pointer-events: none;
 }
 
 .stress-test-tick {
-  position: relative;
+  position: absolute;
+  top: 0;
+  width: 0;
   height: 16px;
 }
 
@@ -317,7 +316,7 @@ input[type="range"] {
   content: "";
   position: absolute;
   top: 0;
-  left: 50%;
+  left: 0;
   width: 2px;
   height: 8px;
   border-radius: 999px;
