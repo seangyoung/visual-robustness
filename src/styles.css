@@ -246,6 +246,34 @@ button:disabled {
   text-align: right;
 }
 
+.example-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0 1px;
+}
+
+.example-control[hidden] {
+  display: none;
+}
+
+.example-control span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.example-control button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 10px;
+  color: #edf2ed;
+  font-size: 12px;
+  background: rgba(248, 246, 238, 0.06);
+}
+
 .range-control,
 .toggle-control {
   display: flex;
@@ -664,6 +692,12 @@ body.is-immersive .status-line {
 
   .workbench-title strong {
     text-align: left;
+  }
+
+  .example-control {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 
   #ranking-list > li {

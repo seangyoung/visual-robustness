@@ -10,13 +10,16 @@ import {
   stressTestByIndex,
   stressTests,
 } from "../config/stressTests.js";
+import {
+  visualizationExampleByIndex,
+  visualizationExamples,
+} from "../config/visualizationExamples.js";
 
-const publicHealthAssetSources = {
-  mapBaseline: new URL("../../assets/proposed-public-health/cdc-places-diabetes-map-baseline.png", import.meta.url).href,
-  mapRedesign: new URL("../../assets/proposed-public-health/cdc-places-diabetes-map-redesign.png", import.meta.url).href,
-  chartBaseline: new URL("../../assets/proposed-public-health/cdc-places-diabetes-chart-baseline.png", import.meta.url).href,
-  chartRedesign: new URL("../../assets/proposed-public-health/cdc-places-diabetes-chart-redesign.png", import.meta.url).href,
-};
+const publicHealthAssetSources = Object.fromEntries(
+  visualizationExamples.flatMap((example) =>
+    Object.entries(example.assets).map(([slot, url]) => [publicHealthAssetKey(example.id, slot), url]),
+  ),
+);
 
 const publicHealthImages = new Map();
 const simulatedImageCache = new Map();
@@ -222,12 +225,12 @@ function drawOrientationPanel(ctx, canvas, kind, scene, state) {
 }
 
 function drawColorPanel(ctx, canvas, kind, scene, state) {
+  const example = visualizationExampleByIndex(state.exampleIndex);
+
   if (kind === "task") {
-    drawTaskPanel(ctx, canvas, scene, state, {
-      lead: state.workbench.revealRedesign
-        ? scene.reveal
-        : "The map and chart use matching color classes, but hue carries too much of the interpretation.",
-      hint: scene.answer,
+    drawTaskPanel(ctx, canvas, { ...scene, prompt: example.prompt }, state, {
+      lead: state.workbench.revealRedesign ? example.reveal : example.baselineLead,
+      hint: example.answer,
     });
     return;
   }
@@ -244,7 +247,9 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
 }
 
 function drawPublicHealthAsset(ctx, canvas, kind, state) {
-  const assetKey = `${kind}${state.workbench.revealRedesign ? "Redesign" : "Baseline"}`;
+  const example = visualizationExampleByIndex(state.exampleIndex);
+  const slot = `${kind}${state.workbench.revealRedesign ? "Redesign" : "Baseline"}`;
+  const assetKey = publicHealthAssetKey(example.id, slot);
   const image = publicHealthImages.get(assetKey);
 
   if (!image) {
@@ -254,6 +259,10 @@ function drawPublicHealthAsset(ctx, canvas, kind, state) {
 
   const source = simulatedAssetSource(assetKey, image, state);
   ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+}
+
+function publicHealthAssetKey(exampleId, slot) {
+  return `${exampleId}:${slot}`;
 }
 
 function simulatedAssetSource(assetKey, image, state) {

@@ -5,6 +5,12 @@ import {
   stressTestIndexById,
   stressTestIndexFromPercent,
 } from "./config/stressTests.js";
+import {
+  clampExampleIndex,
+  nextVisualizationExampleIndex,
+  visualizationExampleByIndex,
+  visualizationExampleIndexById,
+} from "./config/visualizationExamples.js";
 import { createGalleryApp } from "./scene/gallery.js";
 import { createDomUi } from "./ui/dom.js";
 import { preloadVisualizationAssets } from "./visualizations/colorFragility.js";
@@ -13,6 +19,7 @@ const canvas = document.getElementById("xr-canvas");
 
 const state = {
   sceneIndex: initialSceneIndex(),
+  exampleIndex: initialExampleIndex(),
   settings: {
     highContrast: false,
     reducedMotion: false,
@@ -101,6 +108,11 @@ function handleAction(action, payload = {}) {
 
   if (action === "setRedesign") {
     state.workbench.revealRedesign = Boolean(payload.value);
+  }
+
+  if (action === "nextExample") {
+    state.exampleIndex = nextVisualizationExampleIndex(state.exampleIndex);
+    state.workbench.revealRedesign = false;
   }
 
   if (action === "moveRank") {
@@ -197,14 +209,29 @@ function initialWorkbenchOverrides() {
   return overrides;
 }
 
+function initialExampleIndex() {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("example");
+  if (!requested) return 0;
+  const numeric = Number.parseInt(requested, 10);
+  if (Number.isFinite(numeric)) return clampExampleIndex(numeric - 1);
+  return visualizationExampleIndexById(requested);
+}
+
 function syncUrl() {
   const scene = moduleScenes[state.sceneIndex];
+  const example = visualizationExampleByIndex(state.exampleIndex);
   const url = new URL(window.location.href);
   url.searchParams.delete("step");
   url.searchParams.delete("robustness");
   url.searchParams.delete("stress");
   url.searchParams.delete("reveal");
   url.searchParams.set("scene", scene.id);
+  if (state.exampleIndex === 0) {
+    url.searchParams.delete("example");
+  } else {
+    url.searchParams.set("example", example.id);
+  }
   window.history.replaceState({}, "", url);
 }
 

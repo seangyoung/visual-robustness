@@ -5,6 +5,10 @@ import {
   recommendedComparisonRanking,
 } from "../config/lesson.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
+import {
+  visualizationExampleByIndex,
+  visualizationExamples,
+} from "../config/visualizationExamples.js";
 
 export function createDomUi({
   onAction,
@@ -25,6 +29,9 @@ export function createDomUi({
     next: document.getElementById("next-step"),
     workbenchControls: document.getElementById("workbench-controls"),
     workbenchTitle: document.getElementById("workbench-title"),
+    exampleControl: document.querySelector(".example-control"),
+    exampleLabel: document.getElementById("example-label"),
+    nextExample: document.getElementById("next-example"),
     robustnessSlider: document.getElementById("robustness-slider"),
     robustnessValue: document.getElementById("robustness-value"),
     revealRedesign: document.getElementById("reveal-redesign"),
@@ -40,6 +47,7 @@ export function createDomUi({
 
   elements.back.addEventListener("click", () => onAction("back"));
   elements.next.addEventListener("click", () => onAction("next"));
+  elements.nextExample.addEventListener("click", () => onAction("nextExample"));
   elements.robustnessSlider.addEventListener("input", (event) => {
     onWorkbenchChange({ stressTestIndex: Number(event.target.value) });
   });
@@ -75,12 +83,15 @@ export function createDomUi({
       const hasSceneNavigation = moduleScenes.length > 1;
       const supportsRedesign = scene.type === "color" || scene.type === "contrast";
       const supportsRobustness = scene.type !== "reflection";
+      const activeExample = visualizationExampleByIndex(state.exampleIndex);
       const showsWorkbenchControls =
         scene.type === "orientation" || scene.type === "color" || scene.type === "contrast";
+      const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
+      const revealCopy = scene.type === "color" ? activeExample.reveal : scene.reveal;
 
       elements.stepKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
       elements.stepTitle.textContent = scene.title;
-      elements.stepPrompt.textContent = scene.prompt;
+      elements.stepPrompt.textContent = prompt;
       elements.progressTrack.hidden = !hasSceneNavigation;
       elements.progressFill.style.width = `${((state.sceneIndex + 1) / moduleScenes.length) * 100}%`;
       elements.sceneNav.hidden = !hasSceneNavigation;
@@ -88,7 +99,11 @@ export function createDomUi({
       elements.next.disabled = isLast;
       elements.next.textContent = isLast ? "Complete" : "Next";
       elements.statusLine.textContent = scene.status;
-      elements.workbenchTitle.textContent = scene.workbenchTitle;
+      elements.workbenchTitle.textContent =
+        scene.type === "color" ? activeExample.workbenchTitle : scene.workbenchTitle;
+      elements.exampleLabel.textContent =
+        `${activeExample.label} of ${visualizationExamples.length}: ${activeExample.shortTitle}`;
+      elements.exampleControl.hidden = scene.type !== "color" || visualizationExamples.length < 2;
 
       elements.workbenchControls.hidden = !showsWorkbenchControls;
       const stressTestIndex = clampStressTestIndex(state.workbench.stressTestIndex);
@@ -116,9 +131,9 @@ export function createDomUi({
       elements.textEquivalent.textContent = [
         galleryCopy.textEquivalent,
         `Current scene: ${scene.title}.`,
-        scene.prompt,
+        prompt,
         scene.task,
-        scene.reveal && state.workbench.revealRedesign ? scene.reveal : "",
+        revealCopy && state.workbench.revealRedesign ? revealCopy : "",
       ]
         .filter(Boolean)
         .join(" ");

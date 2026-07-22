@@ -9,10 +9,10 @@ export const moduleScenes = [
     shortTitle: "Color",
     type: "color",
     duration: "3 min",
-    prompt: "Which diabetes prevalence class contains the most Texas counties?",
+    prompt: "Use the selected map and chart to answer the interpretation question.",
     task: "Move the Stress Test, then reveal the redesign.",
     status: "Scene 1: color dependence.",
-    workbenchTitle: "CDC PLACES diabetes map",
+    workbenchTitle: "CDC PLACES diabetes examples",
     defaultWorkbench: { stressTestIndex: 0, revealRedesign: false },
     answer: "The 14.9-16.4% prevalence class contains the most counties.",
     reveal:
@@ -126,5 +126,5 @@ export const recommendedComparisonRanking = ["redundant", "simplified", "hue-onl
 
 export const galleryCopy = {
   textEquivalent:
-    "The standalone module presents a color-dependence workbench. A CDC PLACES diabetes map and related chart begin as hue-dependent designs. The stress-test control simulates specific color vision deficiency states, and the redesign adds direct labels, chart annotations, stronger boundaries, and a luminance-ordered palette.",
+    "The standalone module presents a color-dependence workbench. CDC PLACES diabetes maps and related charts begin as hue-dependent designs. The stress-test control simulates specific color vision deficiency states, and the redesigns add redundant cues such as labels, chart annotations, stronger boundaries, luminance ordering, and pattern.",
 };

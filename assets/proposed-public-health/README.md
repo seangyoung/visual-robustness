@@ -17,4 +17,8 @@ Candidate assets:
 - `cdc-places-diabetes-chart-baseline.png`
 - `cdc-places-diabetes-map-redesign.png`
 - `cdc-places-diabetes-chart-redesign.png`
+- `cdc-places-diabetes-diverging-map-baseline.png`
+- `cdc-places-diabetes-diverging-chart-baseline.png`
+- `cdc-places-diabetes-diverging-map-redesign.png`
+- `cdc-places-diabetes-diverging-chart-redesign.png`
 - `cdc-places-diabetes-texas-counties.csv`

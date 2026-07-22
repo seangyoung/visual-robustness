@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
+import { visualizationExamples } from "../config/visualizationExamples.js";
 import {
   createButtonTexture,
   createComparisonCardTexture,
@@ -27,7 +28,8 @@ const LAYOUT = {
 const BUTTONS = [
   { id: "back", action: "back", label: "Back", x: -0.84 },
   { id: "next", action: "next", label: "Next", x: 0 },
-  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 1.18 },
+  { id: "example", action: "nextExample", label: "Example", x: 0.9, width: 0.82 },
+  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 1.78, width: 0.74 },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -587,9 +589,13 @@ function updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSli
 
   mainButtons.forEach((button) => {
     const isNavigation = button.id === "back" || button.id === "next";
+    const isExampleControl = button.id === "example";
     button.mesh.position.x = button.x;
     button.mesh.visible =
-      isImmersive && (!isNavigation || hasSceneNavigation) && (button.id !== "reveal" || supportsRedesign);
+      isImmersive &&
+      (!isNavigation || hasSceneNavigation) &&
+      (!isExampleControl || (sceneState.type === "color" && visualizationExamples.length > 1)) &&
+      (button.id !== "reveal" || supportsRedesign);
   });
   setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
   robustnessSlider.group.visible = isImmersive && supportsSlider;
