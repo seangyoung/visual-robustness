@@ -3,19 +3,6 @@ export const MODULE_SUBTITLE = "Module 1: Perceptual Accessibility in Data Visua
 
 export const moduleScenes = [
   {
-    id: "orientation",
-    sceneNumber: 0,
-    title: "Visualization Workbench",
-    shortTitle: "Orientation",
-    type: "orientation",
-    duration: "1 min",
-    prompt: "Practice the workbench controls before the design tasks begin.",
-    task: "Inspect the figures. Use Next when ready.",
-    status: "Orientation: practice the interaction pattern.",
-    workbenchTitle: "Interaction rehearsal",
-    defaultWorkbench: { robustness: 0, revealRedesign: false },
-  },
-  {
     id: "color-dependence",
     sceneNumber: 1,
     title: "Color Dependence",
@@ -30,47 +17,6 @@ export const moduleScenes = [
     answer: "Wetland dominates the watershed.",
     reveal:
       "The redesign adds labels, patterns, value contrast, and stronger figure-ground separation.",
-  },
-  {
-    id: "contrast-hierarchy",
-    sceneNumber: 2,
-    title: "Contrast and Hierarchy",
-    shortTitle: "Contrast",
-    type: "contrast",
-    duration: "2 min",
-    prompt: "What information reaches your eye first?",
-    task: "Increase the Robustness Test, then reveal the redesign.",
-    status: "Scene 2: contrast and hierarchy.",
-    workbenchTitle: "Priority areas and supporting context",
-    defaultWorkbench: { robustness: 0, revealRedesign: false },
-    reveal:
-      "The redesign separates priority areas, context, and labels.",
-  },
-  {
-    id: "robust-comparison",
-    sceneNumber: 3,
-    title: "Robust Design Comparison",
-    shortTitle: "Rank",
-    type: "comparison",
-    duration: "3 min",
-    prompt: "Rank the three designs from most robust to least robust.",
-    task: "Drag the cards into order, then Check.",
-    status: "Scene 3: robust design comparison.",
-    workbenchTitle: "Ranking bench",
-    defaultWorkbench: { robustness: 55, revealRedesign: true },
-  },
-  {
-    id: "reflection",
-    sceneNumber: 4,
-    title: "Course Reflection",
-    shortTitle: "Close",
-    type: "reflection",
-    duration: "1 min",
-    prompt: "Complete the reflection in the course tool after leaving the prototype.",
-    task: "This app does not collect responses.",
-    status: "Scene 4: external course reflection.",
-    workbenchTitle: "Course handoff",
-    defaultWorkbench: { robustness: 0, revealRedesign: true },
   },
 ];
 
@@ -180,5 +126,5 @@ export const recommendedComparisonRanking = ["redundant", "simplified", "hue-onl
 
 export const galleryCopy = {
   textEquivalent:
-    "The module presents a visualization workbench with scenes on color dependence, contrast and hierarchy, robust design comparison, and an external course reflection handoff. The app does not collect student responses.",
+    "The standalone module presents a color-dependence workbench. A land-cover map begins as a hue-dependent design. The robustness control compresses color distinctions, and the redesign adds labels, patterns, value contrast, and stronger figure-ground separation.",
 };

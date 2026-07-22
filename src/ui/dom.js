@@ -17,7 +17,9 @@ export function createDomUi({
     stepKicker: document.getElementById("step-kicker"),
     stepTitle: document.getElementById("step-title"),
     stepPrompt: document.getElementById("step-prompt"),
+    progressTrack: document.getElementById("progress-track"),
     progressFill: document.getElementById("progress-fill"),
+    sceneNav: document.getElementById("scene-nav"),
     back: document.getElementById("back-step"),
     next: document.getElementById("next-step"),
     workbenchControls: document.getElementById("workbench-controls"),
@@ -69,15 +71,18 @@ export function createDomUi({
     render(state) {
       const scene = moduleScenes[state.sceneIndex];
       const isLast = state.sceneIndex === moduleScenes.length - 1;
+      const hasSceneNavigation = moduleScenes.length > 1;
       const supportsRedesign = scene.type === "color" || scene.type === "contrast";
       const supportsRobustness = scene.type !== "reflection";
       const showsWorkbenchControls =
         scene.type === "orientation" || scene.type === "color" || scene.type === "contrast";
 
-      elements.stepKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length - 1} • ${scene.duration}`;
+      elements.stepKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
       elements.stepTitle.textContent = scene.title;
       elements.stepPrompt.textContent = scene.prompt;
+      elements.progressTrack.hidden = !hasSceneNavigation;
       elements.progressFill.style.width = `${((state.sceneIndex + 1) / moduleScenes.length) * 100}%`;
+      elements.sceneNav.hidden = !hasSceneNavigation;
       elements.back.disabled = state.sceneIndex === 0;
       elements.next.disabled = isLast;
       elements.next.textContent = isLast ? "Complete" : "Next";

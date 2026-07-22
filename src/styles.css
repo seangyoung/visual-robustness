@@ -179,6 +179,10 @@ button:disabled {
   background: rgba(248, 246, 238, 0.18);
 }
 
+.progress-track[hidden] {
+  display: none;
+}
+
 #progress-fill {
   display: block;
   width: 0%;
@@ -192,6 +196,10 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.control-row[hidden] {
+  display: none;
 }
 
 .control-row button {

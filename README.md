@@ -5,9 +5,10 @@ Module 1, Perceptual Accessibility in Data Visualization, uses a minimalist
 Visualization Workbench to teach how maps and graphics become fragile under changes
 in color perception and contrast sensitivity.
 
-The current prototype implements the shared scene framework, a complete Color
-Dependence scene, a drag-based Robust Design Comparison scene, and a final
-handoff to external course reflection.
+The current prototype exposes only the standalone Color Dependence scene. Earlier
+scaffolds for orientation, contrast/hierarchy, ranking, and reflection are parked
+in `src/config/futureScenes.js` so they can be restored later without staying live
+on the prototype site.
 
 ## Run Locally
 
@@ -20,14 +21,9 @@ Open `http://127.0.0.1:5173/`.
 
 Direct scene links are available for testing:
 
-- `http://127.0.0.1:5173/?scene=orientation`
 - `http://127.0.0.1:5173/?scene=color-dependence`
-- `http://127.0.0.1:5173/?scene=contrast-hierarchy`
-- `http://127.0.0.1:5173/?scene=robust-comparison`
-- `http://127.0.0.1:5173/?scene=reflection`
 
-Legacy `?step=orientation` links are still accepted and are rewritten to `?scene=...`
-after interaction.
+Legacy or archived scene links fall back to the standalone Color Dependence scene.
 
 For visual QA, the workbench can also be initialized from the URL:
 
@@ -65,14 +61,14 @@ Device smoke test:
 - Enter VR from a direct user click or controller selection.
 - Confirm controller selection works on in-world controls.
 - Confirm panels are readable without artificial locomotion.
-- Complete Scene 1 and test Scene 3 ranking in browser fallback and VR.
+- Complete the standalone Color Dependence scene in browser fallback and VR.
 
 ## Implemented Interaction Model
 
 - Shared Visualization Workbench state for browser and WebXR modes.
-- Browser controls for Robustness Test, reveal redesign, and ranking.
-- WebXR controller-selectable workbench buttons for Back, Next, reveal, and Check.
-- WebXR grab-style controls for the Robustness Test slider and Scene 3 ranking cards.
+- Browser controls for Robustness Test and reveal redesign.
+- WebXR controller-selectable reveal control.
+- WebXR grab-style control for the Robustness Test slider.
 - Inspection uses native interaction: mouse/trackpad and touch in browser, headset
   movement and controller-mediated pointing in VR.
 - No artificial locomotion; the gallery is stationary with subtle optional motion.
@@ -124,12 +120,10 @@ Data statement:
 ## Prototype Test Checklist
 
 - Desktop browser loads and keyboard navigation works.
-- Scene 1 can be completed: baseline map, Robustness Test, redesign reveal, and Next.
+- Scene 1 can be completed: baseline map, Robustness Test, and redesign reveal.
 - Robustness Test slider visibly compresses color distinctions in Scene 1.
 - Reveal redesign adds labels, patterns, ordered value, and stronger figure-ground separation.
-- Reflection scene gives a brief external course-tool handoff.
-- Robust comparison scene supports direct drag-to-reorder ranking in browser fallback.
-- Robust comparison scene supports grab/drop card ranking in VR.
+- Non-color scenes are archived in `src/config/futureScenes.js` and are not live.
 - WebXR entry is available on a Quest-compatible browser over HTTPS.
 - In-world controls respond to controller selection.
 - High contrast and reduced motion settings update the experience.

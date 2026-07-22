@@ -561,12 +561,17 @@ function createRankingSet(scene) {
 }
 
 function updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSlider, rankingSet, sceneState, isImmersive) {
+  const hasSceneNavigation = moduleScenes.length > 1;
   const supportsRedesign = sceneState.type === "color" || sceneState.type === "contrast";
   const supportsSlider =
     sceneState.type === "orientation" || sceneState.type === "color" || sceneState.type === "contrast";
 
   mainButtons.forEach((button) => {
-    button.mesh.visible = isImmersive && (button.id !== "reveal" || supportsRedesign);
+    const isNavigation = button.id === "back" || button.id === "next";
+    if (!hasSceneNavigation && button.id === "reveal") button.mesh.position.x = 0;
+    else button.mesh.position.x = button.x;
+    button.mesh.visible =
+      isImmersive && (!isNavigation || hasSceneNavigation) && (button.id !== "reveal" || supportsRedesign);
   });
   setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
   robustnessSlider.group.visible = isImmersive && supportsSlider;
