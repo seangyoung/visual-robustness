@@ -5,10 +5,21 @@ import {
 } from "../config/lesson.js";
 import {
   simulateColor,
+  simulateRgb,
   stressLevelFromState,
   stressTestByIndex,
   stressTests,
 } from "../config/stressTests.js";
+
+const publicHealthAssetSources = {
+  mapBaseline: new URL("../../assets/proposed-public-health/cdc-places-diabetes-map-baseline.png", import.meta.url).href,
+  mapRedesign: new URL("../../assets/proposed-public-health/cdc-places-diabetes-map-redesign.png", import.meta.url).href,
+  chartBaseline: new URL("../../assets/proposed-public-health/cdc-places-diabetes-chart-baseline.png", import.meta.url).href,
+  chartRedesign: new URL("../../assets/proposed-public-health/cdc-places-diabetes-chart-redesign.png", import.meta.url).href,
+};
+
+const publicHealthImages = new Map();
+const simulatedImageCache = new Map();
 
 const watershedOutline = [
   [92, 190],
@@ -108,6 +119,27 @@ export function createPanelTexture(kind, scene, state) {
   return canvas;
 }
 
+export async function preloadVisualizationAssets() {
+  await Promise.all(
+    Object.entries(publicHealthAssetSources).map(([key, url]) => loadPublicHealthImage(key, url)),
+  );
+}
+
+function loadPublicHealthImage(key, url) {
+  if (publicHealthImages.has(key)) return Promise.resolve(publicHealthImages.get(key));
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      publicHealthImages.set(key, image);
+      resolve(image);
+    };
+    image.onerror = () => reject(new Error(`Could not load visualization asset: ${url}`));
+    image.src = url;
+  });
+}
+
 export function createButtonTexture(label, active = false) {
   const canvas = document.createElement("canvas");
   canvas.width = 640;
@@ -194,25 +226,80 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
     drawTaskPanel(ctx, canvas, scene, state, {
       lead: state.workbench.revealRedesign
         ? scene.reveal
-        : "The answer starts easy. Hue carries most of the work.",
+        : "The map and chart use matching color classes, but hue carries too much of the interpretation.",
       hint: scene.answer,
     });
     return;
   }
 
   if (kind === "map") {
-    panelBase(ctx, canvas, "1. Land-cover map", "Hue-only categories under stress", state);
-    drawWatershedMap(ctx, 118, 214, state);
-    drawLandCoverLegend(ctx, 990, 268, state);
-    drawStressMeter(ctx, 124, 882, state);
+    drawPublicHealthAsset(ctx, canvas, "map", state);
     return;
   }
 
   if (kind === "chart") {
-    panelBase(ctx, canvas, "2. Category area", "Same data in a related chart", state);
-    drawLandCoverChart(ctx, 160, 262, state);
+    drawPublicHealthAsset(ctx, canvas, "chart", state);
     return;
   }
+}
+
+function drawPublicHealthAsset(ctx, canvas, kind, state) {
+  const assetKey = `${kind}${state.workbench.revealRedesign ? "Redesign" : "Baseline"}`;
+  const image = publicHealthImages.get(assetKey);
+
+  if (!image) {
+    drawLoadingAssetPanel(ctx, canvas, kind, state);
+    return;
+  }
+
+  const source = simulatedAssetSource(assetKey, image, state);
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+}
+
+function simulatedAssetSource(assetKey, image, state) {
+  const stressTest = stressTestByIndex(state.workbench.stressTestIndex);
+  if (stressTest.type === "identity") return image;
+
+  const cacheKey = `${assetKey}:${stressTest.id}`;
+  const cached = simulatedImageCache.get(cacheKey);
+  if (cached) return cached;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const { data } = imageData;
+
+  for (let index = 0; index < data.length; index += 4) {
+    if (data[index + 3] === 0) continue;
+    const simulated = simulateRgb(
+      {
+        r: data[index],
+        g: data[index + 1],
+        b: data[index + 2],
+      },
+      stressTest,
+    );
+    data[index] = simulated.r;
+    data[index + 1] = simulated.g;
+    data[index + 2] = simulated.b;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  simulatedImageCache.set(cacheKey, canvas);
+
+  return canvas;
+}
+
+function drawLoadingAssetPanel(ctx, canvas, kind, state) {
+  const title = kind === "map" ? "1. Public health map" : "2. Related chart";
+  panelBase(ctx, canvas, title, "Loading CDC PLACES visualization asset", state);
+  ctx.fillStyle = "#536164";
+  ctx.font = "800 32px Arial";
+  ctx.fillText("Loading image asset...", 112, 240);
 }
 
 function drawContrastPanel(ctx, canvas, kind, scene, state) {

@@ -121,30 +121,37 @@ export function stressLevelFromState(state) {
 }
 
 export function simulateColor(color, stateOrStressTest) {
+  return rgbString(simulateRgb(parseColor(color), stateOrStressTest));
+}
+
+export function simulateRgb(rgb, stateOrStressTest) {
   const stressTest = stateOrStressTest?.workbench
     ? stressTestFromWorkbench(stateOrStressTest.workbench)
     : stateOrStressTest;
-  const rgb = parseColor(color);
-
-  if (!stressTest || stressTest.type === "identity") return rgbString(rgb);
+  const base = {
+    r: clamp255(rgb?.r),
+    g: clamp255(rgb?.g),
+    b: clamp255(rgb?.b),
+  };
+  if (!stressTest || stressTest.type === "identity") return base;
 
   const linear = [
-    srgbChannelToLinear(rgb.r),
-    srgbChannelToLinear(rgb.g),
-    srgbChannelToLinear(rgb.b),
+    srgbChannelToLinear(base.r),
+    srgbChannelToLinear(base.g),
+    srgbChannelToLinear(base.b),
   ];
 
   if (stressTest.type === "monochrome") {
     const y = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
-    return rgbString(linearRgbToSrgb({ r: y, g: y, b: y }));
+    return linearRgbToSrgb({ r: y, g: y, b: y });
   }
 
   if (stressTest.type === "matrix") {
     const transformed = applyMatrix(stressTest.matrix, linear);
-    return rgbString(linearRgbToSrgb(transformed));
+    return linearRgbToSrgb(transformed);
   }
 
-  return rgbString(rgb);
+  return base;
 }
 
 function applyMatrix(matrix, rgb) {

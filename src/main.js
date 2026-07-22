@@ -7,6 +7,7 @@ import {
 } from "./config/stressTests.js";
 import { createGalleryApp } from "./scene/gallery.js";
 import { createDomUi } from "./ui/dom.js";
+import { preloadVisualizationAssets } from "./visualizations/colorFragility.js";
 
 const canvas = document.getElementById("xr-canvas");
 
@@ -54,6 +55,11 @@ ui.elements.enterVr.addEventListener("click", () => {
 });
 
 render();
+preloadVisualizationAssets()
+  .then(render)
+  .catch((error) => {
+    ui.setStatus(error.message);
+  });
 
 function handleAction(action, payload = {}) {
   if (action === "back") {

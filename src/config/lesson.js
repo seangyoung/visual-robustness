@@ -9,14 +9,14 @@ export const moduleScenes = [
     shortTitle: "Color",
     type: "color",
     duration: "3 min",
-    prompt: "Which land-cover category dominates the watershed?",
+    prompt: "Which diabetes prevalence class contains the most Texas counties?",
     task: "Move the Stress Test, then reveal the redesign.",
     status: "Scene 1: color dependence.",
-    workbenchTitle: "Watershed land-cover map",
+    workbenchTitle: "CDC PLACES diabetes map",
     defaultWorkbench: { stressTestIndex: 0, revealRedesign: false },
-    answer: "Wetland dominates the watershed.",
+    answer: "The 14.9-16.4% prevalence class contains the most counties.",
     reveal:
-      "The redesign adds labels, patterns, value contrast, and stronger figure-ground separation.",
+      "The redesign uses a luminance-ordered palette, stronger county boundaries, selected direct labels, and chart annotations.",
   },
 ];
 
@@ -126,5 +126,5 @@ export const recommendedComparisonRanking = ["redundant", "simplified", "hue-onl
 
 export const galleryCopy = {
   textEquivalent:
-    "The standalone module presents a color-dependence workbench. A land-cover map begins as a hue-dependent design. The stress-test control simulates specific color vision deficiency states, and the redesign adds labels, patterns, value contrast, and stronger figure-ground separation.",
+    "The standalone module presents a color-dependence workbench. A CDC PLACES diabetes map and related chart begin as hue-dependent designs. The stress-test control simulates specific color vision deficiency states, and the redesign adds direct labels, chart annotations, stronger boundaries, and a luminance-ordered palette.",
 };

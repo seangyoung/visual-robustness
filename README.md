@@ -10,6 +10,10 @@ scaffolds for orientation, contrast/hierarchy, ranking, and reflection are parke
 in `src/config/futureScenes.js` so they can be restored later without staying live
 on the prototype site.
 
+The live Color Dependence scene uses generated CDC PLACES diabetes prevalence
+map/chart assets from `assets/proposed-public-health/`. The reproducible R
+generator is `scripts/generate_cdc_places_diabetes_assets.R`.
+
 ## Run Locally
 
 ```bash
