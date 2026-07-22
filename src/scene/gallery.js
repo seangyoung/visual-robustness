@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
-import { comparisonDesigns, moduleScenes, MODULE_SUBTITLE, MODULE_TITLE } from "../config/lesson.js";
+import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
   createButtonTexture,
@@ -18,18 +18,16 @@ const LAYOUT = {
   wallZ: -5.9,
   workbenchY: 0.58,
   workbenchZ: -2.55,
-  buttonY: 0.9,
-  buttonZ: -1.82,
+  buttonY: 0.78,
+  buttonZ: -1.86,
   panelY: 1.84,
   panelZ: -4.18,
   taskZ: -3.92,
-  captionY: 0.66,
-  captionZ: -2.12,
 };
 const BUTTONS = [
   { id: "back", action: "back", label: "Back", x: -0.84 },
   { id: "next", action: "next", label: "Next", x: 0 },
-  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 0.84 },
+  { id: "reveal", action: "toggleRedesign", label: "Reveal", x: 1.18 },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -37,7 +35,7 @@ const CHECK_BUTTONS = [
 const SLIDER_WIDTH = 1.55;
 const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
 const SLIDER_MAX_X = SLIDER_WIDTH / 2;
-const SLIDER_CENTER = new THREE.Vector3(0.08, 0.96, -1.86);
+const SLIDER_CENTER = new THREE.Vector3(-0.48, 0.78, -1.86);
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -104,7 +102,6 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const sceneState = moduleScenes[state.sceneIndex];
     const isImmersive = Boolean(currentSession);
     updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSlider, rankingSet, sceneState, isImmersive);
-    panels.caption.visible = isImmersive;
     panels.map.visible = !(isImmersive && sceneState.type === "comparison");
     updatePanel(panels.map, "map", sceneState, state);
     updatePanel(panels.task, "task", sceneState, state);
@@ -112,9 +109,6 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     updateButtonTextures(inWorldButtons, hoverControl);
     updateRobustnessSlider(robustnessSlider, state.workbench.stressTestIndex, hoverControl, dragState);
     updateRankingSet(rankingSet, state, hoverControl, dragState);
-    panels.caption.material.map = textureFromCanvas(createCaptionTexture(sceneState, state));
-    panels.caption.material.map.needsUpdate = true;
-    panels.caption.material.needsUpdate = true;
     world.accent.visible = !state.settings.highContrast;
   }
 
@@ -432,9 +426,8 @@ function createPanels(scene) {
   const map = panelMesh("map", [-2.62, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.2, 0], PANEL_W, PANEL_H);
   const task = panelMesh("task", [0, LAYOUT.panelY - 0.08, LAYOUT.taskZ], [0, 0, 0], 2.35, 2.05);
   const chart = panelMesh("chart", [2.62, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.2, 0], PANEL_W, PANEL_H);
-  const caption = panelMesh("caption", [0, LAYOUT.captionY, LAYOUT.captionZ], [-0.28, 0, 0], 3.05, 0.56);
-  [map, task, chart, caption].forEach((panel) => group.add(panel));
-  return { group, map, task, chart, caption };
+  [map, task, chart].forEach((panel) => group.add(panel));
+  return { group, map, task, chart };
 }
 
 function panelMesh(name, position, rotation, width, height) {
@@ -492,7 +485,7 @@ function createRobustnessSlider(scene) {
   group.add(label);
 
   const hitArea = new THREE.Mesh(
-    new THREE.PlaneGeometry(SLIDER_WIDTH + 0.26, 0.32),
+    new THREE.PlaneGeometry(SLIDER_WIDTH + 0.16, 0.28),
     new THREE.MeshBasicMaterial({
       color: "#ffffff",
       transparent: true,
@@ -594,8 +587,7 @@ function updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSli
 
   mainButtons.forEach((button) => {
     const isNavigation = button.id === "back" || button.id === "next";
-    if (!hasSceneNavigation && button.id === "reveal") button.mesh.position.x = 0;
-    else button.mesh.position.x = button.x;
+    button.mesh.position.x = button.x;
     button.mesh.visible =
       isImmersive && (!isNavigation || hasSceneNavigation) && (button.id !== "reveal" || supportsRedesign);
   });
@@ -703,47 +695,6 @@ function updateButtonTextures(buttons, hoverControl) {
     button.mesh.material.map.needsUpdate = true;
     if (oldMap) oldMap.dispose();
   });
-}
-
-function createCaptionTexture(sceneState, state) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1300;
-  canvas.height = 260;
-  const ctx = canvas.getContext("2d");
-  const { settings, workbench } = state;
-  ctx.fillStyle = settings.highContrast ? "#0d1315" : "#11191c";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = settings.highContrast ? "#f8f6ee" : "#3d4d50";
-  ctx.lineWidth = 8;
-  ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
-  ctx.fillStyle = "#55c6ba";
-  ctx.font = "900 34px Arial";
-  ctx.fillText(MODULE_TITLE, 56, 70);
-  ctx.fillStyle = "#c5ccc7";
-  ctx.font = "700 23px Arial";
-  ctx.fillText(MODULE_SUBTITLE, 56, 105);
-  ctx.fillStyle = "#f8f6ee";
-  ctx.font = "800 40px Arial";
-  ctx.fillText(sceneState.title, 56, 154);
-  ctx.fillStyle = "#d9dfd8";
-  ctx.font = "500 27px Arial";
-  wrapText(
-    ctx,
-    captionText(sceneState, workbench),
-    56,
-    202,
-    1130,
-    34,
-  );
-  return canvas;
-}
-
-function captionText(sceneState, workbench) {
-  if (sceneState.type === "comparison" || sceneState.type === "reflection") return sceneState.task;
-  const stressTest = stressTestByIndex(workbench.stressTestIndex);
-  return `${sceneState.task} Active state: ${stressTest.shortLabel}. ${
-    workbench.revealRedesign ? "Redesign visible." : "Original visible."
-  }`;
 }
 
 function createSliderLabelTexture(stressTest, active) {
