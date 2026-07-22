@@ -10,7 +10,7 @@ export const futureScenes = [
     task: "Inspect the figures. Use Next when ready.",
     status: "Orientation: practice the interaction pattern.",
     workbenchTitle: "Interaction rehearsal",
-    defaultWorkbench: { robustness: 0, revealRedesign: false },
+    defaultWorkbench: { stressTestIndex: 0, revealRedesign: false },
   },
   {
     id: "contrast-hierarchy",
@@ -20,10 +20,10 @@ export const futureScenes = [
     type: "contrast",
     duration: "2 min",
     prompt: "What information reaches your eye first?",
-    task: "Increase the Robustness Test, then reveal the redesign.",
+    task: "Increase the Stress Test, then reveal the redesign.",
     status: "Scene 2: contrast and hierarchy.",
     workbenchTitle: "Priority areas and supporting context",
-    defaultWorkbench: { robustness: 0, revealRedesign: false },
+    defaultWorkbench: { stressTestIndex: 0, revealRedesign: false },
     reveal: "The redesign separates priority areas, context, and labels.",
   },
   {
@@ -37,7 +37,7 @@ export const futureScenes = [
     task: "Drag the cards into order, then Check.",
     status: "Scene 3: robust design comparison.",
     workbenchTitle: "Ranking bench",
-    defaultWorkbench: { robustness: 55, revealRedesign: true },
+    defaultWorkbench: { stressTestIndex: 3, revealRedesign: true },
   },
   {
     id: "reflection",
@@ -50,6 +50,6 @@ export const futureScenes = [
     task: "This app does not collect responses.",
     status: "Scene 4: external course reflection.",
     workbenchTitle: "Course handoff",
-    defaultWorkbench: { robustness: 0, revealRedesign: true },
+    defaultWorkbench: { stressTestIndex: 0, revealRedesign: true },
   },
 ];

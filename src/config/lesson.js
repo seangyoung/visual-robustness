@@ -10,10 +10,10 @@ export const moduleScenes = [
     type: "color",
     duration: "3 min",
     prompt: "Which land-cover category dominates the watershed?",
-    task: "Move the Robustness Test, then reveal the redesign.",
+    task: "Move the Stress Test, then reveal the redesign.",
     status: "Scene 1: color dependence.",
     workbenchTitle: "Watershed land-cover map",
-    defaultWorkbench: { robustness: 0, revealRedesign: false },
+    defaultWorkbench: { stressTestIndex: 0, revealRedesign: false },
     answer: "Wetland dominates the watershed.",
     reveal:
       "The redesign adds labels, patterns, value contrast, and stronger figure-ground separation.",
@@ -126,5 +126,5 @@ export const recommendedComparisonRanking = ["redundant", "simplified", "hue-onl
 
 export const galleryCopy = {
   textEquivalent:
-    "The standalone module presents a color-dependence workbench. A land-cover map begins as a hue-dependent design. The robustness control compresses color distinctions, and the redesign adds labels, patterns, value contrast, and stronger figure-ground separation.",
+    "The standalone module presents a color-dependence workbench. A land-cover map begins as a hue-dependent design. The stress-test control simulates specific color vision deficiency states, and the redesign adds labels, patterns, value contrast, and stronger figure-ground separation.",
 };

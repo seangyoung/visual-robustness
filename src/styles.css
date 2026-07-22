@@ -260,6 +260,9 @@ button:disabled {
 .range-control output {
   color: var(--amber);
   font-variant-numeric: tabular-nums;
+  min-width: 118px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 input[type="range"] {

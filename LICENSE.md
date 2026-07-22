@@ -30,6 +30,9 @@ Third-party dependencies, libraries, fonts, media, data, or other externally
 sourced materials retain their own licenses. This repository does not relicense
 third-party materials unless explicitly stated.
 
+See [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) for copied third-party
+source materials.
+
 ## Student Data
 
 This prototype is content-only courseware. It is not a course platform and does

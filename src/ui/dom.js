@@ -4,6 +4,7 @@ import {
   moduleScenes,
   recommendedComparisonRanking,
 } from "../config/lesson.js";
+import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 
 export function createDomUi({
   onAction,
@@ -40,7 +41,7 @@ export function createDomUi({
   elements.back.addEventListener("click", () => onAction("back"));
   elements.next.addEventListener("click", () => onAction("next"));
   elements.robustnessSlider.addEventListener("input", (event) => {
-    onWorkbenchChange({ robustness: Number(event.target.value) });
+    onWorkbenchChange({ stressTestIndex: Number(event.target.value) });
   });
   elements.revealRedesign.addEventListener("change", (event) => {
     onWorkbenchChange({ revealRedesign: event.target.checked });
@@ -90,8 +91,18 @@ export function createDomUi({
       elements.workbenchTitle.textContent = scene.workbenchTitle;
 
       elements.workbenchControls.hidden = !showsWorkbenchControls;
-      elements.robustnessSlider.value = String(Math.round(state.workbench.robustness));
-      elements.robustnessValue.textContent = `${Math.round(state.workbench.robustness)}%`;
+      const stressTestIndex = clampStressTestIndex(state.workbench.stressTestIndex);
+      const stressTest = stressTestByIndex(stressTestIndex);
+      elements.robustnessSlider.min = "0";
+      elements.robustnessSlider.max = String(stressTests.length - 1);
+      elements.robustnessSlider.step = "1";
+      elements.robustnessSlider.value = String(stressTestIndex);
+      elements.robustnessSlider.setAttribute(
+        "aria-valuetext",
+        `${stressTest.label}. ${stressTest.description}`,
+      );
+      elements.robustnessValue.textContent = stressTest.shortLabel;
+      elements.robustnessValue.title = stressTest.description;
       elements.robustnessSlider.disabled = !supportsRobustness;
 
       elements.revealRedesign.checked = state.workbench.revealRedesign;

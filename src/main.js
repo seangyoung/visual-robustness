@@ -1,5 +1,10 @@
 import "./styles.css";
 import { moduleScenes, recommendedComparisonRanking } from "./config/lesson.js";
+import {
+  clampStressTestIndex,
+  stressTestIndexById,
+  stressTestIndexFromPercent,
+} from "./config/stressTests.js";
 import { createGalleryApp } from "./scene/gallery.js";
 import { createDomUi } from "./ui/dom.js";
 
@@ -12,7 +17,7 @@ const state = {
     reducedMotion: false,
   },
   workbench: {
-    robustness: 0,
+    stressTestIndex: 0,
     revealRedesign: false,
   },
   ranking: ["hue-only", "redundant", "simplified"],
@@ -31,7 +36,7 @@ const ui = createDomUi({
     render();
   },
   onWorkbenchChange(workbenchPatch) {
-    state.workbench = { ...state.workbench, ...workbenchPatch };
+    state.workbench = { ...state.workbench, ...normalizeWorkbenchPatch(workbenchPatch) };
     render();
   },
 });
@@ -62,11 +67,26 @@ function handleAction(action, payload = {}) {
   }
 
   if (action === "setRobustness") {
-    state.workbench.robustness = clamp(Number(payload.value), 0, 100);
+    state.workbench.stressTestIndex = stressTestIndexFromPercent(payload.value);
   }
 
   if (action === "adjustRobustness") {
-    state.workbench.robustness = clamp(state.workbench.robustness + Number(payload.delta), 0, 100);
+    const direction = Math.sign(Number(payload.delta));
+    if (Number.isFinite(direction) && direction !== 0) {
+      state.workbench.stressTestIndex = clampStressTestIndex(state.workbench.stressTestIndex + direction);
+    }
+  }
+
+  if (action === "setStressTest") {
+    state.workbench.stressTestIndex =
+      payload.id !== undefined ? stressTestIndexById(payload.id) : clampStressTestIndex(payload.index);
+  }
+
+  if (action === "adjustStressTest") {
+    const direction = Math.sign(Number(payload.delta));
+    if (Number.isFinite(direction) && direction !== 0) {
+      state.workbench.stressTestIndex = clampStressTestIndex(state.workbench.stressTestIndex + direction);
+    }
   }
 
   if (action === "toggleRedesign") {
@@ -102,9 +122,9 @@ function applySceneDefaults() {
   const defaults = moduleScenes[state.sceneIndex]?.defaultWorkbench ?? {};
 
   state.workbench = {
-    robustness: 0,
+    stressTestIndex: 0,
     revealRedesign: false,
-    ...defaults,
+    ...normalizeWorkbenchPatch(defaults),
   };
 }
 
@@ -155,9 +175,15 @@ function initialSceneIndex() {
 function initialWorkbenchOverrides() {
   const params = new URLSearchParams(window.location.search);
   const overrides = {};
-  if (params.has("robustness")) {
+  if (params.has("stress")) {
+    const stress = params.get("stress");
+    const numeric = Number(stress);
+    overrides.stressTestIndex = Number.isFinite(numeric)
+      ? clampStressTestIndex(numeric)
+      : stressTestIndexById(stress);
+  } else if (params.has("robustness")) {
     const robustness = Number(params.get("robustness"));
-    if (Number.isFinite(robustness)) overrides.robustness = clamp(robustness, 0, 100);
+    if (Number.isFinite(robustness)) overrides.stressTestIndex = stressTestIndexFromPercent(robustness);
   }
   if (params.has("reveal")) {
     overrides.revealRedesign = ["1", "true", "yes"].includes(params.get("reveal")?.toLowerCase());
@@ -170,9 +196,22 @@ function syncUrl() {
   const url = new URL(window.location.href);
   url.searchParams.delete("step");
   url.searchParams.delete("robustness");
+  url.searchParams.delete("stress");
   url.searchParams.delete("reveal");
   url.searchParams.set("scene", scene.id);
   window.history.replaceState({}, "", url);
+}
+
+function normalizeWorkbenchPatch(workbench) {
+  const patch = { ...workbench };
+  if (patch.robustness !== undefined && patch.stressTestIndex === undefined) {
+    patch.stressTestIndex = stressTestIndexFromPercent(patch.robustness);
+  }
+  delete patch.robustness;
+  if (patch.stressTestIndex !== undefined) {
+    patch.stressTestIndex = clampStressTestIndex(patch.stressTestIndex);
+  }
+  return patch;
 }
 
 function clamp(value, min, max) {

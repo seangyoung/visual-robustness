@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 import { comparisonDesigns, moduleScenes, MODULE_SUBTITLE, MODULE_TITLE } from "../config/lesson.js";
+import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
   createButtonTexture,
   createComparisonCardTexture,
@@ -83,6 +84,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   const pointer = new THREE.Vector2();
   const interactive = [
     ...inWorldButtons.map((button) => button.mesh),
+    robustnessSlider.hitArea,
     robustnessSlider.handle,
     ...rankingSet.cards.map((card) => card.mesh),
   ];
@@ -92,7 +94,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   let currentState = {
     sceneIndex: 0,
     settings: ui.getSettings(),
-    workbench: { robustness: 0, revealRedesign: false },
+    workbench: { stressTestIndex: 0, revealRedesign: false },
     ranking: [],
   };
   let currentSession = null;
@@ -108,7 +110,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     updatePanel(panels.task, "task", sceneState, state);
     updatePanel(panels.chart, "chart", sceneState, state);
     updateButtonTextures(inWorldButtons, hoverControl);
-    updateRobustnessSlider(robustnessSlider, state.workbench.robustness, hoverControl, dragState);
+    updateRobustnessSlider(robustnessSlider, state.workbench.stressTestIndex, hoverControl, dragState);
     updateRankingSet(rankingSet, state, hoverControl, dragState);
     panels.caption.material.map = textureFromCanvas(createCaptionTexture(sceneState, state));
     panels.caption.material.map.needsUpdate = true;
@@ -222,7 +224,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       hoverControl = target.userData.controlId;
       pulseController(controller);
       updateSliderFromController(controller);
-      updateRobustnessSlider(robustnessSlider, currentState.workbench.robustness, hoverControl, dragState);
+      updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
       return;
     }
 
@@ -248,7 +250,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       return;
     }
 
-    updateRobustnessSlider(robustnessSlider, currentState.workbench.robustness, hoverControl, dragState);
+    updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
   }
 
   function updateDragState(activeDrag) {
@@ -265,9 +267,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const point = controllerPlanePoint(controller, raycaster, SLIDER_CENTER.z);
     if (!point) return;
     const localX = clamp(point.x - SLIDER_CENTER.x, SLIDER_MIN_X, SLIDER_MAX_X);
-    const value = Math.round(((localX - SLIDER_MIN_X) / SLIDER_WIDTH) * 100);
-    if (value !== Math.round(currentState.workbench.robustness)) {
-      selectAction("setRobustness", { value });
+    const normalized = (localX - SLIDER_MIN_X) / SLIDER_WIDTH;
+    const index = clampStressTestIndex(normalized * (stressTests.length - 1));
+    if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
+      selectAction("setStressTest", { index });
     }
   }
 
@@ -315,7 +318,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       if (controlId !== hoverControl) {
         hoverControl = controlId;
         updateButtonTextures(inWorldButtons, hoverControl);
-        updateRobustnessSlider(robustnessSlider, currentState.workbench.robustness, hoverControl, dragState);
+        updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
         updateRankingSet(rankingSet, currentState, hoverControl, dragState);
       }
     });
@@ -482,17 +485,40 @@ function createRobustnessSlider(scene) {
   scene.add(group);
 
   const label = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.72, 0.32),
+    new THREE.PlaneGeometry(1.9, 0.36),
     new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false }),
   );
-  label.position.y = 0.24;
+  label.position.y = 0.27;
   group.add(label);
+
+  const hitArea = new THREE.Mesh(
+    new THREE.PlaneGeometry(SLIDER_WIDTH + 0.26, 0.32),
+    new THREE.MeshBasicMaterial({
+      color: "#ffffff",
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    }),
+  );
+  hitArea.position.z = 0.08;
+  hitArea.userData.kind = "slider";
+  hitArea.userData.controlId = "robustness-slider";
+  group.add(hitArea);
 
   const rail = new THREE.Mesh(
     new THREE.BoxGeometry(SLIDER_WIDTH, 0.035, 0.05),
     new THREE.MeshStandardMaterial({ color: "#dfe5df", roughness: 0.55 }),
   );
   group.add(rail);
+
+  const ticks = stressTests.map((_, index) => {
+    const tickMaterial = new THREE.MeshStandardMaterial({ color: "#9ba8a4", roughness: 0.5 });
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.095, 0.062), tickMaterial);
+    const normalized = stressTests.length <= 1 ? 0 : index / (stressTests.length - 1);
+    tick.position.set(SLIDER_MIN_X + normalized * SLIDER_WIDTH, 0, 0.018);
+    group.add(tick);
+    return { mesh: tick, material: tickMaterial };
+  });
 
   const fill = new THREE.Mesh(
     new THREE.BoxGeometry(SLIDER_WIDTH, 0.044, 0.058),
@@ -513,7 +539,7 @@ function createRobustnessSlider(scene) {
   handle.userData.controlId = "robustness-slider";
   group.add(handle);
 
-  return { group, label, fill, handle, handleMaterial };
+  return { group, label, hitArea, fill, ticks, handle, handleMaterial };
 }
 
 function createRankingSet(scene) {
@@ -579,7 +605,8 @@ function updateInWorldControlVisibility(mainButtons, checkButtons, robustnessSli
 }
 
 function updateRobustnessSlider(slider, value, hoverControl, dragState) {
-  const normalized = clamp(value / 100, 0, 1);
+  const index = clampStressTestIndex(value);
+  const normalized = stressTests.length <= 1 ? 0 : index / (stressTests.length - 1);
   const x = SLIDER_MIN_X + normalized * SLIDER_WIDTH;
   const active = hoverControl === slider.handle.userData.controlId || dragState?.type === "slider";
   const oldMap = slider.label.material.map;
@@ -590,7 +617,11 @@ function updateRobustnessSlider(slider, value, hoverControl, dragState) {
   slider.handleMaterial.emissive.set(active ? "#123331" : "#000000");
   slider.fill.scale.x = Math.max(normalized, 0.001);
   slider.fill.position.x = SLIDER_MIN_X + (SLIDER_WIDTH * normalized) / 2;
-  slider.label.material.map = textureFromCanvas(createSliderLabelTexture(value, active));
+  slider.ticks.forEach((tick, tickIndex) => {
+    tick.material.color.set(tickIndex === index ? "#f8f6ee" : "#9ba8a4");
+    tick.mesh.scale.y = tickIndex === index ? 1.22 : 1;
+  });
+  slider.label.material.map = textureFromCanvas(createSliderLabelTexture(stressTestByIndex(index), active));
   slider.label.material.map.needsUpdate = true;
   slider.label.material.needsUpdate = true;
   if (oldMap) oldMap.dispose();
@@ -709,15 +740,16 @@ function createCaptionTexture(sceneState, state) {
 
 function captionText(sceneState, workbench) {
   if (sceneState.type === "comparison" || sceneState.type === "reflection") return sceneState.task;
-  return `${sceneState.task} Test ${Math.round(workbench.robustness)}%. ${
+  const stressTest = stressTestByIndex(workbench.stressTestIndex);
+  return `${sceneState.task} Active state: ${stressTest.shortLabel}. ${
     workbench.revealRedesign ? "Redesign visible." : "Original visible."
   }`;
 }
 
-function createSliderLabelTexture(value, active) {
+function createSliderLabelTexture(stressTest, active) {
   const canvas = document.createElement("canvas");
-  canvas.width = 900;
-  canvas.height = 180;
+  canvas.width = 980;
+  canvas.height = 210;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = active ? "#132628" : "#11191c";
   roundRect(ctx, 12, 14, canvas.width - 24, canvas.height - 28, 18);
@@ -727,14 +759,17 @@ function createSliderLabelTexture(value, active) {
   roundRect(ctx, 12, 14, canvas.width - 24, canvas.height - 28, 18);
   ctx.stroke();
   ctx.fillStyle = "#f8f6ee";
-  ctx.font = "900 44px Arial";
+  ctx.font = "900 43px Arial";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("Robustness Test", 52, 90);
+  ctx.fillText("Stress Test", 52, 76);
   ctx.fillStyle = active ? "#88e0d6" : "#c5ccc7";
-  ctx.font = "900 42px Arial";
+  ctx.font = "900 38px Arial";
+  ctx.fillText(stressTest.shortLabel, 52, 136);
+  ctx.fillStyle = "#9eadac";
+  ctx.font = "700 24px Arial";
   ctx.textAlign = "right";
-  ctx.fillText(`${Math.round(value)}%`, canvas.width - 52, 90);
+  ctx.fillText(`${stressTests.indexOf(stressTest) + 1}/${stressTests.length}`, canvas.width - 52, 136);
   return canvas;
 }
 

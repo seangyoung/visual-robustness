@@ -3,6 +3,12 @@ import {
   landCoverCategories,
   recommendedComparisonRanking,
 } from "../config/lesson.js";
+import {
+  simulateColor,
+  stressLevelFromState,
+  stressTestByIndex,
+  stressTests,
+} from "../config/stressTests.js";
 
 const watershedOutline = [
   [92, 190],
@@ -198,7 +204,7 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
     panelBase(ctx, canvas, "1. Land-cover map", "Hue-only categories under stress", state);
     drawWatershedMap(ctx, 118, 214, state);
     drawLandCoverLegend(ctx, 990, 268, state);
-    drawStressMeter(ctx, 124, 882, state.workbench.robustness);
+    drawStressMeter(ctx, 124, 882, state);
     return;
   }
 
@@ -223,7 +229,7 @@ function drawContrastPanel(ctx, canvas, kind, scene, state) {
   if (kind === "map") {
     panelBase(ctx, canvas, "1. Multivariate figure", "Contrast and hierarchy under stress", state);
     drawHierarchyMap(ctx, state, 126, 205, 990, 640);
-    drawStressMeter(ctx, 124, 882, state.workbench.robustness);
+    drawStressMeter(ctx, 124, 882, state);
     return;
   }
 
@@ -487,7 +493,7 @@ function drawStreams(ctx, transform, state, bufferOnly) {
       ctx.strokeStyle = state.workbench.revealRedesign ? "rgba(224,240,238,0.72)" : "rgba(224,240,238,0.36)";
       ctx.lineWidth = index === 0 ? 22 : 12;
     } else {
-      ctx.strokeStyle = state.workbench.revealRedesign ? "#315f9f" : mixHex("#4979b8", "#8a9ea6", state.workbench.robustness / 100);
+      ctx.strokeStyle = simulateColor(state.workbench.revealRedesign ? "#315f9f" : "#4979b8", state);
       ctx.lineWidth = index === 0 ? 6 : 3.5;
     }
     polyline(ctx, points);
@@ -641,7 +647,7 @@ function drawWorkbenchDiagram(ctx, state) {
   const controls = [
     ["Inspect", "move naturally"],
     ["Continue", "advance scenes"],
-    ["Robustness Test", "stress the design"],
+    ["Stress Test", "select a CVD state"],
     ["Reveal redesign", "compare a stronger encoding"],
   ];
   controls.forEach(([title, detail], index) => {
@@ -658,7 +664,7 @@ function drawWorkbenchDiagram(ctx, state) {
     ctx.fillText(detail, x + 238, y + 35);
   });
 
-  drawStressMeter(ctx, 380, 170, state.workbench.robustness);
+  drawStressMeter(ctx, 380, 170, state);
 }
 
 function drawHandoffMark(ctx, state) {
@@ -689,7 +695,7 @@ function drawHandoffMark(ctx, state) {
 }
 
 function drawHierarchyMap(ctx, state, x, y, width, height) {
-  const stress = state.workbench.robustness / 100;
+  const stress = stressLevelFromState(state);
   const reveal = state.workbench.revealRedesign;
   ctx.fillStyle = "#f0f2ee";
   roundRect(ctx, x, y, width, height, 16);
@@ -707,7 +713,7 @@ function drawHierarchyMap(ctx, state, x, y, width, height) {
 
   contrastLayers.forEach((layer, index) => {
     const alpha = reveal ? 0.92 - index * 0.1 : 0.88 - stress * 0.48 - index * 0.08;
-    const color = reveal ? layer.redesign : mixHex(layer.color, "#bbb8aa", stress * 0.72);
+    const color = simulateColor(reveal ? layer.redesign : mixHex(layer.color, "#bbb8aa", stress * 0.72), state);
     ctx.fillStyle = withAlpha(color, Math.max(0.28, alpha));
     const px = x + 110 + index * 175;
     const py = y + 120 + index * 72;
@@ -736,7 +742,7 @@ function drawHierarchyMap(ctx, state, x, y, width, height) {
 }
 
 function drawAttentionChart(ctx, state) {
-  const stress = state.workbench.robustness / 100;
+  const stress = stressLevelFromState(state);
   const reveal = state.workbench.revealRedesign;
   const x = 160;
   const y = 260;
@@ -748,7 +754,7 @@ function drawAttentionChart(ctx, state) {
     ctx.fillStyle = "#edf1ed";
     roundRect(ctx, x, yy, width, 42, 10);
     ctx.fill();
-    ctx.fillStyle = reveal ? layer.redesign : mixHex(layer.color, "#aaa99c", stress * 0.65);
+    ctx.fillStyle = simulateColor(reveal ? layer.redesign : mixHex(layer.color, "#aaa99c", stress * 0.65), state);
     roundRect(ctx, x, yy, barW, 42, 10);
     ctx.fill();
     ctx.fillStyle = "#182124";
@@ -814,10 +820,7 @@ function drawComparisonThumbnail(ctx, id, x, y, w, h) {
 }
 
 function colorForCategory(category, state) {
-  const stress = state.workbench.robustness / 100;
-  if (state.settings.highContrast) return category.redesign;
-  if (state.workbench.revealRedesign) return mixHex(category.redesign, category.compressed, stress * 0.48);
-  return mixHex(category.baseline, category.compressed, stress);
+  return simulateColor(state.workbench.revealRedesign ? category.redesign : category.baseline, state);
 }
 
 function panelBase(ctx, canvas, title, subtitle, state) {
@@ -847,19 +850,33 @@ function drawHintBox(ctx, state, text) {
   wrapText(ctx, text, 130, 864, 1000, 38);
 }
 
-function drawStressMeter(ctx, x, y, value) {
+function drawStressMeter(ctx, x, y, state) {
+  const activeIndex = Math.max(0, Math.min(stressTests.length - 1, Math.round(state.workbench.stressTestIndex ?? 0)));
+  const activeStressTest = stressTestByIndex(activeIndex);
+  const segmentGap = 5;
+  const barWidth = 520;
+  const segmentWidth = (barWidth - segmentGap * (stressTests.length - 1)) / stressTests.length;
+
   ctx.fillStyle = "#303638";
   ctx.font = "900 24px Arial";
-  ctx.fillText("Robustness Test", x, y - 20);
-  ctx.fillStyle = "#e5e9e4";
-  roundRect(ctx, x, y, 360, 22, 11);
-  ctx.fill();
-  ctx.fillStyle = "#55c6ba";
-  roundRect(ctx, x, y, 3.6 * value, 22, 11);
-  ctx.fill();
+  ctx.fillText("Stress Test", x, y - 20);
+
+  stressTests.forEach((test, index) => {
+    const xx = x + index * (segmentWidth + segmentGap);
+    ctx.fillStyle = index === activeIndex ? "#2d837b" : "#e5e9e4";
+    roundRect(ctx, xx, y, segmentWidth, 22, 8);
+    ctx.fill();
+    if (index === activeIndex) {
+      ctx.strokeStyle = "#111719";
+      ctx.lineWidth = 2.5;
+      roundRect(ctx, xx + 1.5, y + 1.5, segmentWidth - 3, 19, 7);
+      ctx.stroke();
+    }
+  });
+
   ctx.fillStyle = "#303638";
   ctx.font = "800 22px Arial";
-  ctx.fillText(`${Math.round(value)}% stress`, x + 386, y + 20);
+  ctx.fillText(activeStressTest.shortLabel, x + barWidth + 28, y + 20);
 }
 
 function drawPatternInPolygon(ctx, points, key) {

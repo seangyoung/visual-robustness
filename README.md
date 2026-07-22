@@ -27,7 +27,12 @@ Legacy or archived scene links fall back to the standalone Color Dependence scen
 
 For visual QA, the workbench can also be initialized from the URL:
 
-- `?scene=color-dependence&robustness=75&reveal=1`
+- `?scene=color-dependence&stress=deuteranopia&reveal=1`
+
+The `stress` parameter accepts a stress-test id such as `typical`,
+`deuteranomaly`, `protanomaly`, `deuteranopia`, `protanopia`, `tritanopia`, or
+`achromatopsia`. Older `robustness=0..100` links are mapped to the nearest
+discrete stress state for compatibility.
 
 ## Deploy To GitHub Pages
 
@@ -66,9 +71,9 @@ Device smoke test:
 ## Implemented Interaction Model
 
 - Shared Visualization Workbench state for browser and WebXR modes.
-- Browser controls for Robustness Test and reveal redesign.
+- Browser controls for Stress Test and reveal redesign.
 - WebXR controller-selectable reveal control.
-- WebXR grab-style control for the Robustness Test slider.
+- WebXR grab-style control for the stepped Stress Test slider.
 - Inspection uses native interaction: mouse/trackpad and touch in browser, headset
   movement and controller-mediated pointing in VR.
 - No artificial locomotion; the gallery is stationary with subtle optional motion.
@@ -100,6 +105,8 @@ License summary:
   learning materials: Creative Commons Attribution 4.0 International (CC BY 4.0).
 - Third-party dependencies and externally sourced materials retain their own
   licenses.
+- Copied third-party source materials are listed in
+  [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
 
 Suggested attribution for OER reuse:
 
@@ -120,8 +127,8 @@ Data statement:
 ## Prototype Test Checklist
 
 - Desktop browser loads and keyboard navigation works.
-- Scene 1 can be completed: baseline map, Robustness Test, and redesign reveal.
-- Robustness Test slider visibly compresses color distinctions in Scene 1.
+- Scene 1 can be completed: baseline map, Stress Test, and redesign reveal.
+- Stress Test slider steps through named color-vision simulations in Scene 1.
 - Reveal redesign adds labels, patterns, ordered value, and stronger figure-ground separation.
 - Non-color scenes are archived in `src/config/futureScenes.js` and are not live.
 - WebXR entry is available on a Quest-compatible browser over HTTPS.
