@@ -9,16 +9,23 @@ import {
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
+import { createPanelTexture } from "../visualizations/colorFragility.js";
 
 export function createDomUi({
   onAction,
-  onSettingsChange,
   onWorkbenchChange,
 }) {
   const elements = {
     body: document.body,
     modeLabel: document.getElementById("mode-label"),
     enterVr: document.getElementById("enter-vr"),
+    browserWorkbench: document.getElementById("browser-workbench"),
+    browserTaskKicker: document.getElementById("browser-task-kicker"),
+    browserTaskTitle: document.getElementById("browser-task-title"),
+    browserTaskPrompt: document.getElementById("browser-task-prompt"),
+    browserTaskLead: document.getElementById("browser-task-lead"),
+    browserMapCanvas: document.getElementById("browser-map-canvas"),
+    browserChartCanvas: document.getElementById("browser-chart-canvas"),
     stepKicker: document.getElementById("step-kicker"),
     stepTitle: document.getElementById("step-title"),
     stepPrompt: document.getElementById("step-prompt"),
@@ -41,8 +48,6 @@ export function createDomUi({
     rankingList: document.getElementById("ranking-list"),
     checkRanking: document.getElementById("check-ranking"),
     rankingFeedback: document.getElementById("ranking-feedback"),
-    highContrast: document.getElementById("high-contrast"),
-    reducedMotion: document.getElementById("reduced-motion"),
     statusLine: document.getElementById("status-line"),
     textEquivalent: document.getElementById("text-equivalent"),
   };
@@ -57,15 +62,6 @@ export function createDomUi({
     onWorkbenchChange({ revealRedesign: event.target.checked });
   });
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
-
-  [elements.highContrast, elements.reducedMotion].forEach((input) => {
-    input.addEventListener("change", () => {
-      const settings = getSettings(elements);
-      elements.body.classList.toggle("is-high-contrast", settings.highContrast);
-      elements.body.classList.toggle("is-reduced-motion", settings.reducedMotion);
-      onSettingsChange(settings);
-    });
-  });
 
   window.addEventListener("keydown", (event) => {
     if (event.altKey || event.metaKey || event.ctrlKey) return;
@@ -90,6 +86,7 @@ export function createDomUi({
         scene.type === "orientation" || scene.type === "color" || scene.type === "contrast";
       const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
       const revealCopy = scene.type === "color" ? activeExample.reveal : scene.reveal;
+      renderBrowserWorkbench(elements, scene, state);
 
       elements.stepKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
       elements.stepTitle.textContent = scene.title;
@@ -153,6 +150,36 @@ export function createDomUi({
     },
     getSettings: () => getSettings(elements),
   };
+}
+
+function renderBrowserWorkbench(elements, scene, state) {
+  const activeExample = visualizationExampleByIndex(state.exampleIndex);
+  const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
+  const lead =
+    scene.type === "color"
+      ? state.workbench.revealRedesign
+        ? activeExample.reveal
+        : activeExample.baselineLead
+      : state.workbench.revealRedesign
+        ? scene.reveal
+        : scene.task;
+
+  elements.browserTaskKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
+  elements.browserTaskTitle.textContent = scene.title;
+  elements.browserTaskPrompt.textContent = prompt;
+  elements.browserTaskLead.textContent = lead || scene.task || "";
+
+  renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
+  renderBrowserCanvas(elements.browserChartCanvas, "chart", scene, state);
+}
+
+function renderBrowserCanvas(target, kind, scene, state) {
+  const source = createPanelTexture(kind, scene, state);
+  if (target.width !== source.width) target.width = source.width;
+  if (target.height !== source.height) target.height = source.height;
+  const ctx = target.getContext("2d");
+  ctx.clearRect(0, 0, target.width, target.height);
+  ctx.drawImage(source, 0, 0);
 }
 
 function renderStressTestTicks(elements, activeIndex, enabled) {
@@ -311,9 +338,9 @@ function getDragAfterElement(list, pointerY) {
   });
 }
 
-function getSettings(elements) {
+function getSettings() {
   return {
-    highContrast: elements.highContrast.checked,
-    reducedMotion: elements.reducedMotion.checked,
+    highContrast: false,
+    reducedMotion: false,
   };
 }

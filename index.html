@@ -24,6 +24,25 @@
         <button id="enter-vr" class="primary-action" type="button">Enter VR</button>
       </header>
 
+      <section id="browser-workbench" class="browser-workbench" aria-label="Browser visualization workbench">
+        <div class="browser-task-panel">
+          <div class="browser-task-card">
+            <div class="browser-task-kicker" id="browser-task-kicker">Scene 1 of 1</div>
+            <h2 id="browser-task-title">Loading</h2>
+            <p id="browser-task-prompt"></p>
+            <p id="browser-task-lead"></p>
+          </div>
+        </div>
+        <div class="browser-figures" aria-label="Current visualization pair">
+          <div class="browser-figure">
+            <canvas id="browser-map-canvas" aria-label="Current map visualization"></canvas>
+          </div>
+          <div class="browser-figure">
+            <canvas id="browser-chart-canvas" aria-label="Current related chart"></canvas>
+          </div>
+        </div>
+      </section>
+
       <section class="module-panel" aria-live="polite" aria-label="Current module scene">
         <div class="step-kicker" id="step-kicker">Scene 1 of 1</div>
         <h2 id="step-title">Loading</h2>
@@ -70,17 +89,6 @@
           <ol id="ranking-list" role="listbox" aria-label="Current visualization ranking"></ol>
         </section>
 
-        <fieldset class="settings-group">
-          <legend>Accessibility settings</legend>
-          <label>
-            <input id="high-contrast" type="checkbox" />
-            <span>High contrast</span>
-          </label>
-          <label>
-            <input id="reduced-motion" type="checkbox" />
-            <span>Reduced motion</span>
-          </label>
-        </fieldset>
       </section>
 
       <div id="status-line" class="status-line" role="status"></div>
