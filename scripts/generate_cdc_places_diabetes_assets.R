@@ -250,14 +250,15 @@ average_caption <- sprintf(
 )
 
 map_legend_grob <- function(title, labels, palette, stipple_labels = character()) {
-  x <- unit(0.092, "npc")
-  y <- unit(0.79, "npc")
-  width <- unit(0.2, "npc")
-  title_height <- unit(0.033, "npc")
-  row_height <- unit(0.025, "npc")
-  padding_x <- unit(0.012, "npc")
-  padding_top <- unit(0.013, "npc")
-  padding_bottom <- unit(0.012, "npc")
+  legend_scale <- 1.6
+  x <- unit(0.055, "npc")
+  y <- unit(0.87, "npc")
+  width <- unit(0.2 * legend_scale, "npc")
+  title_height <- unit(0.033 * legend_scale, "npc")
+  row_height <- unit(0.025 * legend_scale, "npc")
+  padding_x <- unit(0.012 * legend_scale, "npc")
+  padding_top <- unit(0.013 * legend_scale, "npc")
+  padding_bottom <- unit(0.012 * legend_scale, "npc")
   height <- padding_top + title_height + row_height * length(labels) + padding_bottom
 
   grobs <- list(
@@ -267,21 +268,21 @@ map_legend_grob <- function(title, labels, palette, stipple_labels = character()
       width = width,
       height = height,
       just = c("left", "top"),
-      gp = gpar(fill = "#f8f6ee", col = "#d4d9d3", lwd = 0.7)
+      gp = gpar(fill = "#f8f6ee", col = NA)
     ),
     textGrob(
       title,
       x = x + padding_x,
       y = y - padding_top,
       just = c("left", "top"),
-      gp = gpar(col = "#151d20", fontsize = 9, fontface = "bold", fontfamily = "Arial")
+      gp = gpar(col = "#151d20", fontsize = 9 * legend_scale, fontface = "bold", fontfamily = "Arial")
     )
   )
 
   key_left <- x + padding_x
-  key_width <- unit(0.034, "npc")
-  key_height <- unit(0.017, "npc")
-  label_x <- key_left + key_width + unit(0.01, "npc")
+  key_width <- unit(0.034 * legend_scale, "npc")
+  key_height <- unit(0.017 * legend_scale, "npc")
+  label_x <- key_left + key_width + unit(0.01 * legend_scale, "npc")
 
   for (index in seq_along(labels)) {
     label <- labels[[index]]
@@ -302,10 +303,10 @@ map_legend_grob <- function(title, labels, palette, stipple_labels = character()
     if (label %in% stipple_labels) {
       grobs <- append(grobs, list(
         pointsGrob(
-          x = key_left + unit(rep(c(0.007, 0.016, 0.025), 2), "npc"),
-          y = row_y + unit(rep(c(-0.004, 0.004), each = 3), "npc"),
+          x = key_left + unit(rep(c(0.007, 0.016, 0.025) * legend_scale, 2), "npc"),
+          y = row_y + unit(rep(c(-0.004, 0.004) * legend_scale, each = 3), "npc"),
           pch = 16,
-          size = unit(0.55, "mm"),
+          size = unit(0.55 * legend_scale, "mm"),
           gp = gpar(col = "#151d20", alpha = 0.68)
         )
       ))
@@ -317,7 +318,7 @@ map_legend_grob <- function(title, labels, palette, stipple_labels = character()
         x = label_x,
         y = row_y,
         just = c("left", "center"),
-        gp = gpar(col = "#283235", fontsize = 8, fontfamily = "Arial")
+        gp = gpar(col = "#283235", fontsize = 8 * legend_scale, fontfamily = "Arial")
       )
     ))
   }
