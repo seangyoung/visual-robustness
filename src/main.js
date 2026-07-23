@@ -39,10 +39,6 @@ const ui = createDomUi({
   onAction(action, payload) {
     handleAction(action, payload);
   },
-  onSettingsChange(settings) {
-    state.settings = settings;
-    render();
-  },
   onWorkbenchChange(workbenchPatch) {
     state.workbench = { ...state.workbench, ...normalizeWorkbenchPatch(workbenchPatch) };
     render();

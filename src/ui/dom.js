@@ -13,7 +13,6 @@ import { createPanelTexture } from "../visualizations/colorFragility.js";
 
 export function createDomUi({
   onAction,
-  onSettingsChange,
   onWorkbenchChange,
 }) {
   const elements = {
@@ -49,8 +48,6 @@ export function createDomUi({
     rankingList: document.getElementById("ranking-list"),
     checkRanking: document.getElementById("check-ranking"),
     rankingFeedback: document.getElementById("ranking-feedback"),
-    highContrast: document.getElementById("high-contrast"),
-    reducedMotion: document.getElementById("reduced-motion"),
     statusLine: document.getElementById("status-line"),
     textEquivalent: document.getElementById("text-equivalent"),
   };
@@ -65,15 +62,6 @@ export function createDomUi({
     onWorkbenchChange({ revealRedesign: event.target.checked });
   });
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
-
-  [elements.highContrast, elements.reducedMotion].forEach((input) => {
-    input.addEventListener("change", () => {
-      const settings = getSettings(elements);
-      elements.body.classList.toggle("is-high-contrast", settings.highContrast);
-      elements.body.classList.toggle("is-reduced-motion", settings.reducedMotion);
-      onSettingsChange(settings);
-    });
-  });
 
   window.addEventListener("keydown", (event) => {
     if (event.altKey || event.metaKey || event.ctrlKey) return;
@@ -350,9 +338,9 @@ function getDragAfterElement(list, pointerY) {
   });
 }
 
-function getSettings(elements) {
+function getSettings() {
   return {
-    highContrast: elements.highContrast.checked,
-    reducedMotion: elements.reducedMotion.checked,
+    highContrast: false,
+    reducedMotion: false,
   };
 }
