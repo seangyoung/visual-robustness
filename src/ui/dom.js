@@ -9,6 +9,7 @@ import {
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
+import { createPanelTexture } from "../visualizations/colorFragility.js";
 
 export function createDomUi({
   onAction,
@@ -19,6 +20,13 @@ export function createDomUi({
     body: document.body,
     modeLabel: document.getElementById("mode-label"),
     enterVr: document.getElementById("enter-vr"),
+    browserWorkbench: document.getElementById("browser-workbench"),
+    browserTaskKicker: document.getElementById("browser-task-kicker"),
+    browserTaskTitle: document.getElementById("browser-task-title"),
+    browserTaskPrompt: document.getElementById("browser-task-prompt"),
+    browserTaskLead: document.getElementById("browser-task-lead"),
+    browserMapCanvas: document.getElementById("browser-map-canvas"),
+    browserChartCanvas: document.getElementById("browser-chart-canvas"),
     stepKicker: document.getElementById("step-kicker"),
     stepTitle: document.getElementById("step-title"),
     stepPrompt: document.getElementById("step-prompt"),
@@ -90,6 +98,7 @@ export function createDomUi({
         scene.type === "orientation" || scene.type === "color" || scene.type === "contrast";
       const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
       const revealCopy = scene.type === "color" ? activeExample.reveal : scene.reveal;
+      renderBrowserWorkbench(elements, scene, state);
 
       elements.stepKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
       elements.stepTitle.textContent = scene.title;
@@ -153,6 +162,36 @@ export function createDomUi({
     },
     getSettings: () => getSettings(elements),
   };
+}
+
+function renderBrowserWorkbench(elements, scene, state) {
+  const activeExample = visualizationExampleByIndex(state.exampleIndex);
+  const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
+  const lead =
+    scene.type === "color"
+      ? state.workbench.revealRedesign
+        ? activeExample.reveal
+        : activeExample.baselineLead
+      : state.workbench.revealRedesign
+        ? scene.reveal
+        : scene.task;
+
+  elements.browserTaskKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
+  elements.browserTaskTitle.textContent = scene.title;
+  elements.browserTaskPrompt.textContent = prompt;
+  elements.browserTaskLead.textContent = lead || scene.task || "";
+
+  renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
+  renderBrowserCanvas(elements.browserChartCanvas, "chart", scene, state);
+}
+
+function renderBrowserCanvas(target, kind, scene, state) {
+  const source = createPanelTexture(kind, scene, state);
+  if (target.width !== source.width) target.width = source.width;
+  if (target.height !== source.height) target.height = source.height;
+  const ctx = target.getContext("2d");
+  ctx.clearRect(0, 0, target.width, target.height);
+  ctx.drawImage(source, 0, 0);
 }
 
 function renderStressTestTicks(elements, activeIndex, enabled) {
