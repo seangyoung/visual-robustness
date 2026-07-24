@@ -22,6 +22,9 @@ import {
 
 const PANEL_W = 3.3;
 const PANEL_H = 2.28;
+const SIDE_PANEL_X = 2.48;
+const TASK_PANEL_W = 1.92;
+const TASK_PANEL_H = 1.68;
 const LAYOUT = {
   desktopCameraZ: 6.2,
   desktopTargetZ: -3.15,
@@ -481,9 +484,9 @@ function createWorld(scene) {
 function createPanels(scene) {
   const group = new THREE.Group();
   scene.add(group);
-  const map = panelMesh("map", [-2.62, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.2, 0], PANEL_W, PANEL_H);
-  const task = panelMesh("task", [0, LAYOUT.panelY - 0.08, LAYOUT.taskZ], [0, 0, 0], 2.35, 2.05);
-  const chart = panelMesh("chart", [2.62, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.2, 0], PANEL_W, PANEL_H);
+  const map = panelMesh("map", [-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.16, 0], PANEL_W, PANEL_H);
+  const task = panelMesh("task", [0, LAYOUT.panelY - 0.08, LAYOUT.taskZ], [0, 0, 0], TASK_PANEL_W, TASK_PANEL_H);
+  const chart = panelMesh("chart", [SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.16, 0], PANEL_W, PANEL_H);
   [map, task, chart].forEach((panel) => group.add(panel));
   return { group, map, task, chart };
 }

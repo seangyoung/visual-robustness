@@ -517,26 +517,21 @@ function drawTaskPanel(ctx, canvas, scene, state, copy) {
 
   ctx.fillStyle = "#55c6ba";
   ctx.font = "900 32px Arial";
-  ctx.fillText(`SCENE ${scene.sceneNumber}`, 88, 118);
+  ctx.fillText(`SCENE ${scene.sceneNumber}`, 88, 132);
   ctx.fillStyle = "#f8f6ee";
   ctx.font = "900 66px Arial";
-  wrapText(ctx, scene.title, 88, 214, 1040, 72);
-  ctx.fillStyle = "#d9dfd8";
-  ctx.font = "500 37px Arial";
-  wrapText(ctx, scene.prompt, 88, 380, 1050, 50);
+  wrapText(ctx, scene.title, 88, 238, 1040, 72);
 
   ctx.strokeStyle = "rgba(248,246,238,0.16)";
   ctx.lineWidth = 4;
-  line(ctx, 88, 586, 1210, 586);
+  line(ctx, 88, 388, 1210, 388);
 
   ctx.fillStyle = "#f2c75e";
   ctx.font = "900 34px Arial";
-  ctx.fillText("Observe", 88, 660);
+  ctx.fillText("Observe", 88, 488);
   ctx.fillStyle = "#e9efe9";
-  ctx.font = "500 33px Arial";
-  wrapText(ctx, copy.lead || scene.task, 128, 724, 980, 45);
-
-  drawHintBox(ctx, state, copy.hint || scene.task);
+  ctx.font = "500 38px Arial";
+  wrapText(ctx, copy.lead || scene.task, 88, 572, 1120, 52);
 }
 
 function drawWatershedMap(ctx, originX, originY, state) {
@@ -999,19 +994,6 @@ function panelBase(ctx, canvas, title, subtitle, state) {
   ctx.fillStyle = "#536164";
   ctx.font = "700 28px Arial";
   ctx.fillText(subtitle, 86, 126);
-}
-
-function drawHintBox(ctx, state, text) {
-  ctx.fillStyle = state.settings.highContrast ? "#102a2a" : "#132628";
-  roundRect(ctx, 88, 808, 1120, 108, 18);
-  ctx.fill();
-  ctx.strokeStyle = "#2d837b";
-  ctx.lineWidth = 4;
-  roundRect(ctx, 88, 808, 1120, 108, 18);
-  ctx.stroke();
-  ctx.fillStyle = "#dce3dd";
-  ctx.font = "600 29px Arial";
-  wrapText(ctx, text, 130, 864, 1000, 38);
 }
 
 function drawStressMeter(ctx, x, y, state) {
