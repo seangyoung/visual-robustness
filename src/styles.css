@@ -465,18 +465,39 @@ input[type="range"]:disabled {
   opacity: 0.45;
 }
 
-.toggle-action {
-  grid-column: 2;
-  grid-row: 2;
-  justify-self: end;
+.intervention-lab {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.intervention-shortcuts,
+.intervention-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.intervention-shortcuts {
+  justify-content: flex-start;
+}
+
+.intervention-controls {
+  justify-content: flex-end;
+}
+
+.intervention-lab button {
   min-height: 36px;
   padding: 0 12px;
   color: #edf2ed;
   font-size: 13px;
   white-space: nowrap;
+  background: rgba(248, 246, 238, 0.06);
 }
 
-.toggle-action[aria-pressed="true"] {
+.intervention-lab button[aria-pressed="true"] {
   border-color: rgba(85, 198, 186, 0.68);
   background: rgba(35, 110, 102, 0.86);
 }
@@ -881,10 +902,13 @@ body.is-immersive #xr-canvas {
     gap: 6px;
   }
 
-  .toggle-action {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: start;
+  .intervention-lab {
+    grid-template-columns: 1fr;
+  }
+
+  .intervention-shortcuts,
+  .intervention-controls {
+    justify-content: flex-start;
   }
 
   #ranking-list > li {

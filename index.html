@@ -76,9 +76,13 @@
           <input id="robustness-slider" type="range" min="0" max="6" step="1" value="0" />
           <div id="stress-test-ticks" class="stress-test-ticks" aria-hidden="true"></div>
 
-          <button id="reveal-redesign" class="toggle-action" type="button" aria-pressed="false">
-            Show improved design
-          </button>
+          <div class="intervention-lab" aria-label="Design intervention controls">
+            <div class="intervention-shortcuts">
+              <button id="original-design" type="button">Original design</button>
+              <button id="recommended-design" type="button">Recommended combination</button>
+            </div>
+            <div id="intervention-controls" class="intervention-controls"></div>
+          </div>
         </section>
 
         <section id="ranking-panel" class="ranking-panel" aria-label="Robust design ranking">

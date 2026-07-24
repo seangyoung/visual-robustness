@@ -21,4 +21,16 @@ Candidate assets:
 - `cdc-places-diabetes-diverging-chart-baseline.png`
 - `cdc-places-diabetes-diverging-map-redesign.png`
 - `cdc-places-diabetes-diverging-chart-redesign.png`
+
+Phase 1 intervention-combination assets use the suffix pattern
+`p{0|1}-r{0|1}-l{0|1}`:
+
+- `p`: palette or luminance intervention
+- `r`: redundant cue intervention
+- `l`: labels and annotations intervention
+
+For example, `cdc-places-diabetes-diverging-map-p1-r0-l1.png`
+uses the diverging palette and labels, but not the above-average pattern.
+There are eight combinations for each example, each exported as map and chart PNGs.
+
 - `cdc-places-diabetes-texas-counties.csv`
