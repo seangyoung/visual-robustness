@@ -135,6 +135,56 @@ export const visualizationExamples = [
       combinations: interventionAssets("cdc-places-diabetes-diverging"),
     },
   },
+  {
+    id: "highest-svi-theme",
+    label: "Example 3",
+    shortTitle: "Category identity",
+    workbenchTitle: "CDC/ATSDR SVI highest-ranked theme",
+    prompt: "Which SVI theme is highest-ranked in the most Texas counties?",
+    baselineLead:
+      "The map and chart use matching nominal colors. Here, color identifies SVI themes rather than encoding order or distance from a midpoint.",
+    answer:
+      "Housing/transportation is the highest-ranked SVI theme in the most Texas counties.",
+    predictionPrompt:
+      "Predict which intervention will make theme identity easiest to recover under the selected stress test.",
+    recommendedSummary:
+      "The recommended combination uses a robust palette and density-coded texture markers so theme identity no longer depends on hue alone. Labels and annotation add selected county examples on the map and direct county counts and percentages on the chart.",
+    recommendedInterventions: {
+      palette: true,
+      redundantCue: true,
+      labels: true,
+    },
+    interventions: {
+      palette: {
+        label: "Robust palette",
+        shortLabel: "Palette",
+        description:
+          "The robust palette uses more separable theme colors without implying a numeric order.",
+        effect: "Directly reduces color dependence for nominal category identity.",
+      },
+      redundantCue: {
+        label: "Texture markers",
+        shortLabel: "Markers",
+        description:
+          "Each SVI theme gets a repeated marker cue that varies by shape, spacing, and light/dark contrast across the map, chart, and legend.",
+        effect: "Adds a stronger non-color cue for matching the same category across views.",
+      },
+      labels: {
+        label: "Labels and Annotation",
+        shortLabel: "Labels",
+        description:
+          "Selected county labels identify examples of each highest-ranked SVI theme on the map, while the chart labels each bar with its county count and percentage.",
+        effect: "Supports local lookup and makes the county-count comparison directly readable without relying on bar length alone.",
+      },
+    },
+    assets: {
+      mapBaseline: publicHealthAsset("cdc-svi-theme-map-baseline.png"),
+      mapRedesign: publicHealthAsset("cdc-svi-theme-map-redesign.png"),
+      chartBaseline: publicHealthAsset("cdc-svi-theme-chart-baseline.png"),
+      chartRedesign: publicHealthAsset("cdc-svi-theme-chart-redesign.png"),
+      combinations: interventionAssets("cdc-svi-theme"),
+    },
+  },
 ];
 
 export function interventionMetadataForExample(example, key) {
