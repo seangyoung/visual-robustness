@@ -4,6 +4,7 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(ggplot2)
   library(grid)
+  library(jsonlite)
   library(readr)
   library(sf)
   library(tigris)
@@ -24,6 +25,13 @@ places_url <- paste0(
   "https://data.cdc.gov/resource/i46a-9kgh.csv?",
   "%24select=stateabbr,statedesc,countyname,countyfips,totalpopulation,diabetes_crudeprev",
   "&stateabbr=TX&%24limit=5000"
+)
+
+svi_url <- paste0(
+  "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/ArcGIS/rest/services/",
+  "CDC_Texas_Social_Vulnerability_Index_County_2022/FeatureServer/0/query?",
+  "where=1%3D1&outFields=STCNTY,COUNTY,RPL_THEME1,RPL_THEME2,RPL_THEME3,RPL_THEME4",
+  "&returnGeometry=false&f=json"
 )
 
 places_col_types <- readr::cols(
@@ -60,22 +68,71 @@ if (nrow(places) == 0) {
 }
 
 texas_average <- weighted.mean(places$diabetes, places$totalpopulation, na.rm = TRUE)
-population_median <- median(places$totalpopulation, na.rm = TRUE)
-diabetes_median <- median(places$diabetes, na.rm = TRUE)
 
-peer_labels <- c(
-  "Large / lower diabetes",
-  "Large / higher diabetes",
-  "Small / lower diabetes",
-  "Small / higher diabetes"
+svi_theme_labels <- c(
+  "Socioeconomic status",
+  "Household characteristics",
+  "Racial/ethnic minority status",
+  "Housing/transportation"
 )
 
-peer_short_labels <- c(
-  "Large / lower diabetes" = "Large/lower",
-  "Large / higher diabetes" = "Large/higher",
-  "Small / lower diabetes" = "Small/lower",
-  "Small / higher diabetes" = "Small/higher"
+svi_theme_short_labels <- c(
+  "Socioeconomic status" = "Socioeconomic",
+  "Household characteristics" = "Household",
+  "Racial/ethnic minority status" = "Race/ethnicity",
+  "Housing/transportation" = "Housing/transport"
 )
+
+read_svi_data <- function() {
+  local_svi <- file.path(output_dir, "cdc-svi-texas-counties-2022.csv")
+  svi_col_types <- readr::cols(
+    STCNTY = readr::col_character(),
+    COUNTY = readr::col_character(),
+    RPL_THEME1 = readr::col_double(),
+    RPL_THEME2 = readr::col_double(),
+    RPL_THEME3 = readr::col_double(),
+    RPL_THEME4 = readr::col_double(),
+    .default = readr::col_skip()
+  )
+
+  tryCatch(
+    {
+      payload <- jsonlite::fromJSON(svi_url)
+      if (!is.null(payload$error)) {
+        stop(payload$error$message)
+      }
+      attributes <- payload$features$attributes
+      readr::write_csv(attributes, local_svi)
+      attributes
+    },
+    error = function(error) {
+      if (!file.exists(local_svi)) {
+        stop(error)
+      }
+      warning("CDC/ATSDR SVI service unavailable; using cached county data at ", local_svi)
+      readr::read_csv(local_svi, col_types = svi_col_types)
+    }
+  )
+}
+
+svi <- read_svi_data() |>
+  transmute(
+    countyfips = STCNTY,
+    svi_county = COUNTY,
+    rpl_theme1 = RPL_THEME1,
+    rpl_theme2 = RPL_THEME2,
+    rpl_theme3 = RPL_THEME3,
+    rpl_theme4 = RPL_THEME4
+  ) |>
+  rowwise() |>
+  mutate(
+    top_theme_index = which.max(c(rpl_theme1, rpl_theme2, rpl_theme3, rpl_theme4)),
+    svi_theme = svi_theme_labels[[top_theme_index]],
+    svi_theme = factor(svi_theme, levels = svi_theme_labels),
+    svi_theme_short = unname(svi_theme_short_labels[as.character(svi_theme)]),
+    top_theme_percentile = c(rpl_theme1, rpl_theme2, rpl_theme3, rpl_theme4)[[top_theme_index]]
+  ) |>
+  ungroup()
 
 class_breaks <- places$diabetes |>
   quantile(probs = seq(0, 1, length.out = 6), na.rm = TRUE, names = FALSE) |>
@@ -118,15 +175,7 @@ places <- places |>
       labels = deviation_labels,
       include.lowest = TRUE,
       right = FALSE
-    ),
-    peer_group = case_when(
-      totalpopulation >= population_median & diabetes < diabetes_median ~ peer_labels[[1]],
-      totalpopulation >= population_median & diabetes >= diabetes_median ~ peer_labels[[2]],
-      totalpopulation < population_median & diabetes < diabetes_median ~ peer_labels[[3]],
-      TRUE ~ peer_labels[[4]]
-    ),
-    peer_group = factor(peer_group, levels = peer_labels),
-    peer_short = unname(peer_short_labels[as.character(peer_group)])
+    )
   )
 
 tx_counties <- tigris::counties(state = "TX", cb = TRUE, year = 2023, class = "sf") |>
@@ -134,7 +183,8 @@ tx_counties <- tigris::counties(state = "TX", cb = TRUE, year = 2023, class = "s
   select(GEOID, NAME, geometry)
 
 tx_map <- tx_counties |>
-  left_join(places, by = c("GEOID" = "countyfips"))
+  left_join(places, by = c("GEOID" = "countyfips")) |>
+  left_join(svi, by = c("GEOID" = "countyfips"))
 
 if (any(is.na(tx_map$diabetes))) {
   missing_names <- tx_map |>
@@ -183,33 +233,33 @@ difference_summary <- data.frame(
     share_label = paste0(county_count, " counties (", round((county_count / sum(county_count)) * 100), "%)")
   )
 
-peer_summary <- data.frame(
-  peer_group = factor(peer_labels, levels = peer_labels)
+svi_summary <- data.frame(
+  svi_theme = factor(svi_theme_labels, levels = svi_theme_labels)
 ) |>
   left_join(
-    places |>
-      count(peer_group, name = "county_count"),
-    by = "peer_group"
+    svi |>
+      count(svi_theme, name = "county_count"),
+    by = "svi_theme"
   ) |>
   mutate(
     county_count = coalesce(county_count, 0L),
     share = county_count / sum(county_count),
-    peer_short = unname(peer_short_labels[as.character(peer_group)]),
-    label = paste0(peer_short, ": ", county_count, " counties (", round(share * 100), "%)")
+    svi_theme_short = unname(svi_theme_short_labels[as.character(svi_theme)]),
+    label = paste0(svi_theme_short, ": ", county_count, " counties (", round(share * 100), "%)")
   )
 
-make_peer_chart_symbols <- function(summary_data) {
+make_svi_chart_symbols <- function(summary_data) {
   bind_rows(lapply(seq_len(nrow(summary_data)), function(index) {
     row <- summary_data[index, ]
     xs <- seq(5, max(5, row$county_count - 3), by = 6)
     data.frame(
       x = xs,
-      peer_group = factor(as.character(row$peer_group), levels = peer_labels)
+      svi_theme = factor(as.character(row$svi_theme), levels = svi_theme_labels)
     )
   }))
 }
 
-peer_chart_symbols <- make_peer_chart_symbols(peer_summary)
+svi_chart_symbols <- make_svi_chart_symbols(svi_summary)
 
 make_chart_hatches <- function(summary_data) {
   rows <- summary_data |>
@@ -260,10 +310,10 @@ difference_labels <- bind_rows(
     )
   )
 
-make_peer_symbol_points <- function(map_data, labels, points_per_group = 220) {
+make_svi_symbol_points <- function(map_data, labels, points_per_group = 220) {
   bind_rows(lapply(labels, function(label) {
     group_geometry <- map_data |>
-      filter(peer_group == label) |>
+      filter(svi_theme == label) |>
       st_geometry() |>
       st_union()
 
@@ -273,22 +323,22 @@ make_peer_symbol_points <- function(map_data, labels, points_per_group = 220) {
     }
 
     st_sf(
-      peer_group = factor(label, levels = labels),
+      svi_theme = factor(label, levels = labels),
       geometry = samples,
       crs = st_crs(map_data)
     )
   }))
 }
 
-peer_symbol_points <- make_peer_symbol_points(tx_map, peer_labels)
+svi_symbol_points <- make_svi_symbol_points(tx_map, svi_theme_labels)
 
-peer_label_points <- tx_map |>
-  filter(!is.na(peer_group)) |>
-  group_by(peer_group) |>
-  slice_max(order_by = totalpopulation, n = 1, with_ties = FALSE) |>
+svi_label_points <- tx_map |>
+  filter(!is.na(svi_theme)) |>
+  group_by(svi_theme) |>
+  slice_max(order_by = top_theme_percentile, n = 1, with_ties = FALSE) |>
   ungroup() |>
   st_point_on_surface() |>
-  mutate(label = paste0(countyname, ": ", peer_short))
+  mutate(label = paste0(countyname, ": ", svi_theme_short))
 
 fragile_palette <- c("#1b9e77", "#66a61e", "#e6ab02", "#d95f02", "#7570b3")
 names(fragile_palette) <- class_labels
@@ -302,14 +352,14 @@ names(diverging_palette) <- deviation_labels
 diverging_redesign_palette <- c("#17375e", "#6f86a3", "#d6d9d2", "#eadf9f", "#a2833e", "#553d13")
 names(diverging_redesign_palette) <- deviation_labels
 
-peer_fragile_palette <- c("#69b887", "#c9ad4c", "#73aaa8", "#d58b63")
-names(peer_fragile_palette) <- peer_labels
+svi_fragile_palette <- c("#69b887", "#c9ad4c", "#73aaa8", "#d58b63")
+names(svi_fragile_palette) <- svi_theme_labels
 
-peer_robust_palette <- c("#0072b2", "#d55e00", "#009e73", "#cc79a7")
-names(peer_robust_palette) <- peer_labels
+svi_robust_palette <- c("#0072b2", "#d55e00", "#009e73", "#cc79a7")
+names(svi_robust_palette) <- svi_theme_labels
 
-peer_shapes <- c(16, 17, 15, 3)
-names(peer_shapes) <- peer_labels
+svi_shapes <- c(16, 17, 15, 3)
+names(svi_shapes) <- svi_theme_labels
 
 map_theme <- function() {
   theme_void(base_family = "Arial") +
@@ -354,6 +404,11 @@ average_caption <- sprintf(
   texas_average
 )
 
+svi_caption <- paste(
+  "Source: CDC/ATSDR Social Vulnerability Index 2022 Texas county data;",
+  "highest-ranked theme among four SVI theme percentile rankings."
+)
+
 map_legend_grob <- function(title, labels, palette, stipple_labels = character(), symbol_shapes = NULL) {
   legend_scale <- 1.6
   x <- unit(0.055, "npc")
@@ -373,7 +428,7 @@ map_legend_grob <- function(title, labels, palette, stipple_labels = character()
       width = width,
       height = height,
       just = c("left", "top"),
-      gp = gpar(fill = "#f8f6ee", col = NA)
+      gp = gpar(fill = NA, col = NA)
     ),
     textGrob(
       title,
@@ -924,12 +979,12 @@ make_diverging_chart <- function(palette = FALSE, redundant = FALSE, labels = FA
 }
 
 make_categorical_map <- function(palette = FALSE, redundant = FALSE, labels = FALSE) {
-  fill_palette <- if (palette) peer_robust_palette else peer_fragile_palette
+  fill_palette <- if (palette) svi_robust_palette else svi_fragile_palette
   refined_outline <- palette || redundant || labels
 
   plot <- ggplot(tx_map) +
     geom_sf(
-      aes(fill = peer_group),
+      aes(fill = svi_theme),
       color = if (refined_outline) "#f8f6ee" else "#ffffff",
       linewidth = if (refined_outline) 0.16 else 0.12
     )
@@ -937,8 +992,8 @@ make_categorical_map <- function(palette = FALSE, redundant = FALSE, labels = FA
   if (redundant) {
     plot <- plot +
       geom_sf(
-        data = peer_symbol_points,
-        aes(shape = peer_group),
+        data = svi_symbol_points,
+        aes(shape = svi_theme),
         inherit.aes = FALSE,
         color = "#151d20",
         size = 0.42,
@@ -956,7 +1011,7 @@ make_categorical_map <- function(palette = FALSE, redundant = FALSE, labels = FA
   if (labels) {
     plot <- plot +
       geom_sf_label(
-        data = peer_label_points,
+        data = svi_label_points,
         aes(label = label),
         family = "Arial",
         size = 3.0,
@@ -974,39 +1029,39 @@ make_categorical_map <- function(palette = FALSE, redundant = FALSE, labels = FA
       drop = FALSE,
       na.translate = FALSE,
       na.value = "#d8d8cf",
-      name = "Peer group"
+      name = "Highest SVI theme"
     ) +
-    scale_shape_manual(values = peer_shapes, guide = "none") +
+    scale_shape_manual(values = svi_shapes, guide = "none") +
     labs(
-      title = "Diabetes Planning Peer Groups by County",
+      title = "Highest-Ranked SVI Theme by County",
       subtitle = intervention_subtitle(
-        "Original: peer-group identity relies on similarly valued hues",
+        "Original: theme identity relies on similarly valued hues",
         c(
           if (palette) "safer qualitative palette" else "",
-          if (redundant) "category-specific symbols" else "",
-          if (labels) "selected direct group labels" else ""
+          if (redundant) "theme-specific symbols" else "",
+          if (labels) "selected county callouts" else ""
         )
       ),
-      caption = source_caption
+      caption = svi_caption
     ) +
     guides(fill = guide_legend(reverse = TRUE)) +
     map_theme()
 }
 
 make_categorical_chart <- function(palette = FALSE, redundant = FALSE, labels = FALSE) {
-  fill_palette <- if (palette) peer_robust_palette else peer_fragile_palette
-  plot <- ggplot(peer_summary, aes(x = county_count, y = peer_group, fill = peer_group)) +
+  fill_palette <- if (palette) svi_robust_palette else svi_fragile_palette
+  plot <- ggplot(svi_summary, aes(x = county_count, y = svi_theme, fill = svi_theme)) +
     geom_col(
       width = 0.72,
-      color = if (redundant || labels) "#151d20" else NA,
-      linewidth = if (redundant || labels) 0.18 else 0
+      color = if (redundant) "#151d20" else NA,
+      linewidth = if (redundant) 0.18 else 0
     )
 
   if (redundant) {
     plot <- plot +
       geom_point(
-        data = peer_chart_symbols,
-        aes(x = x, y = peer_group, shape = peer_group),
+        data = svi_chart_symbols,
+        aes(x = x, y = svi_theme, shape = svi_theme),
         inherit.aes = FALSE,
         color = "#151d20",
         size = 1.4,
@@ -1014,49 +1069,26 @@ make_categorical_chart <- function(palette = FALSE, redundant = FALSE, labels = 
       )
   }
 
-  if (labels) {
-    plot <- plot +
-      geom_text(
-        aes(label = label),
-        hjust = -0.04,
-        color = "#151d20",
-        family = "Arial",
-        fontface = "bold",
-        size = 3.2
-      )
-  }
-
   plot +
     scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
-    scale_shape_manual(values = peer_shapes, guide = "none") +
-    scale_x_continuous(expand = expansion(mult = c(0, if (labels) 0.42 else 0.14))) +
+    scale_shape_manual(values = svi_shapes, guide = "none") +
+    scale_y_discrete(labels = function(values) unname(svi_theme_short_labels[values])) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0.14))) +
     labs(
-      title = "County Count by Diabetes Planning Peer Group",
+      title = "County Count by Highest-Ranked SVI Theme",
       subtitle = intervention_subtitle(
-        "Original: bar identities must be matched back to the color legend",
+        "Original: bars keep labels, but color still carries cross-view identity",
         c(
           if (palette) "safer qualitative palette" else "",
-          if (redundant) "matching category symbols" else "",
-          if (labels) "direct group names and counts" else ""
+          if (redundant) "matching theme symbols" else "",
+          if (labels) "selected county callouts on map" else ""
         )
       ),
       x = "Number of counties",
-      y = if (labels) "Planning peer group" else NULL,
-      caption = source_caption
+      y = "SVI theme",
+      caption = svi_caption
     ) +
-    chart_theme() +
-    theme(
-      axis.text.y = if (labels) {
-        element_text(color = "#283235", size = 8)
-      } else {
-        element_blank()
-      },
-      axis.title.y = if (labels) {
-        element_text(color = "#283235", face = "bold", size = 9)
-      } else {
-        element_blank()
-      }
-    )
+    chart_theme()
 }
 
 save_intervention_assets <- function() {
@@ -1095,17 +1127,17 @@ save_intervention_assets <- function() {
     )
     save_png(
       make_categorical_map(palette, redundant, labels),
-      paste0("cdc-places-diabetes-categorical-map-", suffix, ".png"),
+      paste0("cdc-svi-theme-map-", suffix, ".png"),
       legend = map_legend_grob(
-        "Peer group",
-        rev(peer_labels),
-        if (palette) peer_robust_palette else peer_fragile_palette,
-        symbol_shapes = if (redundant) peer_shapes else NULL
+        "Highest SVI theme",
+        rev(svi_theme_labels),
+        if (palette) svi_robust_palette else svi_fragile_palette,
+        symbol_shapes = if (redundant) svi_shapes else NULL
       )
     )
     save_png(
       make_categorical_chart(palette, redundant, labels),
-      paste0("cdc-places-diabetes-categorical-chart-", suffix, ".png")
+      paste0("cdc-svi-theme-chart-", suffix, ".png")
     )
   }
 }
@@ -1141,21 +1173,21 @@ save_png(
 save_png(diverging_chart_redesign, "cdc-places-diabetes-diverging-chart-redesign.png")
 save_png(
   make_categorical_map(FALSE, FALSE, FALSE),
-  "cdc-places-diabetes-categorical-map-baseline.png",
-  legend = map_legend_grob("Peer group", rev(peer_labels), peer_fragile_palette)
+  "cdc-svi-theme-map-baseline.png",
+  legend = map_legend_grob("Highest SVI theme", rev(svi_theme_labels), svi_fragile_palette)
 )
-save_png(make_categorical_chart(FALSE, FALSE, FALSE), "cdc-places-diabetes-categorical-chart-baseline.png")
+save_png(make_categorical_chart(FALSE, FALSE, FALSE), "cdc-svi-theme-chart-baseline.png")
 save_png(
-  make_categorical_map(TRUE, TRUE, TRUE),
-  "cdc-places-diabetes-categorical-map-redesign.png",
+  make_categorical_map(TRUE, TRUE, FALSE),
+  "cdc-svi-theme-map-redesign.png",
   legend = map_legend_grob(
-    "Peer group",
-    rev(peer_labels),
-    peer_robust_palette,
-    symbol_shapes = peer_shapes
+    "Highest SVI theme",
+    rev(svi_theme_labels),
+    svi_robust_palette,
+    symbol_shapes = svi_shapes
   )
 )
-save_png(make_categorical_chart(TRUE, TRUE, TRUE), "cdc-places-diabetes-categorical-chart-redesign.png")
+save_png(make_categorical_chart(TRUE, TRUE, FALSE), "cdc-svi-theme-chart-redesign.png")
 
 save_intervention_assets()
 
@@ -1170,10 +1202,12 @@ writeLines(
     "",
     "Generated by `scripts/generate_cdc_places_diabetes_assets.R`.",
     "",
-    "Topic: diagnosed diabetes prevalence among adults by Texas county.",
+    "Topics: diagnosed diabetes prevalence and CDC/ATSDR Social Vulnerability Index themes by Texas county.",
     "",
     "Data source: CDC PLACES County Data GIS-Friendly Format, 2025 release.",
     "Dataset API: <https://data.cdc.gov/resource/i46a-9kgh>",
+    "Data source: CDC/ATSDR Social Vulnerability Index 2022 Texas county data.",
+    "SVI service: <https://services2.arcgis.com/LYMgRMwHfrWWEg3s/ArcGIS/rest/services/CDC_Texas_Social_Vulnerability_Index_County_2022/FeatureServer>",
     "Boundary source: U.S. Census Bureau cartographic county boundaries via the `tigris` R package.",
     "",
     "Note: Loving County is drawn with the neutral missing-data fill because the CDC",
@@ -1189,27 +1223,29 @@ writeLines(
     "- `cdc-places-diabetes-diverging-chart-baseline.png`",
     "- `cdc-places-diabetes-diverging-map-redesign.png`",
     "- `cdc-places-diabetes-diverging-chart-redesign.png`",
-    "- `cdc-places-diabetes-categorical-map-baseline.png`",
-    "- `cdc-places-diabetes-categorical-chart-baseline.png`",
-    "- `cdc-places-diabetes-categorical-map-redesign.png`",
-    "- `cdc-places-diabetes-categorical-chart-redesign.png`",
+    "- `cdc-svi-theme-map-baseline.png`",
+    "- `cdc-svi-theme-chart-baseline.png`",
+    "- `cdc-svi-theme-map-redesign.png`",
+    "- `cdc-svi-theme-chart-redesign.png`",
     "",
-    "The categorical example defines four diabetes planning peer groups from the",
-    "same CDC PLACES data using median county population and median diagnosed",
-    "diabetes prevalence. The group colors encode nominal identity, not rank.",
+    "The categorical example maps the SVI theme with the highest county percentile",
+    "ranking. The four categories are socioeconomic status, household characteristics,",
+    "racial/ethnic minority status, and housing/transportation. The theme colors encode",
+    "nominal identity, not rank.",
     "",
     "Intervention-combination assets use the suffix pattern",
     "`p{0|1}-r{0|1}-l{0|1}`:",
     "",
     "- `p`: palette or luminance intervention",
     "- `r`: redundant cue intervention",
-    "- `l`: labels and annotations intervention",
+    "- `l`: labels, annotations, or optional callouts intervention",
     "",
     "For example, `cdc-places-diabetes-diverging-map-p1-r0-l1.png`",
     "uses the diverging palette and labels, but not the above-average pattern.",
     "There are eight combinations for each example, each exported as map and chart PNGs.",
     "",
-    "- `cdc-places-diabetes-texas-counties.csv`"
+    "- `cdc-places-diabetes-texas-counties.csv`",
+    "- `cdc-svi-texas-counties-2022.csv`"
   ),
   file.path(output_dir, "README.md")
 )

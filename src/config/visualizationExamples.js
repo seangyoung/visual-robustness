@@ -136,53 +136,53 @@ export const visualizationExamples = [
     },
   },
   {
-    id: "planning-peer-groups",
+    id: "highest-svi-theme",
     label: "Example 3",
     shortTitle: "Category identity",
-    workbenchTitle: "CDC PLACES diabetes planning peer groups",
-    prompt: "Which diabetes planning peer group contains the most Texas counties?",
+    workbenchTitle: "CDC/ATSDR SVI highest-ranked theme",
+    prompt: "Which SVI theme is highest-ranked in the most Texas counties?",
     baselineLead:
-      "The map and chart use matching nominal colors. Here, color identifies groups rather than encoding order or distance from a midpoint.",
+      "The map and chart use matching nominal colors. Here, color identifies SVI themes rather than encoding order or distance from a midpoint.",
     answer:
-      "The Small / higher diabetes peer group contains the most counties, narrowly ahead of Large / lower diabetes.",
+      "Housing/transportation is the highest-ranked SVI theme in the most Texas counties.",
     predictionPrompt:
-      "Predict which intervention will make peer-group identity easiest to recover under the selected stress test.",
+      "Predict which intervention will make theme identity easiest to recover under the selected stress test.",
     recommendedSummary:
-      "The recommended combination uses a safer qualitative palette, category-specific symbols, and direct labels so peer-group identity no longer depends on hue alone.",
+      "The recommended combination uses a safer qualitative palette and category-specific symbols so theme identity no longer depends on hue alone. County callouts are left off because they add density without helping the county-count task.",
     recommendedInterventions: {
       palette: true,
       redundantCue: true,
-      labels: true,
+      labels: false,
     },
     interventions: {
       palette: {
         label: "Qualitative palette",
         shortLabel: "Palette",
         description:
-          "The alternative qualitative palette uses more separable category colors without implying a numeric order.",
+          "The alternative qualitative palette uses more separable theme colors without implying a numeric order.",
         effect: "Directly reduces color dependence for nominal category identity.",
       },
       redundantCue: {
-        label: "Category symbols",
+        label: "Theme symbols",
         shortLabel: "Symbols",
         description:
-          "Each peer group gets a repeated symbol cue on the map, chart, and legend so identity is not carried by color alone.",
+          "Each SVI theme gets a repeated symbol cue on the map, chart, and legend so identity is not carried by color alone.",
         effect: "Adds a non-color cue for matching the same category across views.",
       },
       labels: {
-        label: "Direct group labels",
-        shortLabel: "Labels",
+        label: "County callouts",
+        shortLabel: "Callouts",
         description:
-          "Selected county labels and chart labels name the peer groups directly instead of requiring legend-only decoding.",
-        effect: "Supports category lookup and verification, while adding visual density.",
+          "Selected county labels identify examples of each highest-ranked SVI theme on the map.",
+        effect: "Supports local lookup, but does not help determine which theme is most common and adds visual density.",
       },
     },
     assets: {
-      mapBaseline: publicHealthAsset("cdc-places-diabetes-categorical-map-baseline.png"),
-      mapRedesign: publicHealthAsset("cdc-places-diabetes-categorical-map-redesign.png"),
-      chartBaseline: publicHealthAsset("cdc-places-diabetes-categorical-chart-baseline.png"),
-      chartRedesign: publicHealthAsset("cdc-places-diabetes-categorical-chart-redesign.png"),
-      combinations: interventionAssets("cdc-places-diabetes-categorical"),
+      mapBaseline: publicHealthAsset("cdc-svi-theme-map-baseline.png"),
+      mapRedesign: publicHealthAsset("cdc-svi-theme-map-redesign.png"),
+      chartBaseline: publicHealthAsset("cdc-svi-theme-chart-baseline.png"),
+      chartRedesign: publicHealthAsset("cdc-svi-theme-chart-redesign.png"),
+      combinations: interventionAssets("cdc-svi-theme"),
     },
   },
 ];
