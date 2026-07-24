@@ -372,13 +372,12 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     controller.addEventListener("squeezeend", () => endControllerInteraction(controller));
   });
 
-  renderer.setAnimationLoop((time) => {
+  renderer.setAnimationLoop(() => {
     if (!currentSession) controls.update();
     if (dragState) updateDragState(dragState);
-    const float = currentState.settings.reducedMotion ? 0 : Math.sin(time * 0.0012) * 0.025;
-    panels.map.position.y = LAYOUT.panelY + float;
-    panels.chart.position.y = LAYOUT.panelY - float * 0.75;
-    panels.task.position.y = TASK_PANEL_CENTER_Y + float * 0.45;
+    panels.map.position.y = LAYOUT.panelY;
+    panels.chart.position.y = LAYOUT.panelY;
+    panels.task.position.y = TASK_PANEL_CENTER_Y;
     if (exampleButton?.mesh.visible) {
       exampleButton.mesh.position.y = panels.task.position.y + TASK_PANEL_H / 2 - 0.15;
       exampleButton.mesh.position.z = panels.task.position.z + 0.045;
@@ -498,9 +497,9 @@ function createWorld(scene) {
 function createPanels(scene) {
   const group = new THREE.Group();
   scene.add(group);
-  const map = panelMesh("map", [-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.12, 0], PANEL_W, PANEL_H);
+  const map = panelMesh("map", [-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.15, 0], PANEL_W, PANEL_H);
   const task = panelMesh("task", [0, TASK_PANEL_CENTER_Y, LAYOUT.taskZ], [0, 0, 0], TASK_PANEL_W, TASK_PANEL_H);
-  const chart = panelMesh("chart", [SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.12, 0], PANEL_W, PANEL_H);
+  const chart = panelMesh("chart", [SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.15, 0], PANEL_W, PANEL_H);
   [map, task, chart].forEach((panel) => group.add(panel));
   return { group, map, task, chart };
 }
