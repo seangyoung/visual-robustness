@@ -38,15 +38,19 @@ const LAYOUT = {
   panelZ: -4.18,
   taskZ: -3.92,
 };
+const CONTROL_ROWS = {
+  upper: 0.17,
+  lower: -0.18,
+};
 const BUTTONS = [
-  { id: "back", action: "back", label: "Back", x: -1.54, width: 0.52 },
-  { id: "next", action: "next", label: "Next", x: -1.0, width: 0.52 },
-  { id: "example", action: "nextExample", label: "Switch\nExample", x: -1.5, width: 0.6 },
-  { id: "original", action: "clearInterventions", label: "Original", x: -0.88, width: 0.56 },
-  { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: -0.32, width: 0.5 },
-  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.2, width: 0.5 },
-  { id: "labels", action: "toggleIntervention", payload: { key: "labels" }, label: "Labels", x: 0.72, width: 0.5 },
-  { id: "recommended", action: "setRecommendedInterventions", label: "Recommend\nCombo", x: 1.42, width: 0.78 },
+  { id: "back", action: "back", label: "Back", x: -1.54, width: 0.52, deckY: CONTROL_ROWS.upper },
+  { id: "next", action: "next", label: "Next", x: -1.0, width: 0.52, deckY: CONTROL_ROWS.upper },
+  { id: "example", action: "nextExample", label: "Switch\nExample", x: 0.24, width: 0.58, deckY: CONTROL_ROWS.upper },
+  { id: "original", action: "clearInterventions", label: "Original", x: 0.84, width: 0.5, deckY: CONTROL_ROWS.upper },
+  { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: 0.28, width: 0.5, deckY: CONTROL_ROWS.lower },
+  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.9, width: 0.5, deckY: CONTROL_ROWS.lower },
+  { id: "labels", action: "toggleIntervention", payload: { key: "labels" }, label: "Labels", x: 1.52, width: 0.5, deckY: CONTROL_ROWS.lower },
+  { id: "recommended", action: "setRecommendedInterventions", label: "Recommend\nCombo", x: 1.48, width: 0.62, deckY: CONTROL_ROWS.upper },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -54,7 +58,7 @@ const CHECK_BUTTONS = [
 const SLIDER_WIDTH = 1.55;
 const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
 const SLIDER_MAX_X = SLIDER_WIDTH / 2;
-const SLIDER_CENTER = new THREE.Vector3(-0.82, 0.71, -1.96);
+const SLIDER_CENTER = workbenchDeckPosition(-1.02, CONTROL_ROWS.lower);
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -64,6 +68,22 @@ const RANK_CARD_SLOTS = [
   new THREE.Vector3(-2.62, RANK_CARD_Y, RANK_CARD_Z),
   new THREE.Vector3(-1.62, RANK_CARD_Y, RANK_CARD_Z),
 ];
+
+function workbenchDeckPosition(x, deckY = 0) {
+  return new THREE.Vector3(
+    x,
+    LAYOUT.controlDeckY + Math.cos(LAYOUT.controlDeckRotationX) * deckY,
+    LAYOUT.controlDeckZ + Math.sin(LAYOUT.controlDeckRotationX) * deckY,
+  );
+}
+
+function controlPosition(control) {
+  if (control.y !== undefined && control.z !== undefined) {
+    return new THREE.Vector3(control.x, control.y, control.z);
+  }
+
+  return workbenchDeckPosition(control.x, control.deckY ?? 0);
+}
 
 export function createGalleryApp({ canvas, ui, onAction }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -533,7 +553,7 @@ function createButtons(scene, buttons, defaults = {}) {
     const buttonWidth = button.width ?? width;
     const buttonHeight = button.height ?? height;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(buttonWidth, buttonHeight), material);
-    mesh.position.set(button.x, button.y ?? LAYOUT.buttonY, button.z ?? LAYOUT.buttonZ);
+    mesh.position.copy(controlPosition(button));
     mesh.rotation.x = button.rotationX ?? rotationX;
     mesh.rotation.y = button.rotationY ?? 0;
     mesh.visible = false;
@@ -684,7 +704,7 @@ function updateInWorldControlVisibility(
       button.id === "original" ||
       button.id === "recommended" ||
       INTERVENTION_KEYS.includes(button.payload?.key);
-    button.mesh.position.x = button.x;
+    button.mesh.position.copy(controlPosition(button));
     button.mesh.visible =
       isImmersive &&
       (!isNavigation || hasSceneNavigation) &&
