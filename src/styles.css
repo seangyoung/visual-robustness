@@ -85,7 +85,7 @@ button:disabled {
   left: 18px;
   z-index: 1;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: 194px minmax(0, 1fr);
   gap: 16px;
   min-height: 0;
 }
@@ -105,12 +105,21 @@ button:disabled {
 
 .browser-task-card {
   width: 100%;
+  height: 100%;
   max-width: 760px;
   border: 1px solid rgba(248, 246, 238, 0.18);
   border-radius: 8px;
   padding: 18px 22px;
+  overflow: auto;
   background: rgba(13, 18, 20, 0.92);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
+}
+
+.browser-task-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
 }
 
 .browser-task-kicker {
@@ -360,12 +369,10 @@ button:disabled {
 }
 
 .example-control {
-  grid-column: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
-  padding: 3px 0 1px;
 }
 
 .example-control[hidden] {
@@ -388,8 +395,7 @@ button:disabled {
   background: rgba(248, 246, 238, 0.06);
 }
 
-.range-control,
-.toggle-control {
+.range-control {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -399,10 +405,13 @@ button:disabled {
   font-weight: 800;
 }
 
-.range-control,
 #robustness-slider,
 .stress-test-ticks {
   grid-column: 1 / -1;
+}
+
+.range-control {
+  grid-column: 1;
 }
 
 .range-control output {
@@ -454,24 +463,45 @@ input[type="range"] {
   opacity: 0.42;
 }
 
-input[type="range"]:disabled,
-.toggle-control input:disabled + span {
+input[type="range"]:disabled {
   opacity: 0.45;
 }
 
-.toggle-control {
-  grid-column: 2;
-  grid-row: 2;
-  justify-self: end;
-  justify-content: flex-start;
-  padding: 6px 0;
-  white-space: nowrap;
+.intervention-lab {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
 }
 
-.toggle-control input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--teal);
+.intervention-shortcuts,
+.intervention-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.intervention-shortcuts {
+  justify-content: flex-start;
+}
+
+.intervention-controls {
+  justify-content: flex-end;
+}
+
+.intervention-lab button {
+  min-height: 36px;
+  padding: 0 12px;
+  color: #edf2ed;
+  font-size: 13px;
+  white-space: nowrap;
+  background: rgba(248, 246, 238, 0.06);
+}
+
+.intervention-lab button[aria-pressed="true"] {
+  border-color: rgba(85, 198, 186, 0.68);
+  background: rgba(35, 110, 102, 0.86);
 }
 
 .ranking-panel {
@@ -818,9 +848,16 @@ body.is-immersive #xr-canvas {
 
   .browser-task-card {
     width: 100%;
+    height: auto;
     max-width: 100%;
     padding: 14px;
     overflow-wrap: anywhere;
+  }
+
+  .browser-task-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
   }
 
   .browser-task-card h2 {
@@ -863,16 +900,18 @@ body.is-immersive #xr-canvas {
   }
 
   .example-control {
-    grid-column: 1;
     align-items: flex-start;
     flex-direction: column;
     gap: 6px;
   }
 
-  .toggle-control {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: start;
+  .intervention-lab {
+    grid-template-columns: 1fr;
+  }
+
+  .intervention-shortcuts,
+  .intervention-controls {
+    justify-content: flex-start;
   }
 
   #ranking-list > li {

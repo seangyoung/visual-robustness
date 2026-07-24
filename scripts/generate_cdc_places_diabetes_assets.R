@@ -25,16 +25,29 @@ places_url <- paste0(
   "&stateabbr=TX&%24limit=5000"
 )
 
-places <- readr::read_csv(
-  places_url,
-  col_types = readr::cols(
-    stateabbr = readr::col_character(),
-    statedesc = readr::col_character(),
-    countyname = readr::col_character(),
-    countyfips = readr::col_character(),
-    totalpopulation = readr::col_double(),
-    diabetes_crudeprev = readr::col_double()
-  )
+places_col_types <- readr::cols(
+  stateabbr = readr::col_character(),
+  statedesc = readr::col_character(),
+  countyname = readr::col_character(),
+  countyfips = readr::col_character(),
+  totalpopulation = readr::col_double(),
+  diabetes_crudeprev = readr::col_double(),
+  .default = readr::col_skip()
+)
+
+places <- tryCatch(
+  readr::read_csv(
+    places_url,
+    col_types = places_col_types
+  ),
+  error = function(error) {
+    local_places <- file.path(output_dir, "cdc-places-diabetes-texas-counties.csv")
+    if (!file.exists(local_places)) {
+      stop(error)
+    }
+    warning("CDC PLACES API unavailable; using cached county data at ", local_places)
+    readr::read_csv(local_places, col_types = places_col_types)
+  }
 ) |>
   mutate(
     diabetes = diabetes_crudeprev,
@@ -558,6 +571,291 @@ save_png <- function(plot, filename, legend = NULL) {
   message("Wrote ", normalizePath(path))
 }
 
+intervention_grid <- expand.grid(
+  palette = c(FALSE, TRUE),
+  redundant = c(FALSE, TRUE),
+  labels = c(FALSE, TRUE),
+  KEEP.OUT.ATTRS = FALSE
+)
+
+intervention_suffix <- function(palette, redundant, labels) {
+  paste0(
+    "p", as.integer(palette),
+    "-r", as.integer(redundant),
+    "-l", as.integer(labels)
+  )
+}
+
+intervention_subtitle <- function(original, named_interventions) {
+  active <- named_interventions[named_interventions != ""]
+  if (length(active) == 0) {
+    return(original)
+  }
+  paste("Active interventions:", paste(active, collapse = "; "))
+}
+
+make_prevalence_map <- function(palette = FALSE, redundant = FALSE, labels = FALSE) {
+  fill_palette <- if (palette) robust_palette else fragile_palette
+  boundary_color <- if (redundant) "#151d20" else "#1b2427"
+  county_line <- if (redundant) 0.18 else 0.12
+  outline_line <- if (redundant) 0.46 else 0.35
+
+  plot <- ggplot(tx_map) +
+    geom_sf(aes(fill = diabetes_class), color = if (redundant) "#f8f6ee" else "#ffffff", linewidth = county_line) +
+    geom_sf(fill = NA, color = boundary_color, linewidth = outline_line)
+
+  if (labels) {
+    plot <- plot +
+      geom_sf_label(
+        data = top_labels,
+        aes(label = label),
+        family = "Arial",
+        size = 3.1,
+        fontface = "bold",
+        linewidth = 0.24,
+        label.padding = unit(0.17, "lines"),
+        fill = "#f8f6ee",
+        color = "#151d20"
+      )
+  }
+
+  plot +
+    scale_fill_manual(
+      values = fill_palette,
+      drop = FALSE,
+      na.translate = FALSE,
+      na.value = "#d8d8cf",
+      name = "Diagnosed diabetes"
+    ) +
+    labs(
+      title = "Diagnosed Diabetes Prevalence by County",
+      subtitle = intervention_subtitle(
+        "Original: hue-dependent prevalence classes",
+        c(
+          if (palette) "ordered luminance palette" else "",
+          if (redundant) "stronger county boundaries" else "",
+          if (labels) "selected direct labels" else ""
+        )
+      ),
+      caption = source_caption
+    ) +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    map_theme()
+}
+
+make_prevalence_chart <- function(palette = FALSE, redundant = FALSE, labels = FALSE) {
+  fill_palette <- if (palette) robust_palette else fragile_palette
+  plot <- ggplot(class_summary, aes(x = county_count, y = diabetes_class, fill = diabetes_class)) +
+    geom_col(
+      width = 0.72,
+      color = if (redundant) "#151d20" else NA,
+      linewidth = if (redundant) 0.18 else 0
+    )
+
+  if (labels) {
+    plot <- plot +
+      geom_text(
+        aes(label = label),
+        hjust = -0.05,
+        color = "#151d20",
+        family = "Arial",
+        fontface = "bold",
+        size = 3.2
+      )
+  }
+
+  plot +
+    scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
+    scale_x_continuous(expand = expansion(mult = c(0, if (labels) 0.28 else 0.13))) +
+    labs(
+      title = "County Count by Diabetes Prevalence Class",
+      subtitle = intervention_subtitle(
+        "Original: same hue-dependent classes as the map",
+        c(
+          if (palette) "ordered luminance palette" else "",
+          if (redundant) "bar outlines" else "",
+          if (labels) "direct counts and percentages" else ""
+        )
+      ),
+      x = "Number of counties",
+      y = "Crude prevalence among adults",
+      caption = source_caption
+    ) +
+    chart_theme()
+}
+
+make_diverging_map <- function(palette = FALSE, redundant = FALSE, labels = FALSE) {
+  fill_palette <- if (palette) diverging_redesign_palette else diverging_palette
+  refined_outline <- palette || redundant || labels
+  plot <- ggplot(tx_map) +
+    geom_sf(
+      aes(fill = diabetes_difference_class),
+      color = if (refined_outline) "#f8f6ee" else "#ffffff",
+      linewidth = if (refined_outline) 0.16 else 0.12
+    )
+
+  if (redundant) {
+    plot <- plot +
+      geom_sf(data = above_stipple, inherit.aes = FALSE, color = "#151d20", size = 0.18, alpha = 0.5)
+  }
+
+  plot <- plot +
+    geom_sf(
+      fill = NA,
+      color = if (refined_outline) "#151d20" else "#1b2427",
+      linewidth = if (refined_outline) 0.42 else 0.35
+    )
+
+  if (labels) {
+    plot <- plot +
+      geom_sf_label(
+        data = difference_labels,
+        aes(label = label),
+        family = "Arial",
+        size = 3.1,
+        fontface = "bold",
+        linewidth = 0.24,
+        label.padding = unit(0.17, "lines"),
+        fill = "#f8f6ee",
+        color = "#151d20"
+      )
+  }
+
+  plot +
+    scale_fill_manual(
+      values = fill_palette,
+      drop = FALSE,
+      na.translate = FALSE,
+      na.value = "#d8d8cf",
+      name = "Difference"
+    ) +
+    labs(
+      title = "Diagnosed Diabetes Relative to Texas Average",
+      subtitle = intervention_subtitle(
+        average_caption,
+        c(
+          if (palette) "distinguishable diverging palette" else "",
+          if (redundant) "above-average stippling" else "",
+          if (labels) "selected high/low labels" else ""
+        )
+      ),
+      caption = source_caption
+    ) +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    map_theme()
+}
+
+make_diverging_chart <- function(palette = FALSE, redundant = FALSE, labels = FALSE) {
+  fill_palette <- if (palette) diverging_redesign_palette else diverging_palette
+  x_limit_multiplier <- if (labels) 1.42 else 1.18
+  plot <- ggplot(difference_summary) +
+    geom_vline(xintercept = 0, color = "#151d20", linewidth = if (redundant || labels) 0.48 else 0.42) +
+    geom_rect(
+      aes(
+        xmin = xmin,
+        xmax = xmax,
+        ymin = ymin,
+        ymax = ymax,
+        fill = diabetes_difference_class
+      ),
+      color = if (redundant || labels) "#151d20" else NA,
+      linewidth = if (redundant || labels) 0.18 else 0
+    )
+
+  if (redundant) {
+    plot <- plot +
+      geom_segment(
+        data = difference_bar_hatches,
+        aes(x = x, xend = xend, y = y, yend = yend),
+        inherit.aes = FALSE,
+        color = "#151d20",
+        linewidth = 0.34,
+        alpha = 0.68
+      )
+  }
+
+  if (labels) {
+    plot <- plot +
+      geom_text(
+        aes(
+          x = signed_count + if_else(signed_count >= 0, 2.0, -2.0),
+          y = y_index,
+          label = share_label,
+          hjust = if_else(signed_count >= 0, 0, 1)
+        ),
+        color = "#151d20",
+        family = "Arial",
+        fontface = "bold",
+        size = 3.2
+      )
+  }
+
+  plot +
+    scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
+    scale_x_continuous(
+      labels = abs,
+      limits = max(abs(difference_summary$signed_count)) * c(-x_limit_multiplier, x_limit_multiplier),
+      expand = expansion(mult = 0)
+    ) +
+    scale_y_continuous(
+      breaks = seq_along(deviation_labels),
+      labels = deviation_labels,
+      expand = expansion(add = 0.45)
+    ) +
+    labs(
+      title = "County Count Above and Below Texas Average",
+      subtitle = intervention_subtitle(
+        "Original: same diverging classes and colors as the map",
+        c(
+          if (palette) "distinguishable diverging palette" else "",
+          if (redundant) "above-average hash marks" else "",
+          if (labels) "direct counts and percentages" else ""
+        )
+      ),
+      x = "Number of counties",
+      y = "Difference from Texas average",
+      caption = source_caption
+    ) +
+    chart_theme()
+}
+
+save_intervention_assets <- function() {
+  for (index in seq_len(nrow(intervention_grid))) {
+    palette <- intervention_grid$palette[[index]]
+    redundant <- intervention_grid$redundant[[index]]
+    labels <- intervention_grid$labels[[index]]
+    suffix <- intervention_suffix(palette, redundant, labels)
+
+    save_png(
+      make_prevalence_map(palette, redundant, labels),
+      paste0("cdc-places-diabetes-map-", suffix, ".png"),
+      legend = map_legend_grob(
+        "Diagnosed diabetes",
+        rev(class_labels),
+        if (palette) robust_palette else fragile_palette
+      )
+    )
+    save_png(
+      make_prevalence_chart(palette, redundant, labels),
+      paste0("cdc-places-diabetes-chart-", suffix, ".png")
+    )
+    save_png(
+      make_diverging_map(palette, redundant, labels),
+      paste0("cdc-places-diabetes-diverging-map-", suffix, ".png"),
+      legend = map_legend_grob(
+        "Difference",
+        rev(deviation_labels),
+        if (palette) diverging_redesign_palette else diverging_palette,
+        stipple_labels = if (redundant) rev(deviation_labels)[grepl("above", rev(deviation_labels))] else character()
+      )
+    )
+    save_png(
+      make_diverging_chart(palette, redundant, labels),
+      paste0("cdc-places-diabetes-diverging-chart-", suffix, ".png")
+    )
+  }
+}
+
 save_png(
   baseline_map,
   "cdc-places-diabetes-map-baseline.png",
@@ -587,6 +885,8 @@ save_png(
   )
 )
 save_png(diverging_chart_redesign, "cdc-places-diabetes-diverging-chart-redesign.png")
+
+save_intervention_assets()
 
 readr::write_csv(
   places |> arrange(desc(diabetes)),
@@ -618,6 +918,18 @@ writeLines(
     "- `cdc-places-diabetes-diverging-chart-baseline.png`",
     "- `cdc-places-diabetes-diverging-map-redesign.png`",
     "- `cdc-places-diabetes-diverging-chart-redesign.png`",
+    "",
+    "Phase 1 intervention-combination assets use the suffix pattern",
+    "`p{0|1}-r{0|1}-l{0|1}`:",
+    "",
+    "- `p`: palette or luminance intervention",
+    "- `r`: redundant cue intervention",
+    "- `l`: labels and annotations intervention",
+    "",
+    "For example, `cdc-places-diabetes-diverging-map-p1-r0-l1.png`",
+    "uses the diverging palette and labels, but not the above-average pattern.",
+    "There are eight combinations for each example, each exported as map and chart PNGs.",
+    "",
     "- `cdc-places-diabetes-texas-counties.csv`"
   ),
   file.path(output_dir, "README.md")

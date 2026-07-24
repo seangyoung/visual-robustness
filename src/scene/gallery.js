@@ -1,9 +1,19 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+import {
+  INTERVENTION_KEYS,
+  hasActiveInterventions,
+  normalizeInterventions,
+} from "../config/interventions.js";
 import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
-import { visualizationExamples } from "../config/visualizationExamples.js";
+import {
+  interventionMetadataForExample,
+  matchesRecommendedInterventions,
+  visualizationExampleByIndex,
+  visualizationExamples,
+} from "../config/visualizationExamples.js";
 import {
   createButtonTexture,
   createComparisonCardTexture,
@@ -31,8 +41,12 @@ const LAYOUT = {
 const BUTTONS = [
   { id: "back", action: "back", label: "Back", x: -1.54, width: 0.52 },
   { id: "next", action: "next", label: "Next", x: -1.0, width: 0.52 },
-  { id: "example", action: "nextExample", label: "Switch\nExample", x: 0.38, width: 0.72 },
-  { id: "reveal", action: "toggleRedesign", label: "Show Improved\nDesign", x: 1.32, width: 1.08 },
+  { id: "example", action: "nextExample", label: "Switch\nExample", x: -1.5, width: 0.6 },
+  { id: "original", action: "clearInterventions", label: "Original", x: -0.88, width: 0.56 },
+  { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: -0.32, width: 0.5 },
+  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.2, width: 0.5 },
+  { id: "labels", action: "toggleIntervention", payload: { key: "labels" }, label: "Labels", x: 0.72, width: 0.5 },
+  { id: "recommended", action: "setRecommendedInterventions", label: "Recommend\nCombo", x: 1.42, width: 0.78 },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -99,7 +113,14 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     sceneIndex: 0,
     exampleIndex: 0,
     settings: ui.getSettings(),
-    workbench: { stressTestIndex: 0, revealRedesign: false },
+    workbench: {
+      stressTestIndex: 0,
+      interventions: {
+        palette: false,
+        redundantCue: false,
+        labels: false,
+      },
+    },
     ranking: [],
   };
   let currentSession = null;
@@ -652,19 +673,23 @@ function updateInWorldControlVisibility(
   isImmersive,
 ) {
   const hasSceneNavigation = moduleScenes.length > 1;
-  const supportsRedesign = sceneState.type === "color" || sceneState.type === "contrast";
+  const supportsInterventions = sceneState.type === "color";
   const supportsSlider =
     sceneState.type === "orientation" || sceneState.type === "color" || sceneState.type === "contrast";
 
   mainButtons.forEach((button) => {
     const isNavigation = button.id === "back" || button.id === "next";
     const isExampleControl = button.id === "example";
+    const isInterventionControl =
+      button.id === "original" ||
+      button.id === "recommended" ||
+      INTERVENTION_KEYS.includes(button.payload?.key);
     button.mesh.position.x = button.x;
     button.mesh.visible =
       isImmersive &&
       (!isNavigation || hasSceneNavigation) &&
       (!isExampleControl || (sceneState.type === "color" && visualizationExamples.length > 1)) &&
-      (button.id !== "reveal" || supportsRedesign);
+      (!isInterventionControl || supportsInterventions);
   });
   setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
   robustnessSlider.group.visible = isImmersive && supportsSlider;
@@ -790,13 +815,40 @@ function buttonTextureSpec(button, state) {
     };
   }
 
-  if (button.id === "reveal") {
-    const improvedIsVisible = Boolean(state.workbench?.revealRedesign);
+  if (button.id === "original") {
+    const active = !hasActiveInterventions(state.workbench?.interventions);
     return {
-      label: improvedIsVisible ? "Show Original\nDesign" : "Show Improved\nDesign",
-      active: improvedIsVisible,
+      label: "Original\nDesign",
+      active,
       options: {
-        subtitle: improvedIsVisible ? "Improved view live" : "Original view live",
+        subtitle: active ? "Active" : "Reset",
+      },
+    };
+  }
+
+  if (button.id === "recommended") {
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const active = matchesRecommendedInterventions(example, state.workbench?.interventions);
+    return {
+      label: "Recommend\nCombo",
+      active,
+      options: {
+        subtitle: active ? "Active" : "All cues",
+      },
+    };
+  }
+
+  if (INTERVENTION_KEYS.includes(button.payload?.key)) {
+    const key = button.payload.key;
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const metadata = interventionMetadataForExample(example, key);
+    const interventions = normalizeInterventions(state.workbench?.interventions);
+    const active = Boolean(interventions[key]);
+    return {
+      label: metadata?.shortLabel ?? button.label,
+      active,
+      options: {
+        subtitle: active ? "On" : "Off",
       },
     };
   }

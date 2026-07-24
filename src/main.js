@@ -1,13 +1,22 @@
 import "./styles.css";
 import { moduleScenes, recommendedComparisonRanking } from "./config/lesson.js";
 import {
+  defaultInterventions,
+  interventionsFromParam,
+  interventionsToParam,
+  normalizeInterventions,
+  toggleIntervention,
+} from "./config/interventions.js";
+import {
   clampStressTestIndex,
+  stressTestByIndex,
   stressTestIndexById,
   stressTestIndexFromPercent,
 } from "./config/stressTests.js";
 import {
   clampExampleIndex,
   nextVisualizationExampleIndex,
+  recommendedInterventionsForExample,
   visualizationExampleByIndex,
   visualizationExampleIndexById,
 } from "./config/visualizationExamples.js";
@@ -26,7 +35,7 @@ const state = {
   },
   workbench: {
     stressTestIndex: 0,
-    revealRedesign: false,
+    interventions: defaultInterventions(),
   },
   ranking: ["hue-only", "redundant", "simplified"],
   rankingCheck: { attempts: 0, status: "idle" },
@@ -99,16 +108,39 @@ function handleAction(action, payload = {}) {
   }
 
   if (action === "toggleRedesign") {
-    state.workbench.revealRedesign = !state.workbench.revealRedesign;
+    const example = visualizationExampleByIndex(state.exampleIndex);
+    state.workbench.interventions = interventionsToParam(
+      state.workbench.interventions,
+      recommendedInterventionsForExample(example),
+    )
+      ? defaultInterventions()
+      : recommendedInterventionsForExample(example);
   }
 
   if (action === "setRedesign") {
-    state.workbench.revealRedesign = Boolean(payload.value);
+    const example = visualizationExampleByIndex(state.exampleIndex);
+    state.workbench.interventions = payload.value
+      ? recommendedInterventionsForExample(example)
+      : defaultInterventions();
+  }
+
+  if (action === "toggleIntervention") {
+    state.workbench.interventions = toggleIntervention(state.workbench.interventions, payload.key);
+  }
+
+  if (action === "clearInterventions") {
+    state.workbench.interventions = defaultInterventions();
+  }
+
+  if (action === "setRecommendedInterventions") {
+    state.workbench.interventions = recommendedInterventionsForExample(
+      visualizationExampleByIndex(state.exampleIndex),
+    );
   }
 
   if (action === "nextExample") {
     state.exampleIndex = nextVisualizationExampleIndex(state.exampleIndex);
-    state.workbench.revealRedesign = false;
+    state.workbench.interventions = defaultInterventions();
   }
 
   if (action === "moveRank") {
@@ -137,7 +169,7 @@ function applySceneDefaults() {
 
   state.workbench = {
     stressTestIndex: 0,
-    revealRedesign: false,
+    interventions: defaultInterventions(),
     ...normalizeWorkbenchPatch(defaults),
   };
 }
@@ -200,7 +232,17 @@ function initialWorkbenchOverrides() {
     if (Number.isFinite(robustness)) overrides.stressTestIndex = stressTestIndexFromPercent(robustness);
   }
   if (params.has("reveal")) {
-    overrides.revealRedesign = ["1", "true", "yes"].includes(params.get("reveal")?.toLowerCase());
+    const example = visualizationExampleByIndex(state.exampleIndex);
+    overrides.interventions = ["1", "true", "yes"].includes(params.get("reveal")?.toLowerCase())
+      ? recommendedInterventionsForExample(example)
+      : defaultInterventions();
+  }
+  if (params.has("interventions")) {
+    const example = visualizationExampleByIndex(state.exampleIndex);
+    overrides.interventions = interventionsFromParam(
+      params.get("interventions"),
+      recommendedInterventionsForExample(example),
+    );
   }
   return overrides;
 }
@@ -222,11 +264,23 @@ function syncUrl() {
   url.searchParams.delete("robustness");
   url.searchParams.delete("stress");
   url.searchParams.delete("reveal");
+  url.searchParams.delete("interventions");
   url.searchParams.set("scene", scene.id);
   if (state.exampleIndex === 0) {
     url.searchParams.delete("example");
   } else {
     url.searchParams.set("example", example.id);
+  }
+  const stressTestIndex = clampStressTestIndex(state.workbench.stressTestIndex);
+  if (stressTestIndex > 0) {
+    url.searchParams.set("stress", stressTestByIndex(stressTestIndex).id);
+  }
+  const interventionParam = interventionsToParam(
+    state.workbench.interventions,
+    recommendedInterventionsForExample(example),
+  );
+  if (interventionParam) {
+    url.searchParams.set("interventions", interventionParam);
   }
   window.history.replaceState({}, "", url);
 }
@@ -239,6 +293,15 @@ function normalizeWorkbenchPatch(workbench) {
   delete patch.robustness;
   if (patch.stressTestIndex !== undefined) {
     patch.stressTestIndex = clampStressTestIndex(patch.stressTestIndex);
+  }
+  if (patch.revealRedesign !== undefined && patch.interventions === undefined) {
+    patch.interventions = patch.revealRedesign
+      ? recommendedInterventionsForExample(visualizationExampleByIndex(state.exampleIndex))
+      : defaultInterventions();
+  }
+  delete patch.revealRedesign;
+  if (patch.interventions !== undefined) {
+    patch.interventions = normalizeInterventions(patch.interventions);
   }
   return patch;
 }

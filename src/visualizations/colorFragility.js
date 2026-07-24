@@ -1,4 +1,10 @@
 import {
+  INTERVENTION_KEYS,
+  allInterventionsActive,
+  interventionAssetSuffix,
+  normalizeInterventions,
+} from "../config/interventions.js";
+import {
   comparisonDesigns,
   landCoverCategories,
   recommendedComparisonRanking,
@@ -11,14 +17,14 @@ import {
   stressTests,
 } from "../config/stressTests.js";
 import {
+  interventionMetadataForExample,
+  matchesRecommendedInterventions,
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
 
 const publicHealthAssetSources = Object.fromEntries(
-  visualizationExamples.flatMap((example) =>
-    Object.entries(example.assets).map(([slot, url]) => [publicHealthAssetKey(example.id, slot), url]),
-  ),
+  visualizationExamples.flatMap((example) => publicHealthAssetEntries(example)),
 );
 
 const publicHealthImages = new Map();
@@ -106,6 +112,23 @@ const contrastLayers = [
 ];
 
 const categoryById = Object.fromEntries(landCoverCategories.map((category) => [category.id, category]));
+
+function publicHealthAssetEntries(example) {
+  const directAssets = Object.entries(example.assets)
+    .filter(([, url]) => typeof url === "string")
+    .map(([slot, url]) => [publicHealthAssetKey(example.id, slot), url]);
+
+  const combinationAssets = Object.entries(example.assets.combinations ?? {}).flatMap(([suffix, pair]) => [
+    [publicHealthAssetKey(example.id, `map-${suffix}`), pair.map],
+    [publicHealthAssetKey(example.id, `chart-${suffix}`), pair.chart],
+  ]);
+
+  return [...directAssets, ...combinationAssets];
+}
+
+function recommendedVisible(state) {
+  return Boolean(state.workbench?.revealRedesign) || allInterventionsActive(state.workbench?.interventions);
+}
 
 export function createPanelTexture(kind, scene, state) {
   const canvas = document.createElement("canvas");
@@ -255,7 +278,7 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
 
   if (kind === "task") {
     drawTaskPanel(ctx, canvas, { ...scene, prompt: example.prompt }, state, {
-      lead: state.workbench.revealRedesign ? example.reveal : example.baselineLead,
+      lead: colorInterventionExplanation(example, state.workbench.interventions),
       hint: example.answer,
     });
     return;
@@ -274,7 +297,8 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
 
 function drawPublicHealthAsset(ctx, canvas, kind, state) {
   const example = visualizationExampleByIndex(state.exampleIndex);
-  const slot = `${kind}${state.workbench.revealRedesign ? "Redesign" : "Baseline"}`;
+  const suffix = interventionAssetSuffix(state.workbench.interventions);
+  const slot = `${kind}-${suffix}`;
   const assetKey = publicHealthAssetKey(example.id, slot);
   const image = publicHealthImages.get(assetKey);
 
@@ -285,6 +309,24 @@ function drawPublicHealthAsset(ctx, canvas, kind, state) {
 
   const source = simulatedAssetSource(assetKey, image, state);
   ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+}
+
+function colorInterventionExplanation(example, interventions) {
+  const normalized = normalizeInterventions(interventions);
+  const active = INTERVENTION_KEYS
+    .filter((key) => normalized[key])
+    .map((key) => interventionMetadataForExample(example, key))
+    .filter(Boolean);
+
+  if (active.length === 0) {
+    return `${example.baselineLead} ${example.predictionPrompt}`;
+  }
+
+  if (matchesRecommendedInterventions(example, normalized)) {
+    return example.recommendedSummary;
+  }
+
+  return active.map((item) => `${item.shortLabel}: ${item.effect}`).join(" ");
 }
 
 function publicHealthAssetKey(exampleId, slot) {
@@ -340,7 +382,7 @@ function drawLoadingAssetPanel(ctx, canvas, kind, state) {
 function drawContrastPanel(ctx, canvas, kind, scene, state) {
   if (kind === "task") {
     drawTaskPanel(ctx, canvas, scene, state, {
-      lead: state.workbench.revealRedesign
+      lead: recommendedVisible(state)
         ? scene.reveal
         : "Contrast controls what appears first.",
       hint: "Watch the attention order change.",
@@ -527,9 +569,9 @@ function drawWatershedMap(ctx, originX, originY, state) {
     polygonPath(ctx, points);
     ctx.fillStyle = colorForCategory(category, state);
     ctx.fill();
-    if (state.workbench.revealRedesign) drawPatternInPolygon(ctx, points, category.id);
-    ctx.strokeStyle = state.workbench.revealRedesign ? "rgba(17,23,25,0.42)" : "rgba(248,246,238,0.58)";
-    ctx.lineWidth = state.workbench.revealRedesign ? 2.8 : 1.8;
+    if (recommendedVisible(state)) drawPatternInPolygon(ctx, points, category.id);
+    ctx.strokeStyle = recommendedVisible(state) ? "rgba(17,23,25,0.42)" : "rgba(248,246,238,0.58)";
+    ctx.lineWidth = recommendedVisible(state) ? 2.8 : 1.8;
     ctx.stroke();
   });
 
@@ -556,14 +598,14 @@ function drawLandCoverLegend(ctx, x, y, state) {
     const yy = y + index * 62;
     ctx.fillStyle = colorForCategory(category, state);
     ctx.fillRect(x, yy, 44, 38);
-    if (state.workbench.revealRedesign) {
+    if (recommendedVisible(state)) {
       drawPattern(ctx, x, yy, 44, 38, category.id);
       drawShape(ctx, category.shape, x + 22, yy + 19, 10, "#111719");
     }
     ctx.fillStyle = "#262d30";
     ctx.font = "800 24px Arial";
     ctx.fillText(category.label, x + 62, yy + 25);
-    if (state.workbench.revealRedesign) {
+    if (recommendedVisible(state)) {
       ctx.fillStyle = "#536164";
       ctx.font = "500 19px Arial";
       ctx.fillText(category.note, x + 62, yy + 50);
@@ -612,10 +654,10 @@ function drawStreams(ctx, transform, state, bufferOnly) {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     if (bufferOnly) {
-      ctx.strokeStyle = state.workbench.revealRedesign ? "rgba(224,240,238,0.72)" : "rgba(224,240,238,0.36)";
+      ctx.strokeStyle = recommendedVisible(state) ? "rgba(224,240,238,0.72)" : "rgba(224,240,238,0.36)";
       ctx.lineWidth = index === 0 ? 22 : 12;
     } else {
-      ctx.strokeStyle = simulateColor(state.workbench.revealRedesign ? "#315f9f" : "#4979b8", state);
+      ctx.strokeStyle = simulateColor(recommendedVisible(state) ? "#315f9f" : "#4979b8", state);
       ctx.lineWidth = index === 0 ? 6 : 3.5;
     }
     polyline(ctx, points);
@@ -636,7 +678,7 @@ function drawMapLabels(ctx, x, y, width, height, transform, state) {
   ctx.font = "800 19px Arial";
   ctx.fillText("Clearwater Creek", mainRiver[0] + 26, mainRiver[1] + 10);
 
-  if (!state.workbench.revealRedesign) return;
+  if (!recommendedVisible(state)) return;
 
   const labels = [
     ["Wetland", [454, 405], "circle"],
@@ -725,13 +767,13 @@ function drawLandCoverChart(ctx, x, y, state) {
     ctx.fillStyle = colorForCategory(category, state);
     roundRect(ctx, x, yy, barW, 42, 10);
     ctx.fill();
-    if (state.workbench.revealRedesign) {
+    if (recommendedVisible(state)) {
       drawPattern(ctx, x, yy, barW, 42, category.id);
       drawShape(ctx, category.shape, x + 24, yy + 21, 11, "#111719");
     }
     ctx.fillStyle = "#1c2326";
     ctx.font = "900 27px Arial";
-    const label = state.workbench.revealRedesign
+    const label = recommendedVisible(state)
       ? `${category.label} • ${category.area}%`
       : category.label;
     ctx.fillText(label, x, yy - 12);
@@ -818,7 +860,7 @@ function drawHandoffMark(ctx, state) {
 
 function drawHierarchyMap(ctx, state, x, y, width, height) {
   const stress = stressLevelFromState(state);
-  const reveal = state.workbench.revealRedesign;
+  const reveal = recommendedVisible(state);
   ctx.fillStyle = "#f0f2ee";
   roundRect(ctx, x, y, width, height, 16);
   ctx.fill();
@@ -865,7 +907,7 @@ function drawHierarchyMap(ctx, state, x, y, width, height) {
 
 function drawAttentionChart(ctx, state) {
   const stress = stressLevelFromState(state);
-  const reveal = state.workbench.revealRedesign;
+  const reveal = recommendedVisible(state);
   const x = 160;
   const y = 260;
   const width = 920;
@@ -942,7 +984,7 @@ function drawComparisonThumbnail(ctx, id, x, y, w, h) {
 }
 
 function colorForCategory(category, state) {
-  return simulateColor(state.workbench.revealRedesign ? category.redesign : category.baseline, state);
+  return simulateColor(recommendedVisible(state) ? category.redesign : category.baseline, state);
 }
 
 function panelBase(ctx, canvas, title, subtitle, state) {

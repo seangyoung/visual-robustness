@@ -27,7 +27,13 @@
       <section id="browser-workbench" class="browser-workbench" aria-label="Browser visualization workbench">
         <div class="browser-task-panel">
           <div class="browser-task-card">
-            <div class="browser-task-kicker" id="browser-task-kicker">Scene 1 of 1</div>
+            <div class="browser-task-header">
+              <div class="browser-task-kicker" id="browser-task-kicker">Scene 1 of 1</div>
+              <div class="example-control" aria-label="Visualization example">
+                <span id="example-label">Example 1 of 2</span>
+                <button id="next-example" type="button">Switch example</button>
+              </div>
+            </div>
             <h2 id="browser-task-title">Loading</h2>
             <p id="browser-task-prompt"></p>
             <p id="browser-task-lead"></p>
@@ -63,11 +69,6 @@
             <strong id="workbench-title">Loading</strong>
           </div>
 
-          <div class="example-control">
-            <span id="example-label">Example 1 of 2</span>
-            <button id="next-example" type="button">Switch example</button>
-          </div>
-
           <label class="range-control" for="robustness-slider">
             <span>Stress Test</span>
             <output id="robustness-value" for="robustness-slider">Typical color</output>
@@ -75,10 +76,13 @@
           <input id="robustness-slider" type="range" min="0" max="6" step="1" value="0" />
           <div id="stress-test-ticks" class="stress-test-ticks" aria-hidden="true"></div>
 
-          <label class="toggle-control">
-            <input id="reveal-redesign" type="checkbox" />
-            <span id="reveal-redesign-label">Show improved design</span>
-          </label>
+          <div class="intervention-lab" aria-label="Design intervention controls">
+            <div class="intervention-shortcuts">
+              <button id="original-design" type="button">Original design</button>
+              <button id="recommended-design" type="button">Recommended combination</button>
+            </div>
+            <div id="intervention-controls" class="intervention-controls"></div>
+          </div>
         </section>
 
         <section id="ranking-panel" class="ranking-panel" aria-label="Robust design ranking">

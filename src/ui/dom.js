@@ -4,8 +4,15 @@ import {
   moduleScenes,
   recommendedComparisonRanking,
 } from "../config/lesson.js";
+import {
+  INTERVENTION_KEYS,
+  hasActiveInterventions,
+  normalizeInterventions,
+} from "../config/interventions.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
+  interventionMetadataForExample,
+  matchesRecommendedInterventions,
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
@@ -42,8 +49,9 @@ export function createDomUi({
     robustnessSlider: document.getElementById("robustness-slider"),
     robustnessValue: document.getElementById("robustness-value"),
     stressTestTicks: document.getElementById("stress-test-ticks"),
-    revealRedesign: document.getElementById("reveal-redesign"),
-    revealRedesignLabel: document.getElementById("reveal-redesign-label"),
+    originalDesign: document.getElementById("original-design"),
+    recommendedDesign: document.getElementById("recommended-design"),
+    interventionControls: document.getElementById("intervention-controls"),
     rankingPanel: document.getElementById("ranking-panel"),
     rankingList: document.getElementById("ranking-list"),
     checkRanking: document.getElementById("check-ranking"),
@@ -58,9 +66,8 @@ export function createDomUi({
   elements.robustnessSlider.addEventListener("input", (event) => {
     onWorkbenchChange({ stressTestIndex: Number(event.target.value) });
   });
-  elements.revealRedesign.addEventListener("change", (event) => {
-    onWorkbenchChange({ revealRedesign: event.target.checked });
-  });
+  elements.originalDesign.addEventListener("click", () => onAction("clearInterventions"));
+  elements.recommendedDesign.addEventListener("click", () => onAction("setRecommendedInterventions"));
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
 
   window.addEventListener("keydown", (event) => {
@@ -79,13 +86,15 @@ export function createDomUi({
       const scene = moduleScenes[state.sceneIndex];
       const isLast = state.sceneIndex === moduleScenes.length - 1;
       const hasSceneNavigation = moduleScenes.length > 1;
-      const supportsRedesign = scene.type === "color" || scene.type === "contrast";
       const supportsRobustness = scene.type !== "reflection";
+      const supportsInterventions = scene.type === "color";
       const activeExample = visualizationExampleByIndex(state.exampleIndex);
       const showsWorkbenchControls =
         scene.type === "orientation" || scene.type === "color" || scene.type === "contrast";
       const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
-      const revealCopy = scene.type === "color" ? activeExample.reveal : scene.reveal;
+      const interventionCopy = scene.type === "color"
+        ? interventionExplanation(activeExample, state.workbench.interventions)
+        : scene.reveal;
       renderBrowserWorkbench(elements, scene, state);
 
       elements.stepKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
@@ -120,11 +129,7 @@ export function createDomUi({
       elements.robustnessSlider.disabled = !supportsRobustness;
       renderStressTestTicks(elements, stressTestIndex, supportsRobustness);
 
-      elements.revealRedesign.checked = state.workbench.revealRedesign;
-      elements.revealRedesign.disabled = !supportsRedesign;
-      elements.revealRedesignLabel.textContent = state.workbench.revealRedesign
-        ? "Show original design"
-        : "Show improved design";
+      renderInterventionControls(elements, activeExample, state.workbench.interventions, supportsInterventions, onAction);
 
       elements.rankingPanel.hidden = scene.type !== "comparison";
       elements.checkRanking.disabled = scene.type !== "comparison";
@@ -136,7 +141,7 @@ export function createDomUi({
         `Current scene: ${scene.title}.`,
         prompt,
         scene.task,
-        revealCopy && state.workbench.revealRedesign ? revealCopy : "",
+        interventionCopy,
       ]
         .filter(Boolean)
         .join(" ");
@@ -157,10 +162,8 @@ function renderBrowserWorkbench(elements, scene, state) {
   const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
   const lead =
     scene.type === "color"
-      ? state.workbench.revealRedesign
-        ? activeExample.reveal
-        : activeExample.baselineLead
-      : state.workbench.revealRedesign
+      ? interventionExplanation(activeExample, state.workbench.interventions)
+      : hasActiveInterventions(state.workbench.interventions)
         ? scene.reveal
         : scene.task;
 
@@ -171,6 +174,53 @@ function renderBrowserWorkbench(elements, scene, state) {
 
   renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
   renderBrowserCanvas(elements.browserChartCanvas, "chart", scene, state);
+}
+
+function renderInterventionControls(elements, example, interventions, enabled, onAction) {
+  const normalized = normalizeInterventions(interventions);
+  const hasActive = hasActiveInterventions(normalized);
+  const recommendedActive = matchesRecommendedInterventions(example, normalized);
+
+  elements.originalDesign.disabled = !enabled;
+  elements.recommendedDesign.disabled = !enabled;
+  elements.originalDesign.setAttribute("aria-pressed", String(!hasActive));
+  elements.recommendedDesign.setAttribute("aria-pressed", String(recommendedActive));
+
+  elements.interventionControls.replaceChildren(
+    ...INTERVENTION_KEYS.map((key) => {
+      const metadata = interventionMetadataForExample(example, key);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "intervention-toggle";
+      button.dataset.intervention = key;
+      button.disabled = !enabled;
+      button.setAttribute("aria-pressed", String(Boolean(normalized[key])));
+      button.title = metadata?.description ?? "";
+      button.textContent = metadata?.label ?? key;
+      button.addEventListener("click", () => onAction("toggleIntervention", { key }));
+      return button;
+    }),
+  );
+}
+
+function interventionExplanation(example, interventions) {
+  const normalized = normalizeInterventions(interventions);
+  const active = INTERVENTION_KEYS
+    .filter((key) => normalized[key])
+    .map((key) => interventionMetadataForExample(example, key))
+    .filter(Boolean);
+
+  if (active.length === 0) {
+    return `${example.baselineLead} ${example.predictionPrompt}`;
+  }
+
+  if (matchesRecommendedInterventions(example, normalized)) {
+    return `${example.recommendedSummary} Compare this with the stressed original and consider whether the added visual detail is justified.`;
+  }
+
+  return active
+    .map((item) => `${item.label}: ${item.effect}`)
+    .join(" ");
 }
 
 function renderBrowserCanvas(target, kind, scene, state) {
