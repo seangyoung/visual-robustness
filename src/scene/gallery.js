@@ -3,7 +3,6 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 import {
   INTERVENTION_KEYS,
-  allInterventionsActive,
   hasActiveInterventions,
   normalizeInterventions,
 } from "../config/interventions.js";
@@ -11,6 +10,7 @@ import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
   interventionMetadataForExample,
+  matchesRecommendedInterventions,
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
@@ -827,7 +827,8 @@ function buttonTextureSpec(button, state) {
   }
 
   if (button.id === "recommended") {
-    const active = allInterventionsActive(state.workbench?.interventions);
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const active = matchesRecommendedInterventions(example, state.workbench?.interventions);
     return {
       label: "Recommend\nCombo",
       active,

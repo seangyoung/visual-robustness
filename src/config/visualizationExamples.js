@@ -1,4 +1,10 @@
-import { INTERVENTION_KEYS, interventionAssetSuffix } from "./interventions.js";
+import {
+  INTERVENTION_KEYS,
+  interventionAssetSuffix,
+  interventionsEqual,
+  normalizeInterventions,
+  recommendedInterventions,
+} from "./interventions.js";
 
 const publicHealthAssets = import.meta.glob("../../assets/proposed-public-health/*.png", {
   eager: true,
@@ -43,7 +49,12 @@ export const visualizationExamples = [
     predictionPrompt:
       "Predict which intervention will preserve the ordered prevalence classes with the least added complexity.",
     recommendedSummary:
-      "The recommended combination uses an ordered luminance palette, stronger boundaries, selected direct labels, and chart annotations.",
+      "The recommended combination uses an ordered luminance palette, selected direct labels, and chart annotations. Stronger boundaries are left off because they add density without clearly reducing color dependence.",
+    recommendedInterventions: {
+      palette: true,
+      redundantCue: false,
+      labels: true,
+    },
     interventions: {
       palette: {
         label: "Ordered luminance",
@@ -88,10 +99,15 @@ export const visualizationExamples = [
       "Predict which intervention will make the above/below-average direction easiest to recover under the selected stress test.",
     recommendedSummary:
       "The recommended combination uses a more distinguishable diverging palette, redundant above-average patterning, and direct labels.",
+    recommendedInterventions: {
+      palette: true,
+      redundantCue: true,
+      labels: true,
+    },
     interventions: {
       palette: {
-        label: "Diverging palette",
-        shortLabel: "Palette",
+        label: "Robust palette",
+        shortLabel: "Robust",
         description:
           "The alternative ramp separates direction and distance from the midpoint with clearer light-dark structure.",
         effect: "Directly reduces color dependence for the above/below-average distinction.",
@@ -124,6 +140,14 @@ export const visualizationExamples = [
 export function interventionMetadataForExample(example, key) {
   if (!INTERVENTION_KEYS.includes(key)) return null;
   return example.interventions?.[key] ?? null;
+}
+
+export function recommendedInterventionsForExample(example) {
+  return normalizeInterventions(example?.recommendedInterventions ?? recommendedInterventions());
+}
+
+export function matchesRecommendedInterventions(example, interventions) {
+  return interventionsEqual(interventions, recommendedInterventionsForExample(example));
 }
 
 export const DEFAULT_EXAMPLE_INDEX = 0;

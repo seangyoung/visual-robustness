@@ -6,13 +6,13 @@ import {
 } from "../config/lesson.js";
 import {
   INTERVENTION_KEYS,
-  allInterventionsActive,
   hasActiveInterventions,
   normalizeInterventions,
 } from "../config/interventions.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
   interventionMetadataForExample,
+  matchesRecommendedInterventions,
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
@@ -163,7 +163,7 @@ function renderBrowserWorkbench(elements, scene, state) {
   const lead =
     scene.type === "color"
       ? interventionExplanation(activeExample, state.workbench.interventions)
-      : allInterventionsActive(state.workbench.interventions)
+      : hasActiveInterventions(state.workbench.interventions)
         ? scene.reveal
         : scene.task;
 
@@ -179,12 +179,12 @@ function renderBrowserWorkbench(elements, scene, state) {
 function renderInterventionControls(elements, example, interventions, enabled, onAction) {
   const normalized = normalizeInterventions(interventions);
   const hasActive = hasActiveInterventions(normalized);
-  const allActive = allInterventionsActive(normalized);
+  const recommendedActive = matchesRecommendedInterventions(example, normalized);
 
   elements.originalDesign.disabled = !enabled;
   elements.recommendedDesign.disabled = !enabled;
   elements.originalDesign.setAttribute("aria-pressed", String(!hasActive));
-  elements.recommendedDesign.setAttribute("aria-pressed", String(allActive));
+  elements.recommendedDesign.setAttribute("aria-pressed", String(recommendedActive));
 
   elements.interventionControls.replaceChildren(
     ...INTERVENTION_KEYS.map((key) => {
@@ -214,7 +214,7 @@ function interventionExplanation(example, interventions) {
     return `${example.baselineLead} ${example.predictionPrompt}`;
   }
 
-  if (active.length === INTERVENTION_KEYS.length) {
+  if (matchesRecommendedInterventions(example, normalized)) {
     return `${example.recommendedSummary} Compare this with the stressed original and consider whether the added visual detail is justified.`;
   }
 

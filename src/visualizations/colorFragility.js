@@ -18,6 +18,7 @@ import {
 } from "../config/stressTests.js";
 import {
   interventionMetadataForExample,
+  matchesRecommendedInterventions,
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
@@ -321,7 +322,7 @@ function colorInterventionExplanation(example, interventions) {
     return `${example.baselineLead} ${example.predictionPrompt}`;
   }
 
-  if (active.length === INTERVENTION_KEYS.length) {
+  if (matchesRecommendedInterventions(example, normalized)) {
     return example.recommendedSummary;
   }
 

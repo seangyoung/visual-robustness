@@ -21,6 +21,12 @@ export function recommendedInterventions() {
   return Object.fromEntries(INTERVENTION_KEYS.map((key) => [key, true]));
 }
 
+export function interventionsEqual(first, second) {
+  const normalizedFirst = normalizeInterventions(first);
+  const normalizedSecond = normalizeInterventions(second);
+  return INTERVENTION_KEYS.every((key) => normalizedFirst[key] === normalizedSecond[key]);
+}
+
 export function normalizeInterventions(value = {}) {
   const source = value && typeof value === "object" ? value : {};
   return Object.fromEntries(INTERVENTION_KEYS.map((key) => [key, Boolean(source[key])]));
@@ -53,11 +59,11 @@ export function interventionAssetSuffix(interventions) {
   ].join("-");
 }
 
-export function interventionsFromParam(value) {
+export function interventionsFromParam(value, recommended = recommendedInterventions()) {
   if (!value) return defaultInterventions();
   const normalizedValue = String(value).trim().toLowerCase();
   if (["recommended", "all", "true", "1"].includes(normalizedValue)) {
-    return recommendedInterventions();
+    return normalizeInterventions(recommended);
   }
   if (["original", "none", "false", "0"].includes(normalizedValue)) {
     return defaultInterventions();
@@ -83,9 +89,9 @@ export function interventionsFromParam(value) {
   return interventions;
 }
 
-export function interventionsToParam(interventions) {
+export function interventionsToParam(interventions, recommended = recommendedInterventions()) {
   const normalized = normalizeInterventions(interventions);
   if (!hasActiveInterventions(normalized)) return "";
-  if (allInterventionsActive(normalized)) return "recommended";
+  if (interventionsEqual(normalized, recommended)) return "recommended";
   return INTERVENTION_KEYS.filter((key) => normalized[key]).join(",");
 }
