@@ -18,6 +18,7 @@ dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 options(tigris_use_cache = TRUE)
 sf::sf_use_s2(FALSE)
+set.seed(20260724)
 
 places_url <- paste0(
   "https://data.cdc.gov/resource/i46a-9kgh.csv?",
@@ -59,6 +60,22 @@ if (nrow(places) == 0) {
 }
 
 texas_average <- weighted.mean(places$diabetes, places$totalpopulation, na.rm = TRUE)
+population_median <- median(places$totalpopulation, na.rm = TRUE)
+diabetes_median <- median(places$diabetes, na.rm = TRUE)
+
+peer_labels <- c(
+  "Large / lower diabetes",
+  "Large / higher diabetes",
+  "Small / lower diabetes",
+  "Small / higher diabetes"
+)
+
+peer_short_labels <- c(
+  "Large / lower diabetes" = "Large/lower",
+  "Large / higher diabetes" = "Large/higher",
+  "Small / lower diabetes" = "Small/lower",
+  "Small / higher diabetes" = "Small/higher"
+)
 
 class_breaks <- places$diabetes |>
   quantile(probs = seq(0, 1, length.out = 6), na.rm = TRUE, names = FALSE) |>
@@ -101,7 +118,15 @@ places <- places |>
       labels = deviation_labels,
       include.lowest = TRUE,
       right = FALSE
-    )
+    ),
+    peer_group = case_when(
+      totalpopulation >= population_median & diabetes < diabetes_median ~ peer_labels[[1]],
+      totalpopulation >= population_median & diabetes >= diabetes_median ~ peer_labels[[2]],
+      totalpopulation < population_median & diabetes < diabetes_median ~ peer_labels[[3]],
+      TRUE ~ peer_labels[[4]]
+    ),
+    peer_group = factor(peer_group, levels = peer_labels),
+    peer_short = unname(peer_short_labels[as.character(peer_group)])
   )
 
 tx_counties <- tigris::counties(state = "TX", cb = TRUE, year = 2023, class = "sf") |>
@@ -158,6 +183,34 @@ difference_summary <- data.frame(
     share_label = paste0(county_count, " counties (", round((county_count / sum(county_count)) * 100), "%)")
   )
 
+peer_summary <- data.frame(
+  peer_group = factor(peer_labels, levels = peer_labels)
+) |>
+  left_join(
+    places |>
+      count(peer_group, name = "county_count"),
+    by = "peer_group"
+  ) |>
+  mutate(
+    county_count = coalesce(county_count, 0L),
+    share = county_count / sum(county_count),
+    peer_short = unname(peer_short_labels[as.character(peer_group)]),
+    label = paste0(peer_short, ": ", county_count, " counties (", round(share * 100), "%)")
+  )
+
+make_peer_chart_symbols <- function(summary_data) {
+  bind_rows(lapply(seq_len(nrow(summary_data)), function(index) {
+    row <- summary_data[index, ]
+    xs <- seq(5, max(5, row$county_count - 3), by = 6)
+    data.frame(
+      x = xs,
+      peer_group = factor(as.character(row$peer_group), levels = peer_labels)
+    )
+  }))
+}
+
+peer_chart_symbols <- make_peer_chart_symbols(peer_summary)
+
 make_chart_hatches <- function(summary_data) {
   rows <- summary_data |>
     filter(side == "Above average", county_count > 0)
@@ -207,6 +260,36 @@ difference_labels <- bind_rows(
     )
   )
 
+make_peer_symbol_points <- function(map_data, labels, points_per_group = 220) {
+  bind_rows(lapply(labels, function(label) {
+    group_geometry <- map_data |>
+      filter(peer_group == label) |>
+      st_geometry() |>
+      st_union()
+
+    samples <- st_sample(group_geometry, size = points_per_group, type = "regular")
+    if (length(samples) == 0) {
+      return(NULL)
+    }
+
+    st_sf(
+      peer_group = factor(label, levels = labels),
+      geometry = samples,
+      crs = st_crs(map_data)
+    )
+  }))
+}
+
+peer_symbol_points <- make_peer_symbol_points(tx_map, peer_labels)
+
+peer_label_points <- tx_map |>
+  filter(!is.na(peer_group)) |>
+  group_by(peer_group) |>
+  slice_max(order_by = totalpopulation, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  st_point_on_surface() |>
+  mutate(label = paste0(countyname, ": ", peer_short))
+
 fragile_palette <- c("#1b9e77", "#66a61e", "#e6ab02", "#d95f02", "#7570b3")
 names(fragile_palette) <- class_labels
 
@@ -218,6 +301,15 @@ names(diverging_palette) <- deviation_labels
 
 diverging_redesign_palette <- c("#17375e", "#6f86a3", "#d6d9d2", "#eadf9f", "#a2833e", "#553d13")
 names(diverging_redesign_palette) <- deviation_labels
+
+peer_fragile_palette <- c("#69b887", "#c9ad4c", "#73aaa8", "#d58b63")
+names(peer_fragile_palette) <- peer_labels
+
+peer_robust_palette <- c("#0072b2", "#d55e00", "#009e73", "#cc79a7")
+names(peer_robust_palette) <- peer_labels
+
+peer_shapes <- c(16, 17, 15, 3)
+names(peer_shapes) <- peer_labels
 
 map_theme <- function() {
   theme_void(base_family = "Arial") +
@@ -262,11 +354,11 @@ average_caption <- sprintf(
   texas_average
 )
 
-map_legend_grob <- function(title, labels, palette, stipple_labels = character()) {
+map_legend_grob <- function(title, labels, palette, stipple_labels = character(), symbol_shapes = NULL) {
   legend_scale <- 1.6
   x <- unit(0.055, "npc")
   y <- unit(0.87, "npc")
-  width <- unit(0.2 * legend_scale, "npc")
+  width <- unit(if (length(labels) <= 4) 0.27 * legend_scale else 0.2 * legend_scale, "npc")
   title_height <- unit(0.033 * legend_scale, "npc")
   row_height <- unit(0.025 * legend_scale, "npc")
   padding_x <- unit(0.012 * legend_scale, "npc")
@@ -321,6 +413,18 @@ map_legend_grob <- function(title, labels, palette, stipple_labels = character()
           pch = 16,
           size = unit(0.55 * legend_scale, "mm"),
           gp = gpar(col = "#151d20", alpha = 0.68)
+        )
+      ))
+    }
+
+    if (!is.null(symbol_shapes) && label %in% names(symbol_shapes)) {
+      grobs <- append(grobs, list(
+        pointsGrob(
+          x = key_left + key_width * 0.5,
+          y = row_y,
+          pch = unname(symbol_shapes[[label]]),
+          size = unit(1.6 * legend_scale, "mm"),
+          gp = gpar(col = "#151d20", alpha = 0.78)
         )
       ))
     }
@@ -819,6 +923,142 @@ make_diverging_chart <- function(palette = FALSE, redundant = FALSE, labels = FA
     chart_theme()
 }
 
+make_categorical_map <- function(palette = FALSE, redundant = FALSE, labels = FALSE) {
+  fill_palette <- if (palette) peer_robust_palette else peer_fragile_palette
+  refined_outline <- palette || redundant || labels
+
+  plot <- ggplot(tx_map) +
+    geom_sf(
+      aes(fill = peer_group),
+      color = if (refined_outline) "#f8f6ee" else "#ffffff",
+      linewidth = if (refined_outline) 0.16 else 0.12
+    )
+
+  if (redundant) {
+    plot <- plot +
+      geom_sf(
+        data = peer_symbol_points,
+        aes(shape = peer_group),
+        inherit.aes = FALSE,
+        color = "#151d20",
+        size = 0.42,
+        alpha = 0.58
+      )
+  }
+
+  plot <- plot +
+    geom_sf(
+      fill = NA,
+      color = if (refined_outline) "#151d20" else "#1b2427",
+      linewidth = if (refined_outline) 0.42 else 0.35
+    )
+
+  if (labels) {
+    plot <- plot +
+      geom_sf_label(
+        data = peer_label_points,
+        aes(label = label),
+        family = "Arial",
+        size = 3.0,
+        fontface = "bold",
+        linewidth = 0.24,
+        label.padding = unit(0.16, "lines"),
+        fill = "#f8f6ee",
+        color = "#151d20"
+      )
+  }
+
+  plot +
+    scale_fill_manual(
+      values = fill_palette,
+      drop = FALSE,
+      na.translate = FALSE,
+      na.value = "#d8d8cf",
+      name = "Peer group"
+    ) +
+    scale_shape_manual(values = peer_shapes, guide = "none") +
+    labs(
+      title = "Diabetes Planning Peer Groups by County",
+      subtitle = intervention_subtitle(
+        "Original: peer-group identity relies on similarly valued hues",
+        c(
+          if (palette) "safer qualitative palette" else "",
+          if (redundant) "category-specific symbols" else "",
+          if (labels) "selected direct group labels" else ""
+        )
+      ),
+      caption = source_caption
+    ) +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    map_theme()
+}
+
+make_categorical_chart <- function(palette = FALSE, redundant = FALSE, labels = FALSE) {
+  fill_palette <- if (palette) peer_robust_palette else peer_fragile_palette
+  plot <- ggplot(peer_summary, aes(x = county_count, y = peer_group, fill = peer_group)) +
+    geom_col(
+      width = 0.72,
+      color = if (redundant || labels) "#151d20" else NA,
+      linewidth = if (redundant || labels) 0.18 else 0
+    )
+
+  if (redundant) {
+    plot <- plot +
+      geom_point(
+        data = peer_chart_symbols,
+        aes(x = x, y = peer_group, shape = peer_group),
+        inherit.aes = FALSE,
+        color = "#151d20",
+        size = 1.4,
+        alpha = 0.7
+      )
+  }
+
+  if (labels) {
+    plot <- plot +
+      geom_text(
+        aes(label = label),
+        hjust = -0.04,
+        color = "#151d20",
+        family = "Arial",
+        fontface = "bold",
+        size = 3.2
+      )
+  }
+
+  plot +
+    scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
+    scale_shape_manual(values = peer_shapes, guide = "none") +
+    scale_x_continuous(expand = expansion(mult = c(0, if (labels) 0.42 else 0.14))) +
+    labs(
+      title = "County Count by Diabetes Planning Peer Group",
+      subtitle = intervention_subtitle(
+        "Original: bar identities must be matched back to the color legend",
+        c(
+          if (palette) "safer qualitative palette" else "",
+          if (redundant) "matching category symbols" else "",
+          if (labels) "direct group names and counts" else ""
+        )
+      ),
+      x = "Number of counties",
+      y = if (labels) "Planning peer group" else NULL,
+      caption = source_caption
+    ) +
+    chart_theme() +
+    theme(
+      axis.text.y = if (labels) {
+        element_text(color = "#283235", size = 8)
+      } else {
+        element_blank()
+      },
+      axis.title.y = if (labels) {
+        element_text(color = "#283235", face = "bold", size = 9)
+      } else {
+        element_blank()
+      }
+    )
+}
+
 save_intervention_assets <- function() {
   for (index in seq_len(nrow(intervention_grid))) {
     palette <- intervention_grid$palette[[index]]
@@ -853,6 +1093,20 @@ save_intervention_assets <- function() {
       make_diverging_chart(palette, redundant, labels),
       paste0("cdc-places-diabetes-diverging-chart-", suffix, ".png")
     )
+    save_png(
+      make_categorical_map(palette, redundant, labels),
+      paste0("cdc-places-diabetes-categorical-map-", suffix, ".png"),
+      legend = map_legend_grob(
+        "Peer group",
+        rev(peer_labels),
+        if (palette) peer_robust_palette else peer_fragile_palette,
+        symbol_shapes = if (redundant) peer_shapes else NULL
+      )
+    )
+    save_png(
+      make_categorical_chart(palette, redundant, labels),
+      paste0("cdc-places-diabetes-categorical-chart-", suffix, ".png")
+    )
   }
 }
 
@@ -885,6 +1139,23 @@ save_png(
   )
 )
 save_png(diverging_chart_redesign, "cdc-places-diabetes-diverging-chart-redesign.png")
+save_png(
+  make_categorical_map(FALSE, FALSE, FALSE),
+  "cdc-places-diabetes-categorical-map-baseline.png",
+  legend = map_legend_grob("Peer group", rev(peer_labels), peer_fragile_palette)
+)
+save_png(make_categorical_chart(FALSE, FALSE, FALSE), "cdc-places-diabetes-categorical-chart-baseline.png")
+save_png(
+  make_categorical_map(TRUE, TRUE, TRUE),
+  "cdc-places-diabetes-categorical-map-redesign.png",
+  legend = map_legend_grob(
+    "Peer group",
+    rev(peer_labels),
+    peer_robust_palette,
+    symbol_shapes = peer_shapes
+  )
+)
+save_png(make_categorical_chart(TRUE, TRUE, TRUE), "cdc-places-diabetes-categorical-chart-redesign.png")
 
 save_intervention_assets()
 
@@ -918,8 +1189,16 @@ writeLines(
     "- `cdc-places-diabetes-diverging-chart-baseline.png`",
     "- `cdc-places-diabetes-diverging-map-redesign.png`",
     "- `cdc-places-diabetes-diverging-chart-redesign.png`",
+    "- `cdc-places-diabetes-categorical-map-baseline.png`",
+    "- `cdc-places-diabetes-categorical-chart-baseline.png`",
+    "- `cdc-places-diabetes-categorical-map-redesign.png`",
+    "- `cdc-places-diabetes-categorical-chart-redesign.png`",
     "",
-    "Phase 1 intervention-combination assets use the suffix pattern",
+    "The categorical example defines four diabetes planning peer groups from the",
+    "same CDC PLACES data using median county population and median diagnosed",
+    "diabetes prevalence. The group colors encode nominal identity, not rank.",
+    "",
+    "Intervention-combination assets use the suffix pattern",
     "`p{0|1}-r{0|1}-l{0|1}`:",
     "",
     "- `p`: palette or luminance intervention",

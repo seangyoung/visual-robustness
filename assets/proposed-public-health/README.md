@@ -21,8 +21,16 @@ Candidate assets:
 - `cdc-places-diabetes-diverging-chart-baseline.png`
 - `cdc-places-diabetes-diverging-map-redesign.png`
 - `cdc-places-diabetes-diverging-chart-redesign.png`
+- `cdc-places-diabetes-categorical-map-baseline.png`
+- `cdc-places-diabetes-categorical-chart-baseline.png`
+- `cdc-places-diabetes-categorical-map-redesign.png`
+- `cdc-places-diabetes-categorical-chart-redesign.png`
 
-Phase 1 intervention-combination assets use the suffix pattern
+The categorical example defines four diabetes planning peer groups from the
+same CDC PLACES data using median county population and median diagnosed
+diabetes prevalence. The group colors encode nominal identity, not rank.
+
+Intervention-combination assets use the suffix pattern
 `p{0|1}-r{0|1}-l{0|1}`:
 
 - `p`: palette or luminance intervention
