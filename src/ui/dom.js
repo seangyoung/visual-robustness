@@ -43,7 +43,6 @@ export function createDomUi({
     robustnessValue: document.getElementById("robustness-value"),
     stressTestTicks: document.getElementById("stress-test-ticks"),
     revealRedesign: document.getElementById("reveal-redesign"),
-    revealRedesignLabel: document.getElementById("reveal-redesign-label"),
     rankingPanel: document.getElementById("ranking-panel"),
     rankingList: document.getElementById("ranking-list"),
     checkRanking: document.getElementById("check-ranking"),
@@ -58,9 +57,7 @@ export function createDomUi({
   elements.robustnessSlider.addEventListener("input", (event) => {
     onWorkbenchChange({ stressTestIndex: Number(event.target.value) });
   });
-  elements.revealRedesign.addEventListener("change", (event) => {
-    onWorkbenchChange({ revealRedesign: event.target.checked });
-  });
+  elements.revealRedesign.addEventListener("click", () => onAction("toggleRedesign"));
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
 
   window.addEventListener("keydown", (event) => {
@@ -120,9 +117,9 @@ export function createDomUi({
       elements.robustnessSlider.disabled = !supportsRobustness;
       renderStressTestTicks(elements, stressTestIndex, supportsRobustness);
 
-      elements.revealRedesign.checked = state.workbench.revealRedesign;
       elements.revealRedesign.disabled = !supportsRedesign;
-      elements.revealRedesignLabel.textContent = state.workbench.revealRedesign
+      elements.revealRedesign.setAttribute("aria-pressed", String(state.workbench.revealRedesign));
+      elements.revealRedesign.textContent = state.workbench.revealRedesign
         ? "Show original design"
         : "Show improved design";
 
