@@ -245,13 +245,41 @@ svi_summary <- data.frame(
     county_count = coalesce(county_count, 0L),
     share = county_count / sum(county_count),
     svi_theme_short = unname(svi_theme_short_labels[as.character(svi_theme)]),
-    label = paste0(svi_theme_short, ": ", county_count, " counties (", round(share * 100), "%)")
+    label = paste0(county_count, " counties (", round(share * 100), "%)")
   )
+
+svi_shapes <- c(21, 24, 22, 23)
+names(svi_shapes) <- svi_theme_labels
+
+svi_symbol_fills <- c("#151d20", "#f8f6ee", "#151d20", "#f8f6ee")
+names(svi_symbol_fills) <- svi_theme_labels
+
+svi_symbol_outlines <- c("#f8f6ee", "#151d20", "#f8f6ee", "#151d20")
+names(svi_symbol_outlines) <- svi_theme_labels
+
+svi_points_per_county <- c(1, 2, 3, 5)
+names(svi_points_per_county) <- svi_theme_labels
+
+svi_chart_symbol_spacing <- c(16, 10, 7, 4.5)
+names(svi_chart_symbol_spacing) <- svi_theme_labels
+
+svi_map_symbol_sizes <- c(0.58, 0.66, 0.56, 0.72)
+names(svi_map_symbol_sizes) <- svi_theme_labels
+
+svi_chart_symbol_sizes <- c(2.0, 2.12, 1.95, 2.2)
+names(svi_chart_symbol_sizes) <- svi_theme_labels
+
+svi_legend_symbol_sizes <- c(1.25, 1.35, 1.2, 1.38)
+names(svi_legend_symbol_sizes) <- svi_theme_labels
+
+svi_legend_symbol_counts <- c(1, 2, 3, 4)
+names(svi_legend_symbol_counts) <- svi_theme_labels
 
 make_svi_chart_symbols <- function(summary_data) {
   bind_rows(lapply(seq_len(nrow(summary_data)), function(index) {
     row <- summary_data[index, ]
-    xs <- seq(5, max(5, row$county_count - 3), by = 6)
+    spacing <- unname(svi_chart_symbol_spacing[[as.character(row$svi_theme)]])
+    xs <- seq(5, max(5, row$county_count - 3), by = spacing)
     data.frame(
       x = xs,
       svi_theme = factor(as.character(row$svi_theme), levels = svi_theme_labels)
@@ -310,23 +338,26 @@ difference_labels <- bind_rows(
     )
   )
 
-make_svi_symbol_points <- function(map_data, labels, points_per_group = 220) {
+make_svi_symbol_points <- function(map_data, labels) {
   bind_rows(lapply(labels, function(label) {
-    group_geometry <- map_data |>
+    group_count <- unname(svi_points_per_county[[label]])
+    group_counties <- map_data |>
       filter(svi_theme == label) |>
-      st_geometry() |>
-      st_union()
+      select(svi_theme, geometry)
 
-    samples <- st_sample(group_geometry, size = points_per_group, type = "regular")
-    if (length(samples) == 0) {
-      return(NULL)
-    }
+    bind_rows(lapply(seq_len(nrow(group_counties)), function(index) {
+      county <- group_counties[index, ]
+      samples <- st_sample(st_geometry(county), size = group_count, type = "regular")
+      if (length(samples) == 0) {
+        samples <- st_geometry(st_point_on_surface(county))
+      }
 
-    st_sf(
-      svi_theme = factor(label, levels = labels),
-      geometry = samples,
-      crs = st_crs(map_data)
-    )
+      st_sf(
+        svi_theme = factor(label, levels = labels),
+        geometry = samples,
+        crs = st_crs(map_data)
+      )
+    }))
   }))
 }
 
@@ -339,6 +370,57 @@ svi_label_points <- tx_map |>
   ungroup() |>
   st_point_on_surface() |>
   mutate(label = paste0(countyname, ": ", svi_theme_short))
+
+add_svi_map_symbol_layers <- function(plot, symbol_data) {
+  for (label in svi_theme_labels) {
+    label_points <- symbol_data |>
+      filter(svi_theme == label)
+
+    if (nrow(label_points) == 0) {
+      next
+    }
+
+    plot <- plot +
+      geom_sf(
+        data = label_points,
+        inherit.aes = FALSE,
+        shape = unname(svi_shapes[[label]]),
+        fill = unname(svi_symbol_fills[[label]]),
+        color = unname(svi_symbol_outlines[[label]]),
+        size = unname(svi_map_symbol_sizes[[label]]),
+        stroke = 0.24,
+        alpha = 0.9
+      )
+  }
+
+  plot
+}
+
+add_svi_chart_symbol_layers <- function(plot, symbol_data) {
+  for (label in svi_theme_labels) {
+    label_points <- symbol_data |>
+      filter(svi_theme == label)
+
+    if (nrow(label_points) == 0) {
+      next
+    }
+
+    plot <- plot +
+      geom_point(
+        data = label_points,
+        aes(x = x, y = svi_theme),
+        inherit.aes = FALSE,
+        shape = unname(svi_shapes[[label]]),
+        fill = unname(svi_symbol_fills[[label]]),
+        color = unname(svi_symbol_outlines[[label]]),
+        size = unname(svi_chart_symbol_sizes[[label]]),
+        stroke = 0.34,
+        alpha = 0.92
+      )
+  }
+
+  plot
+}
 
 fragile_palette <- c("#1b9e77", "#66a61e", "#e6ab02", "#d95f02", "#7570b3")
 names(fragile_palette) <- class_labels
@@ -357,9 +439,6 @@ names(svi_fragile_palette) <- svi_theme_labels
 
 svi_robust_palette <- c("#0072b2", "#d55e00", "#009e73", "#cc79a7")
 names(svi_robust_palette) <- svi_theme_labels
-
-svi_shapes <- c(16, 17, 15, 3)
-names(svi_shapes) <- svi_theme_labels
 
 map_theme <- function() {
   theme_void(base_family = "Arial") +
@@ -409,7 +488,17 @@ svi_caption <- paste(
   "highest-ranked theme among four SVI theme percentile rankings."
 )
 
-map_legend_grob <- function(title, labels, palette, stipple_labels = character(), symbol_shapes = NULL) {
+map_legend_grob <- function(
+  title,
+  labels,
+  palette,
+  stipple_labels = character(),
+  symbol_shapes = NULL,
+  symbol_fills = NULL,
+  symbol_outlines = NULL,
+  symbol_sizes = NULL,
+  symbol_counts = NULL
+) {
   legend_scale <- 1.6
   x <- unit(0.055, "npc")
   y <- unit(0.87, "npc")
@@ -473,13 +562,48 @@ map_legend_grob <- function(title, labels, palette, stipple_labels = character()
     }
 
     if (!is.null(symbol_shapes) && label %in% names(symbol_shapes)) {
+      symbol_count <- if (!is.null(symbol_counts) && label %in% names(symbol_counts)) {
+        unname(symbol_counts[[label]])
+      } else {
+        1
+      }
+      symbol_x_offsets <- switch(
+        as.character(symbol_count),
+        "1" = 0.5,
+        "2" = c(0.36, 0.64),
+        "3" = c(0.27, 0.5, 0.73),
+        c(0.32, 0.68, 0.32, 0.68)
+      )
+      symbol_y_offsets <- switch(
+        as.character(symbol_count),
+        "1" = 0,
+        "2" = c(0, 0),
+        "3" = c(0, 0, 0),
+        c(0.004, 0.004, -0.004, -0.004)
+      )
+      symbol_fill <- if (!is.null(symbol_fills) && label %in% names(symbol_fills)) {
+        unname(symbol_fills[[label]])
+      } else {
+        "#151d20"
+      }
+      symbol_outline <- if (!is.null(symbol_outlines) && label %in% names(symbol_outlines)) {
+        unname(symbol_outlines[[label]])
+      } else {
+        "#f8f6ee"
+      }
+      symbol_size <- if (!is.null(symbol_sizes) && label %in% names(symbol_sizes)) {
+        unname(symbol_sizes[[label]])
+      } else {
+        1.4
+      }
+
       grobs <- append(grobs, list(
         pointsGrob(
-          x = key_left + key_width * 0.5,
-          y = row_y,
+          x = key_left + key_width * symbol_x_offsets,
+          y = row_y + unit(symbol_y_offsets * legend_scale, "npc"),
           pch = unname(symbol_shapes[[label]]),
-          size = unit(1.6 * legend_scale, "mm"),
-          gp = gpar(col = "#151d20", alpha = 0.78)
+          size = unit(symbol_size * legend_scale, "mm"),
+          gp = gpar(col = symbol_outline, fill = symbol_fill, alpha = 0.9, lwd = 0.65)
         )
       ))
     }
@@ -990,15 +1114,7 @@ make_categorical_map <- function(palette = FALSE, redundant = FALSE, labels = FA
     )
 
   if (redundant) {
-    plot <- plot +
-      geom_sf(
-        data = svi_symbol_points,
-        aes(shape = svi_theme),
-        inherit.aes = FALSE,
-        color = "#151d20",
-        size = 0.42,
-        alpha = 0.58
-      )
+    plot <- add_svi_map_symbol_layers(plot, svi_symbol_points)
   }
 
   plot <- plot +
@@ -1031,15 +1147,14 @@ make_categorical_map <- function(palette = FALSE, redundant = FALSE, labels = FA
       na.value = "#d8d8cf",
       name = "Highest SVI theme"
     ) +
-    scale_shape_manual(values = svi_shapes, guide = "none") +
     labs(
       title = "Highest-Ranked SVI Theme by County",
       subtitle = intervention_subtitle(
         "Original: theme identity relies on similarly valued hues",
         c(
-          if (palette) "safer qualitative palette" else "",
-          if (redundant) "theme-specific symbols" else "",
-          if (labels) "selected county callouts" else ""
+          if (palette) "robust palette" else "",
+          if (redundant) "density-coded texture markers" else "",
+          if (labels) "selected county labels" else ""
         )
       ),
       caption = svi_caption
@@ -1058,30 +1173,33 @@ make_categorical_chart <- function(palette = FALSE, redundant = FALSE, labels = 
     )
 
   if (redundant) {
+    plot <- add_svi_chart_symbol_layers(plot, svi_chart_symbols)
+  }
+
+  if (labels) {
     plot <- plot +
-      geom_point(
-        data = svi_chart_symbols,
-        aes(x = x, y = svi_theme, shape = svi_theme),
-        inherit.aes = FALSE,
+      geom_text(
+        aes(label = label),
+        hjust = -0.05,
         color = "#151d20",
-        size = 1.4,
-        alpha = 0.7
+        family = "Arial",
+        fontface = "bold",
+        size = 3.2
       )
   }
 
   plot +
     scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
-    scale_shape_manual(values = svi_shapes, guide = "none") +
     scale_y_discrete(labels = function(values) unname(svi_theme_short_labels[values])) +
-    scale_x_continuous(expand = expansion(mult = c(0, 0.14))) +
+    scale_x_continuous(expand = expansion(mult = c(0, if (labels) 0.28 else 0.14))) +
     labs(
       title = "County Count by Highest-Ranked SVI Theme",
       subtitle = intervention_subtitle(
         "Original: bars keep labels, but color still carries cross-view identity",
         c(
-          if (palette) "safer qualitative palette" else "",
-          if (redundant) "matching theme symbols" else "",
-          if (labels) "selected county callouts on map" else ""
+          if (palette) "robust palette" else "",
+          if (redundant) "matching density-coded markers" else "",
+          if (labels) "direct counts and percentages" else ""
         )
       ),
       x = "Number of counties",
@@ -1132,7 +1250,11 @@ save_intervention_assets <- function() {
         "Highest SVI theme",
         rev(svi_theme_labels),
         if (palette) svi_robust_palette else svi_fragile_palette,
-        symbol_shapes = if (redundant) svi_shapes else NULL
+        symbol_shapes = if (redundant) svi_shapes else NULL,
+        symbol_fills = if (redundant) svi_symbol_fills else NULL,
+        symbol_outlines = if (redundant) svi_symbol_outlines else NULL,
+        symbol_sizes = if (redundant) svi_legend_symbol_sizes else NULL,
+        symbol_counts = if (redundant) svi_legend_symbol_counts else NULL
       )
     )
     save_png(
@@ -1178,16 +1300,20 @@ save_png(
 )
 save_png(make_categorical_chart(FALSE, FALSE, FALSE), "cdc-svi-theme-chart-baseline.png")
 save_png(
-  make_categorical_map(TRUE, TRUE, FALSE),
+  make_categorical_map(TRUE, TRUE, TRUE),
   "cdc-svi-theme-map-redesign.png",
   legend = map_legend_grob(
     "Highest SVI theme",
     rev(svi_theme_labels),
     svi_robust_palette,
-    symbol_shapes = svi_shapes
+    symbol_shapes = svi_shapes,
+    symbol_fills = svi_symbol_fills,
+    symbol_outlines = svi_symbol_outlines,
+    symbol_sizes = svi_legend_symbol_sizes,
+    symbol_counts = svi_legend_symbol_counts
   )
 )
-save_png(make_categorical_chart(TRUE, TRUE, FALSE), "cdc-svi-theme-chart-redesign.png")
+save_png(make_categorical_chart(TRUE, TRUE, TRUE), "cdc-svi-theme-chart-redesign.png")
 
 save_intervention_assets()
 

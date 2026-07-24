@@ -148,33 +148,33 @@ export const visualizationExamples = [
     predictionPrompt:
       "Predict which intervention will make theme identity easiest to recover under the selected stress test.",
     recommendedSummary:
-      "The recommended combination uses a safer qualitative palette and category-specific symbols so theme identity no longer depends on hue alone. County callouts are left off because they add density without helping the county-count task.",
+      "The recommended combination uses a robust palette and density-coded texture markers so theme identity no longer depends on hue alone. Labels and annotation add selected county examples on the map and direct county counts and percentages on the chart.",
     recommendedInterventions: {
       palette: true,
       redundantCue: true,
-      labels: false,
+      labels: true,
     },
     interventions: {
       palette: {
-        label: "Qualitative palette",
+        label: "Robust palette",
         shortLabel: "Palette",
         description:
-          "The alternative qualitative palette uses more separable theme colors without implying a numeric order.",
+          "The robust palette uses more separable theme colors without implying a numeric order.",
         effect: "Directly reduces color dependence for nominal category identity.",
       },
       redundantCue: {
-        label: "Theme symbols",
-        shortLabel: "Symbols",
+        label: "Texture markers",
+        shortLabel: "Markers",
         description:
-          "Each SVI theme gets a repeated symbol cue on the map, chart, and legend so identity is not carried by color alone.",
-        effect: "Adds a non-color cue for matching the same category across views.",
+          "Each SVI theme gets a repeated marker cue that varies by shape, spacing, and light/dark contrast across the map, chart, and legend.",
+        effect: "Adds a stronger non-color cue for matching the same category across views.",
       },
       labels: {
-        label: "County callouts",
-        shortLabel: "Callouts",
+        label: "Labels and Annotation",
+        shortLabel: "Labels",
         description:
-          "Selected county labels identify examples of each highest-ranked SVI theme on the map.",
-        effect: "Supports local lookup, but does not help determine which theme is most common and adds visual density.",
+          "Selected county labels identify examples of each highest-ranked SVI theme on the map, while the chart labels each bar with its county count and percentage.",
+        effect: "Supports local lookup and makes the county-count comparison directly readable without relying on bar length alone.",
       },
     },
     assets: {
