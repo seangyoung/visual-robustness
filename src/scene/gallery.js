@@ -45,10 +45,21 @@ const CONTROL_ROWS = {
   upper: 0.17,
   lower: -0.18,
 };
+const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
 const BUTTONS = [
   { id: "back", action: "back", label: "Back", x: -1.54, width: 0.52, deckY: CONTROL_ROWS.upper },
   { id: "next", action: "next", label: "Next", x: -1.0, width: 0.52, deckY: CONTROL_ROWS.upper },
-  { id: "example", action: "nextExample", label: "Switch\nExample", x: 0.24, width: 0.58, deckY: CONTROL_ROWS.upper },
+  {
+    id: "example",
+    action: "nextExample",
+    label: "Switch\nExample",
+    x: 0.54,
+    y: TASK_PANEL_CENTER_Y + TASK_PANEL_H / 2 - 0.15,
+    z: LAYOUT.taskZ + 0.045,
+    width: 0.72,
+    height: 0.24,
+    rotationX: 0,
+  },
   { id: "original", action: "clearInterventions", label: "Original", x: 0.84, width: 0.5, deckY: CONTROL_ROWS.upper },
   { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: 0.28, width: 0.5, deckY: CONTROL_ROWS.lower },
   { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.9, width: 0.5, deckY: CONTROL_ROWS.lower },
@@ -116,6 +127,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   const panels = createPanels(scene);
   const workbenchControlDeck = createWorkbenchControlDeck(scene);
   const mainButtons = createButtons(scene, BUTTONS);
+  const exampleButton = mainButtons.find((button) => button.id === "example");
   const checkButtons = createButtons(scene, CHECK_BUTTONS, { width: 0.82, height: 0.2, rotationX: -0.18 });
   const inWorldButtons = [...mainButtons, ...checkButtons];
   const robustnessSlider = createRobustnessSlider(scene);
@@ -363,11 +375,13 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   renderer.setAnimationLoop((time) => {
     if (!currentSession) controls.update();
     if (dragState) updateDragState(dragState);
-    if (!currentState.settings.reducedMotion) {
-      const float = Math.sin(time * 0.0012) * 0.025;
-      panels.map.position.y = LAYOUT.panelY + float;
-      panels.chart.position.y = LAYOUT.panelY - float * 0.75;
-      panels.task.position.y = LAYOUT.panelY - 0.08 + float * 0.45;
+    const float = currentState.settings.reducedMotion ? 0 : Math.sin(time * 0.0012) * 0.025;
+    panels.map.position.y = LAYOUT.panelY + float;
+    panels.chart.position.y = LAYOUT.panelY - float * 0.75;
+    panels.task.position.y = TASK_PANEL_CENTER_Y + float * 0.45;
+    if (exampleButton?.mesh.visible) {
+      exampleButton.mesh.position.y = panels.task.position.y + TASK_PANEL_H / 2 - 0.15;
+      exampleButton.mesh.position.z = panels.task.position.z + 0.045;
     }
     updateControllerHover(controllers, raycaster, interactive, (controlId) => {
       if (controlId !== hoverControl) {
@@ -485,7 +499,7 @@ function createPanels(scene) {
   const group = new THREE.Group();
   scene.add(group);
   const map = panelMesh("map", [-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.16, 0], PANEL_W, PANEL_H);
-  const task = panelMesh("task", [0, LAYOUT.panelY - 0.08, LAYOUT.taskZ], [0, 0, 0], TASK_PANEL_W, TASK_PANEL_H);
+  const task = panelMesh("task", [0, TASK_PANEL_CENTER_Y, LAYOUT.taskZ], [0, 0, 0], TASK_PANEL_W, TASK_PANEL_H);
   const chart = panelMesh("chart", [SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.16, 0], PANEL_W, PANEL_H);
   [map, task, chart].forEach((panel) => group.add(panel));
   return { group, map, task, chart };

@@ -29,7 +29,6 @@ export function createDomUi({
     browserWorkbench: document.getElementById("browser-workbench"),
     browserTaskKicker: document.getElementById("browser-task-kicker"),
     browserTaskTitle: document.getElementById("browser-task-title"),
-    browserTaskPrompt: document.getElementById("browser-task-prompt"),
     browserTaskLead: document.getElementById("browser-task-lead"),
     browserMapCanvas: document.getElementById("browser-map-canvas"),
     browserChartCanvas: document.getElementById("browser-chart-canvas"),
@@ -159,17 +158,15 @@ export function createDomUi({
 
 function renderBrowserWorkbench(elements, scene, state) {
   const activeExample = visualizationExampleByIndex(state.exampleIndex);
-  const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
   const lead =
     scene.type === "color"
-      ? interventionExplanation(activeExample, state.workbench.interventions)
+      ? browserInterventionSummary(activeExample, state.workbench.interventions)
       : hasActiveInterventions(state.workbench.interventions)
         ? scene.reveal
         : scene.task;
 
   elements.browserTaskKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
   elements.browserTaskTitle.textContent = scene.title;
-  elements.browserTaskPrompt.textContent = prompt;
   elements.browserTaskLead.textContent = lead || scene.task || "";
 
   renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
@@ -216,6 +213,26 @@ function interventionExplanation(example, interventions) {
 
   if (matchesRecommendedInterventions(example, normalized)) {
     return `${example.recommendedSummary} Compare this with the stressed original and consider whether the added visual detail is justified.`;
+  }
+
+  return active
+    .map((item) => `${item.label}: ${item.effect}`)
+    .join(" ");
+}
+
+function browserInterventionSummary(example, interventions) {
+  const normalized = normalizeInterventions(interventions);
+  const active = INTERVENTION_KEYS
+    .filter((key) => normalized[key])
+    .map((key) => interventionMetadataForExample(example, key))
+    .filter(Boolean);
+
+  if (active.length === 0) {
+    return example.baselineLead;
+  }
+
+  if (matchesRecommendedInterventions(example, normalized)) {
+    return example.recommendedSummary;
   }
 
   return active
