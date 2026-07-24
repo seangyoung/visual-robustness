@@ -53,7 +53,7 @@ const BUTTONS = [
   { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: 0.28, width: 0.5, deckY: CONTROL_ROWS.lower },
   { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.9, width: 0.5, deckY: CONTROL_ROWS.lower },
   { id: "labels", action: "toggleIntervention", payload: { key: "labels" }, label: "Labels", x: 1.52, width: 0.5, deckY: CONTROL_ROWS.lower },
-  { id: "recommended", action: "setRecommendedInterventions", label: "Recommend\nCombo", x: 1.48, width: 0.62, deckY: CONTROL_ROWS.upper },
+  { id: "recommended", action: "setRecommendedInterventions", label: "Recommend\nCombo", x: 1.47, width: 0.68, deckY: CONTROL_ROWS.upper },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -829,7 +829,7 @@ function updateButtonTextures(buttons, hoverControl, state) {
 function buttonTextureSpec(button, state) {
   if (button.id === "example") {
     return {
-      label: "Switch\nExample",
+      label: "Next\nExample",
       active: false,
       options: {
         cycle: true,
@@ -841,7 +841,7 @@ function buttonTextureSpec(button, state) {
   if (button.id === "original") {
     const active = !hasActiveInterventions(state.workbench?.interventions);
     return {
-      label: "Original\nDesign",
+      label: "Show\nOriginal",
       active,
       options: {
         subtitle: active ? "Active" : "Reset",
@@ -853,10 +853,10 @@ function buttonTextureSpec(button, state) {
     const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
     const active = matchesRecommendedInterventions(example, state.workbench?.interventions);
     return {
-      label: "Recommend\nCombo",
+      label: "Apply\nRecommended",
       active,
       options: {
-        subtitle: active ? "Active" : "All cues",
+        subtitle: active ? "Active" : "Preset",
       },
     };
   }
@@ -868,7 +868,7 @@ function buttonTextureSpec(button, state) {
     const interventions = normalizeInterventions(state.workbench?.interventions);
     const active = Boolean(interventions[key]);
     return {
-      label: metadata?.shortLabel ?? button.label,
+      label: metadata?.vrLabel ?? metadata?.shortLabel ?? button.label,
       active,
       options: {
         subtitle: active ? "On" : "Off",

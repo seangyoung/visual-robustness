@@ -59,6 +59,7 @@ export const visualizationExamples = [
       palette: {
         label: "Ordered luminance",
         shortLabel: "Luminance",
+        vrLabel: "Luminance\nRamp",
         description:
           "Luminance ordering preserves the low-to-high sequence when hue differences become harder to separate.",
         effect: "Directly reduces color dependence for an ordered sequence.",
@@ -66,6 +67,7 @@ export const visualizationExamples = [
       redundantCue: {
         label: "Stronger boundaries",
         shortLabel: "Boundaries",
+        vrLabel: "County\nEdges",
         description:
           "Stronger county and bar boundaries improve figure-ground separation and make adjacent areas easier to inspect.",
         effect: "Improves legibility, but does not by itself encode prevalence order.",
@@ -73,6 +75,7 @@ export const visualizationExamples = [
       labels: {
         label: "Labels and annotations",
         shortLabel: "Labels",
+        vrLabel: "Labels\nNotes",
         description:
           "Selected map labels and chart annotations reduce repeated legend lookup for the most important values.",
         effect: "Supports efficient lookup for selected values, while adding visual density.",
@@ -108,6 +111,7 @@ export const visualizationExamples = [
       palette: {
         label: "Robust palette",
         shortLabel: "Robust",
+        vrLabel: "Robust\nPalette",
         description:
           "The alternative ramp separates direction and distance from the midpoint with clearer light-dark structure.",
         effect: "Directly reduces color dependence for the above/below-average distinction.",
@@ -115,6 +119,7 @@ export const visualizationExamples = [
       redundantCue: {
         label: "Pattern above average",
         shortLabel: "Pattern",
+        vrLabel: "Above-Avg\nPattern",
         description:
           "Stippling and hash marks give above-average counties and bars a redundant cue that does not depend on hue.",
         effect: "Adds a second channel for direction from the midpoint.",
@@ -122,6 +127,7 @@ export const visualizationExamples = [
       labels: {
         label: "Labels and annotations",
         shortLabel: "Labels",
+        vrLabel: "Labels\nCounts",
         description:
           "Selected high/low labels and chart counts reduce lookup burden and make the interpretation easier to verify.",
         effect: "Supports efficient lookup, but adds visual density.",
@@ -158,6 +164,7 @@ export const visualizationExamples = [
       palette: {
         label: "Robust palette",
         shortLabel: "Palette",
+        vrLabel: "Robust\nPalette",
         description:
           "The robust palette uses more separable theme colors without implying a numeric order.",
         effect: "Directly reduces color dependence for nominal category identity.",
@@ -165,6 +172,7 @@ export const visualizationExamples = [
       redundantCue: {
         label: "Texture markers",
         shortLabel: "Markers",
+        vrLabel: "Texture\nMarkers",
         description:
           "Each SVI theme gets a repeated marker cue that varies by shape, spacing, and light/dark contrast across the map, chart, and legend.",
         effect: "Adds a stronger non-color cue for matching the same category across views.",
@@ -172,6 +180,7 @@ export const visualizationExamples = [
       labels: {
         label: "Labels and Annotation",
         shortLabel: "Labels",
+        vrLabel: "Labels\nCounts",
         description:
           "Selected county labels identify examples of each highest-ranked SVI theme on the map, while the chart labels each bar with its county count and percentage.",
         effect: "Supports local lookup and makes the county-count comparison directly readable without relying on bar length alone.",
