@@ -24,6 +24,7 @@ const PANEL_H = 2.28;
 const SIDE_PANEL_X = 2.86;
 const TASK_PANEL_W = 1.92;
 const TASK_PANEL_H = 1.68;
+const CONTROL_BUTTON_H = 0.19;
 const LAYOUT = {
   desktopCameraZ: 6.2,
   desktopTargetZ: -3.15,
@@ -41,13 +42,13 @@ const LAYOUT = {
   taskZ: -4.18,
 };
 const CONTROL_ROWS = {
-  upper: 0.17,
-  lower: -0.18,
+  upper: 0.14,
+  lower: -0.15,
 };
 const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
 const BUTTONS = [
-  { id: "back", action: "back", label: "Back", x: -1.54, width: 0.52, deckY: CONTROL_ROWS.upper },
-  { id: "next", action: "next", label: "Next", x: -1.0, width: 0.52, deckY: CONTROL_ROWS.upper },
+  { id: "back", action: "back", label: "Back", x: -1.22, width: 0.42, deckY: CONTROL_ROWS.upper },
+  { id: "next", action: "next", label: "Next", x: -0.8, width: 0.42, deckY: CONTROL_ROWS.upper },
   {
     id: "example",
     action: "nextExample",
@@ -59,18 +60,18 @@ const BUTTONS = [
     height: 0.24,
     rotationX: 0,
   },
-  { id: "original", action: "clearInterventions", label: "Original", x: 0.84, width: 0.5, deckY: CONTROL_ROWS.upper },
-  { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: 0.28, width: 0.5, deckY: CONTROL_ROWS.lower },
-  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.9, width: 0.5, deckY: CONTROL_ROWS.lower },
-  { id: "labels", action: "toggleIntervention", payload: { key: "labels" }, label: "Labels", x: 1.52, width: 0.5, deckY: CONTROL_ROWS.lower },
+  { id: "original", action: "clearInterventions", label: "Original", x: 0.34, width: 0.44, deckY: CONTROL_ROWS.upper },
+  { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: 0.34, width: 0.4, deckY: CONTROL_ROWS.lower },
+  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.82, width: 0.4, deckY: CONTROL_ROWS.lower },
+  { id: "labels", action: "toggleIntervention", payload: { key: "labels" }, label: "Labels", x: 1.27, width: 0.4, deckY: CONTROL_ROWS.lower },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
 ];
-const SLIDER_WIDTH = 1.55;
+const SLIDER_WIDTH = 1.24;
 const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
 const SLIDER_MAX_X = SLIDER_WIDTH / 2;
-const SLIDER_CENTER = workbenchDeckPosition(-1.02, CONTROL_ROWS.lower);
+const SLIDER_CENTER = workbenchDeckPosition(-0.76, CONTROL_ROWS.lower);
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -510,28 +511,28 @@ function createWorkbenchControlDeck(scene) {
   scene.add(group);
 
   const deck = new THREE.Mesh(
-    new THREE.BoxGeometry(3.72, 0.7, 0.05),
+    new THREE.BoxGeometry(2.98, 0.56, 0.045),
     new THREE.MeshStandardMaterial({
       color: "#11191c",
       roughness: 0.62,
       metalness: 0.06,
     }),
   );
-  deck.position.z = -0.035;
+  deck.position.z = -0.032;
   group.add(deck);
 
   const bevel = new THREE.Mesh(
-    new THREE.BoxGeometry(3.82, 0.08, 0.07),
+    new THREE.BoxGeometry(3.06, 0.064, 0.06),
     new THREE.MeshStandardMaterial({ color: "#2b383b", roughness: 0.56 }),
   );
-  bevel.position.set(0, -0.36, -0.015);
+  bevel.position.set(0, -0.288, -0.014);
   group.add(bevel);
 
   const separator = new THREE.Mesh(
-    new THREE.BoxGeometry(0.035, 0.56, 0.018),
+    new THREE.BoxGeometry(0.028, 0.45, 0.016),
     new THREE.MeshStandardMaterial({ color: "#344346", roughness: 0.5 }),
   );
-  separator.position.set(0.03, 0.02, 0.012);
+  separator.position.set(0.03, 0.015, 0.011);
   group.add(separator);
 
   return group;
@@ -559,7 +560,7 @@ function panelMesh(name, position, rotation, width, height) {
 
 function createButtons(scene, buttons, defaults = {}) {
   const width = defaults.width ?? 0.66;
-  const height = defaults.height ?? 0.24;
+  const height = defaults.height ?? CONTROL_BUTTON_H;
   const rotationX = defaults.rotationX ?? LAYOUT.controlDeckRotationX;
   return buttons.map((button) => {
     const texture = textureFromCanvas(createButtonTexture(button.label, false));
@@ -573,10 +574,10 @@ function createButtons(scene, buttons, defaults = {}) {
     mesh.visible = false;
 
     const base = new THREE.Mesh(
-      new THREE.BoxGeometry(buttonWidth + 0.035, buttonHeight + 0.035, 0.035),
+      new THREE.BoxGeometry(buttonWidth + 0.028, buttonHeight + 0.028, 0.03),
       new THREE.MeshStandardMaterial({ color: "#263236", roughness: 0.48, metalness: 0.04 }),
     );
-    base.position.z = -0.026;
+    base.position.z = -0.023;
     mesh.add(base);
 
     mesh.userData.kind = "button";
@@ -596,14 +597,14 @@ function createRobustnessSlider(scene) {
   scene.add(group);
 
   const label = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.58, 0.2),
+    new THREE.PlaneGeometry(1.26, 0.16),
     new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false }),
   );
-  label.position.y = 0.22;
+  label.position.y = 0.176;
   group.add(label);
 
   const hitArea = new THREE.Mesh(
-    new THREE.PlaneGeometry(SLIDER_WIDTH + 0.16, 0.28),
+    new THREE.PlaneGeometry(SLIDER_WIDTH + 0.13, 0.22),
     new THREE.MeshBasicMaterial({
       color: "#ffffff",
       transparent: true,
@@ -617,14 +618,14 @@ function createRobustnessSlider(scene) {
   group.add(hitArea);
 
   const rail = new THREE.Mesh(
-    new THREE.BoxGeometry(SLIDER_WIDTH, 0.035, 0.05),
+    new THREE.BoxGeometry(SLIDER_WIDTH, 0.028, 0.04),
     new THREE.MeshStandardMaterial({ color: "#dfe5df", roughness: 0.55 }),
   );
   group.add(rail);
 
   const ticks = stressTests.map((_, index) => {
     const tickMaterial = new THREE.MeshStandardMaterial({ color: "#9ba8a4", roughness: 0.5 });
-    const tick = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.095, 0.062), tickMaterial);
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.076, 0.05), tickMaterial);
     const normalized = stressTests.length <= 1 ? 0 : index / (stressTests.length - 1);
     tick.position.set(SLIDER_MIN_X + normalized * SLIDER_WIDTH, 0, 0.018);
     group.add(tick);
@@ -632,7 +633,7 @@ function createRobustnessSlider(scene) {
   });
 
   const fill = new THREE.Mesh(
-    new THREE.BoxGeometry(SLIDER_WIDTH, 0.044, 0.058),
+    new THREE.BoxGeometry(SLIDER_WIDTH, 0.035, 0.046),
     new THREE.MeshStandardMaterial({ color: "#2d837b", roughness: 0.42 }),
   );
   fill.position.z = 0.012;
@@ -644,8 +645,8 @@ function createRobustnessSlider(scene) {
     roughness: 0.38,
     metalness: 0.04,
   });
-  const handle = new THREE.Mesh(new THREE.SphereGeometry(0.085, 28, 18), handleMaterial);
-  handle.position.z = 0.04;
+  const handle = new THREE.Mesh(new THREE.SphereGeometry(0.068, 28, 18), handleMaterial);
+  handle.position.z = 0.036;
   handle.userData.kind = "slider";
   handle.userData.controlId = "robustness-slider";
   group.add(handle);
