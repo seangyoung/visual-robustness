@@ -10,7 +10,6 @@ import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
   interventionMetadataForExample,
-  matchesRecommendedInterventions,
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
@@ -64,7 +63,6 @@ const BUTTONS = [
   { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: 0.28, width: 0.5, deckY: CONTROL_ROWS.lower },
   { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.9, width: 0.5, deckY: CONTROL_ROWS.lower },
   { id: "labels", action: "toggleIntervention", payload: { key: "labels" }, label: "Labels", x: 1.52, width: 0.5, deckY: CONTROL_ROWS.lower },
-  { id: "recommended", action: "setRecommendedInterventions", label: "Recommend\nCombo", x: 1.47, width: 0.68, deckY: CONTROL_ROWS.upper },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -858,18 +856,6 @@ function buttonTextureSpec(button, state) {
       active,
       options: {
         subtitle: active ? "Active" : "Reset",
-      },
-    };
-  }
-
-  if (button.id === "recommended") {
-    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
-    const active = matchesRecommendedInterventions(example, state.workbench?.interventions);
-    return {
-      label: "Apply\nRecommended",
-      active,
-      options: {
-        subtitle: active ? "Active" : "Preset",
       },
     };
   }

@@ -16,7 +16,6 @@ import {
 import {
   clampExampleIndex,
   nextVisualizationExampleIndex,
-  recommendedInterventionsForExample,
   visualizationExampleByIndex,
   visualizationExampleIndexById,
 } from "./config/visualizationExamples.js";
@@ -107,35 +106,12 @@ function handleAction(action, payload = {}) {
     }
   }
 
-  if (action === "toggleRedesign") {
-    const example = visualizationExampleByIndex(state.exampleIndex);
-    state.workbench.interventions = interventionsToParam(
-      state.workbench.interventions,
-      recommendedInterventionsForExample(example),
-    )
-      ? defaultInterventions()
-      : recommendedInterventionsForExample(example);
-  }
-
-  if (action === "setRedesign") {
-    const example = visualizationExampleByIndex(state.exampleIndex);
-    state.workbench.interventions = payload.value
-      ? recommendedInterventionsForExample(example)
-      : defaultInterventions();
-  }
-
   if (action === "toggleIntervention") {
     state.workbench.interventions = toggleIntervention(state.workbench.interventions, payload.key);
   }
 
   if (action === "clearInterventions") {
     state.workbench.interventions = defaultInterventions();
-  }
-
-  if (action === "setRecommendedInterventions") {
-    state.workbench.interventions = recommendedInterventionsForExample(
-      visualizationExampleByIndex(state.exampleIndex),
-    );
   }
 
   if (action === "nextExample") {
@@ -231,18 +207,8 @@ function initialWorkbenchOverrides() {
     const robustness = Number(params.get("robustness"));
     if (Number.isFinite(robustness)) overrides.stressTestIndex = stressTestIndexFromPercent(robustness);
   }
-  if (params.has("reveal")) {
-    const example = visualizationExampleByIndex(state.exampleIndex);
-    overrides.interventions = ["1", "true", "yes"].includes(params.get("reveal")?.toLowerCase())
-      ? recommendedInterventionsForExample(example)
-      : defaultInterventions();
-  }
   if (params.has("interventions")) {
-    const example = visualizationExampleByIndex(state.exampleIndex);
-    overrides.interventions = interventionsFromParam(
-      params.get("interventions"),
-      recommendedInterventionsForExample(example),
-    );
+    overrides.interventions = interventionsFromParam(params.get("interventions"));
   }
   return overrides;
 }
@@ -275,10 +241,7 @@ function syncUrl() {
   if (stressTestIndex > 0) {
     url.searchParams.set("stress", stressTestByIndex(stressTestIndex).id);
   }
-  const interventionParam = interventionsToParam(
-    state.workbench.interventions,
-    recommendedInterventionsForExample(example),
-  );
+  const interventionParam = interventionsToParam(state.workbench.interventions);
   if (interventionParam) {
     url.searchParams.set("interventions", interventionParam);
   }
@@ -293,11 +256,6 @@ function normalizeWorkbenchPatch(workbench) {
   delete patch.robustness;
   if (patch.stressTestIndex !== undefined) {
     patch.stressTestIndex = clampStressTestIndex(patch.stressTestIndex);
-  }
-  if (patch.revealRedesign !== undefined && patch.interventions === undefined) {
-    patch.interventions = patch.revealRedesign
-      ? recommendedInterventionsForExample(visualizationExampleByIndex(state.exampleIndex))
-      : defaultInterventions();
   }
   delete patch.revealRedesign;
   if (patch.interventions !== undefined) {

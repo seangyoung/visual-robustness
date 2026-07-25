@@ -59,12 +59,9 @@ export function interventionAssetSuffix(interventions) {
   ].join("-");
 }
 
-export function interventionsFromParam(value, recommended = recommendedInterventions()) {
+export function interventionsFromParam(value) {
   if (!value) return defaultInterventions();
   const normalizedValue = String(value).trim().toLowerCase();
-  if (["recommended", "all", "true", "1"].includes(normalizedValue)) {
-    return normalizeInterventions(recommended);
-  }
   if (["original", "none", "false", "0"].includes(normalizedValue)) {
     return defaultInterventions();
   }
@@ -89,9 +86,8 @@ export function interventionsFromParam(value, recommended = recommendedIntervent
   return interventions;
 }
 
-export function interventionsToParam(interventions, recommended = recommendedInterventions()) {
+export function interventionsToParam(interventions) {
   const normalized = normalizeInterventions(interventions);
   if (!hasActiveInterventions(normalized)) return "";
-  if (interventionsEqual(normalized, recommended)) return "recommended";
   return INTERVENTION_KEYS.filter((key) => normalized[key]).join(",");
 }

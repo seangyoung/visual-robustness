@@ -49,7 +49,6 @@ export function createDomUi({
     robustnessValue: document.getElementById("robustness-value"),
     stressTestTicks: document.getElementById("stress-test-ticks"),
     originalDesign: document.getElementById("original-design"),
-    recommendedDesign: document.getElementById("recommended-design"),
     interventionControls: document.getElementById("intervention-controls"),
     rankingPanel: document.getElementById("ranking-panel"),
     rankingList: document.getElementById("ranking-list"),
@@ -66,7 +65,6 @@ export function createDomUi({
     onWorkbenchChange({ stressTestIndex: Number(event.target.value) });
   });
   elements.originalDesign.addEventListener("click", () => onAction("clearInterventions"));
-  elements.recommendedDesign.addEventListener("click", () => onAction("setRecommendedInterventions"));
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
 
   window.addEventListener("keydown", (event) => {
@@ -176,12 +174,9 @@ function renderBrowserWorkbench(elements, scene, state) {
 function renderInterventionControls(elements, example, interventions, enabled, onAction) {
   const normalized = normalizeInterventions(interventions);
   const hasActive = hasActiveInterventions(normalized);
-  const recommendedActive = matchesRecommendedInterventions(example, normalized);
 
   elements.originalDesign.disabled = !enabled;
-  elements.recommendedDesign.disabled = !enabled;
   elements.originalDesign.setAttribute("aria-pressed", String(!hasActive));
-  elements.recommendedDesign.setAttribute("aria-pressed", String(recommendedActive));
 
   elements.interventionControls.replaceChildren(
     ...INTERVENTION_KEYS.map((key) => {
