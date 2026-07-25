@@ -41,6 +41,7 @@ export const visualizationExamples = [
     id: "prevalence-classes",
     label: "Example 1",
     shortTitle: "Prevalence classes",
+    panelSubtitle: "Prevalence Classes",
     workbenchTitle: "CDC PLACES diabetes prevalence",
     prompt: "Which diabetes prevalence class contains the most Texas counties?",
     baselineLead:
@@ -93,6 +94,7 @@ export const visualizationExamples = [
     id: "difference-from-average",
     label: "Example 2",
     shortTitle: "Above/below average",
+    panelSubtitle: "Above/Below Average",
     workbenchTitle: "CDC PLACES diabetes relative to average",
     prompt: "Which side of the Texas average contains more counties?",
     baselineLead:
@@ -145,6 +147,7 @@ export const visualizationExamples = [
     id: "highest-svi-theme",
     label: "Example 3",
     shortTitle: "Category identity",
+    panelSubtitle: "Category Identity",
     workbenchTitle: "CDC/ATSDR SVI highest-ranked theme",
     prompt: "Which SVI theme is highest-ranked in the most Texas counties?",
     baselineLead:

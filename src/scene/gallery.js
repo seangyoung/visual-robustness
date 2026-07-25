@@ -46,6 +46,9 @@ const CONTROL_ROWS = {
   lower: -0.15,
 };
 const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
+const EXAMPLE_BUTTON_X = 0.5;
+const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
+const EXAMPLE_BUTTON_Z_OFFSET = 0.05;
 const BUTTONS = [
   { id: "back", action: "back", label: "Back", x: -1.22, width: 0.42, deckY: CONTROL_ROWS.upper },
   { id: "next", action: "next", label: "Next", x: -0.8, width: 0.42, deckY: CONTROL_ROWS.upper },
@@ -53,11 +56,11 @@ const BUTTONS = [
     id: "example",
     action: "nextExample",
     label: "Switch\nExample",
-    x: 0.54,
-    y: TASK_PANEL_CENTER_Y + TASK_PANEL_H / 2 - 0.15,
-    z: LAYOUT.taskZ + 0.045,
-    width: 0.72,
-    height: 0.24,
+    x: EXAMPLE_BUTTON_X,
+    y: TASK_PANEL_CENTER_Y + EXAMPLE_BUTTON_Y_OFFSET,
+    z: LAYOUT.taskZ + EXAMPLE_BUTTON_Z_OFFSET,
+    width: 0.84,
+    height: 0.28,
     rotationX: 0,
   },
   { id: "original", action: "clearInterventions", label: "Original", x: 0.34, width: 0.44, deckY: CONTROL_ROWS.upper },
@@ -378,8 +381,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     panels.chart.position.y = LAYOUT.panelY;
     panels.task.position.y = TASK_PANEL_CENTER_Y;
     if (exampleButton?.mesh.visible) {
-      exampleButton.mesh.position.y = panels.task.position.y + TASK_PANEL_H / 2 - 0.15;
-      exampleButton.mesh.position.z = panels.task.position.z + 0.045;
+      exampleButton.mesh.position.y = panels.task.position.y + EXAMPLE_BUTTON_Y_OFFSET;
+      exampleButton.mesh.position.z = panels.task.position.z + EXAMPLE_BUTTON_Z_OFFSET;
     }
     updateControllerHover(controllers, raycaster, interactive, (controlId) => {
       if (controlId !== hoverControl) {
@@ -844,6 +847,7 @@ function buttonTextureSpec(button, state) {
       label: "Next\nExample",
       active: false,
       options: {
+        accent: true,
         cycle: true,
         subtitle: `Example ${(state.exampleIndex ?? 0) + 1} of ${visualizationExamples.length}`,
       },

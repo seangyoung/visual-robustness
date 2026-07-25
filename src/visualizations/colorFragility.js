@@ -173,16 +173,17 @@ export function createButtonTexture(label, active = false, options = {}) {
   const ctx = canvas.getContext("2d");
   const lines = String(label).split("\n").filter(Boolean);
   const subtitle = options.subtitle;
+  const accent = Boolean(options.accent);
 
-  ctx.fillStyle = active ? "#236e66" : "#151d20";
+  ctx.fillStyle = active ? "#236e66" : accent ? "#1a3c3a" : "#151d20";
   roundRect(ctx, 16, 16, 608, 188, 20);
   ctx.fill();
-  ctx.strokeStyle = active ? "#88e0d6" : "#dfe5df";
-  ctx.lineWidth = active ? 8 : 5;
+  ctx.strokeStyle = active ? "#88e0d6" : accent ? "#f2c75e" : "#dfe5df";
+  ctx.lineWidth = active || accent ? 8 : 5;
   roundRect(ctx, 16, 16, 608, 188, 20);
   ctx.stroke();
   if (options.cycle) {
-    ctx.fillStyle = active ? "#88e0d6" : "#f2c75e";
+    ctx.fillStyle = active ? "#88e0d6" : accent ? "#f8f6ee" : "#f2c75e";
     ctx.font = "900 34px Arial";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
@@ -204,7 +205,7 @@ export function createButtonTexture(label, active = false, options = {}) {
   }
 
   if (subtitle) {
-    ctx.fillStyle = active ? "#c8fff8" : "#c5ccc7";
+    ctx.fillStyle = active ? "#c8fff8" : accent ? "#ffe38d" : "#c5ccc7";
     ctx.font = "800 24px Arial";
     ctx.fillText(subtitle, 320, 156);
   }
@@ -278,6 +279,7 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
 
   if (kind === "task") {
     drawTaskPanel(ctx, canvas, { ...scene, prompt: example.prompt }, state, {
+      subtitle: `${example.label}: ${example.panelSubtitle ?? example.shortTitle}`,
       lead: colorInterventionExplanation(example, state.workbench.interventions),
       hint: example.answer,
     });
@@ -521,17 +523,22 @@ function drawTaskPanel(ctx, canvas, scene, state, copy) {
   ctx.fillStyle = "#f8f6ee";
   ctx.font = "900 66px Arial";
   wrapText(ctx, scene.title, 88, 238, 1040, 72);
+  if (copy.subtitle) {
+    ctx.fillStyle = "#f2c75e";
+    ctx.font = "900 36px Arial";
+    wrapText(ctx, copy.subtitle, 88, 324, 1040, 42);
+  }
 
   ctx.strokeStyle = "rgba(248,246,238,0.16)";
   ctx.lineWidth = 4;
-  line(ctx, 88, 388, 1210, 388);
+  line(ctx, 88, copy.subtitle ? 430 : 388, 1210, copy.subtitle ? 430 : 388);
 
   ctx.fillStyle = "#f2c75e";
   ctx.font = "900 34px Arial";
-  ctx.fillText("Observe", 88, 488);
+  ctx.fillText("Observe", 88, copy.subtitle ? 528 : 488);
   ctx.fillStyle = "#e9efe9";
   ctx.font = "500 38px Arial";
-  wrapText(ctx, copy.lead || scene.task, 88, 572, 1120, 52);
+  wrapText(ctx, copy.lead || scene.task, 88, copy.subtitle ? 612 : 572, 1120, 52);
 }
 
 function drawWatershedMap(ctx, originX, originY, state) {
