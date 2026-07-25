@@ -75,6 +75,10 @@ const SLIDER_WIDTH = 1.24;
 const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
 const SLIDER_MAX_X = SLIDER_WIDTH / 2;
 const SLIDER_CENTER = workbenchDeckPosition(-0.76, CONTROL_ROWS.lower);
+const SNAP_TURN_RADIANS = THREE.MathUtils.degToRad(30);
+const SNAP_TURN_THRESHOLD = 0.72;
+const SNAP_TURN_RESET_THRESHOLD = 0.35;
+const SNAP_TURN_AXIS = new THREE.Vector3(0, 1, 0);
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -125,18 +129,22 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   controls.maxPolarAngle = Math.PI * 0.58;
   controls.update();
 
-  const world = createWorld(scene);
-  const panels = createPanels(scene);
-  const workbenchControlDeck = createWorkbenchControlDeck(scene);
-  const mainButtons = createButtons(scene, BUTTONS);
+  const stage = new THREE.Group();
+  scene.add(stage);
+
+  const world = createWorld(stage);
+  const panels = createPanels(stage);
+  const workbenchControlDeck = createWorkbenchControlDeck(stage);
+  const mainButtons = createButtons(stage, BUTTONS);
   const exampleButton = mainButtons.find((button) => button.id === "example");
-  const checkButtons = createButtons(scene, CHECK_BUTTONS, { width: 0.82, height: 0.2, rotationX: -0.18 });
+  const checkButtons = createButtons(stage, CHECK_BUTTONS, { width: 0.82, height: 0.2, rotationX: -0.18 });
   const inWorldButtons = [...mainButtons, ...checkButtons];
-  const robustnessSlider = createRobustnessSlider(scene);
-  const rankingSet = createRankingSet(scene);
+  const robustnessSlider = createRobustnessSlider(stage);
+  const rankingSet = createRankingSet(stage);
   const controllers = createControllers(renderer, scene);
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
+  const snapTurnPivot = new THREE.Vector3();
   const interactive = [
     ...inWorldButtons.map((button) => button.mesh),
     robustnessSlider.hitArea,
@@ -161,6 +169,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     ranking: [],
   };
   let currentSession = null;
+  let snapTurnArmed = true;
 
   function renderState(state) {
     currentState = state;
@@ -212,6 +221,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       session.addEventListener("end", () => {
         currentSession = null;
         dragState = null;
+        resetSnapTurn();
         setInWorldControlsVisible(inWorldButtons, false);
         robustnessSlider.group.visible = false;
         rankingSet.group.visible = false;
@@ -355,6 +365,43 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     );
   }
 
+  function updateSnapTurn() {
+    if (!currentSession) return;
+    if (dragState) {
+      snapTurnArmed = false;
+      return;
+    }
+
+    const axis = getSnapTurnAxis(currentSession.inputSources);
+    const magnitude = Math.abs(axis);
+    if (magnitude < SNAP_TURN_RESET_THRESHOLD) {
+      snapTurnArmed = true;
+      return;
+    }
+
+    if (!snapTurnArmed || magnitude < SNAP_TURN_THRESHOLD) return;
+
+    snapTurnArmed = false;
+    applySnapTurn(axis > 0 ? SNAP_TURN_RADIANS : -SNAP_TURN_RADIANS);
+  }
+
+  function applySnapTurn(delta) {
+    renderer.xr.getCamera(camera).getWorldPosition(snapTurnPivot);
+    snapTurnPivot.y = 0;
+    stage.position.sub(snapTurnPivot);
+    stage.position.applyAxisAngle(SNAP_TURN_AXIS, delta);
+    stage.position.add(snapTurnPivot);
+    stage.rotateOnWorldAxis(SNAP_TURN_AXIS, delta);
+    stage.updateMatrixWorld(true);
+  }
+
+  function resetSnapTurn() {
+    stage.position.set(0, 0, 0);
+    stage.rotation.set(0, 0, 0);
+    stage.updateMatrixWorld(true);
+    snapTurnArmed = true;
+  }
+
   function onResize() {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -376,6 +423,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   renderer.setAnimationLoop(() => {
     if (!currentSession) controls.update();
+    else updateSnapTurn();
     if (dragState) updateDragState(dragState);
     panels.map.position.y = LAYOUT.panelY;
     panels.chart.position.y = LAYOUT.panelY;
@@ -384,6 +432,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       exampleButton.mesh.position.y = panels.task.position.y + EXAMPLE_BUTTON_Y_OFFSET;
       exampleButton.mesh.position.z = panels.task.position.z + EXAMPLE_BUTTON_Z_OFFSET;
     }
+    stage.updateMatrixWorld(true);
     updateControllerHover(controllers, raycaster, interactive, (controlId) => {
       if (controlId !== hoverControl) {
         hoverControl = controlId;
@@ -407,6 +456,20 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       window.removeEventListener("resize", onResize);
     },
   };
+}
+
+function getSnapTurnAxis(inputSources) {
+  let strongestAxis = 0;
+  for (const inputSource of inputSources) {
+    const axes = inputSource.gamepad?.axes ?? [];
+    for (let index = 0; index < axes.length; index += 2) {
+      const axis = axes[index] ?? 0;
+      if (Math.abs(axis) > Math.abs(strongestAxis)) {
+        strongestAxis = axis;
+      }
+    }
+  }
+  return strongestAxis;
 }
 
 function createWorld(scene) {
