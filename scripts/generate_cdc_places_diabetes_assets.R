@@ -189,6 +189,11 @@ tx_map <- tx_counties |>
 tx_outline <- tx_map |>
   summarise(geometry = st_union(geometry))
 
+map_neatline <- st_sf(
+  geometry = st_as_sfc(st_bbox(tx_map)),
+  crs = st_crs(tx_map)
+)
+
 if (any(is.na(tx_map$diabetes))) {
   missing_names <- tx_map |>
     st_drop_geometry() |>
@@ -881,8 +886,20 @@ save_png <- function(plot, filename, legend = NULL, background = "#f8f6ee") {
   message("Wrote ", normalizePath(path))
 }
 
+add_map_extent_anchor <- function(plot, visible = FALSE) {
+  plot +
+    geom_sf(
+      data = map_neatline,
+      inherit.aes = FALSE,
+      fill = NA,
+      color = if (visible) "#798487" else NA,
+      linewidth = if (visible) 0.18 else 0
+    )
+}
+
 map_color_layer <- function(fill_column, palette, title, subtitle, caption) {
   ggplot(tx_map) +
+    geom_sf(data = map_neatline, inherit.aes = FALSE, fill = NA, color = NA, linewidth = 0) +
     geom_sf(aes(fill = .data[[fill_column]]), color = NA, linewidth = 0) +
     scale_fill_manual(
       values = palette,
@@ -896,7 +913,7 @@ map_color_layer <- function(fill_column, palette, title, subtitle, caption) {
 }
 
 map_structure_layer <- function(title, subtitle, caption) {
-  ggplot(tx_map) +
+  add_map_extent_anchor(ggplot(tx_map), visible = TRUE) +
     geom_sf(fill = NA, color = "#ffffff", linewidth = 0.12) +
     geom_sf(data = tx_outline, inherit.aes = FALSE, fill = NA, color = "#1b2427", linewidth = 0.35) +
     labs(title = title, subtitle = subtitle, caption = caption) +
@@ -904,7 +921,7 @@ map_structure_layer <- function(title, subtitle, caption) {
 }
 
 map_boundary_cue_layer <- function(title, subtitle, caption) {
-  ggplot(tx_map) +
+  add_map_extent_anchor(ggplot(tx_map)) +
     geom_sf(fill = NA, color = "#151d20", linewidth = 0.18) +
     geom_sf(data = tx_outline, inherit.aes = FALSE, fill = NA, color = "#151d20", linewidth = 0.46) +
     labs(title = title, subtitle = subtitle, caption = caption) +
@@ -1223,7 +1240,7 @@ make_svi_chart_label_layer <- function() {
 }
 
 make_prevalence_map_label_layer <- function() {
-  ggplot(tx_map) +
+  add_map_extent_anchor(ggplot(tx_map)) +
     geom_sf_label(
       data = top_labels,
       aes(label = label),
@@ -1253,7 +1270,7 @@ make_diverging_map_cue_layer <- function() {
 }
 
 make_diverging_map_label_layer <- function() {
-  ggplot(tx_map) +
+  add_map_extent_anchor(ggplot(tx_map)) +
     geom_sf_label(
       data = difference_labels,
       aes(label = label),
@@ -1284,7 +1301,7 @@ make_svi_map_cue_layer <- function() {
 }
 
 make_svi_map_label_layer <- function() {
-  ggplot(tx_map) +
+  add_map_extent_anchor(ggplot(tx_map)) +
     geom_sf_label(
       data = svi_label_points,
       aes(label = label),
