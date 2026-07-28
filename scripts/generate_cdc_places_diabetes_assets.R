@@ -1261,12 +1261,14 @@ make_prevalence_map_label_layer <- function() {
 }
 
 make_diverging_map_cue_layer <- function() {
-  map_boundary_cue_layer(
-    "Diagnosed Diabetes Relative to Texas Average",
-    average_caption,
-    source_caption
-  ) +
-    geom_sf(data = above_stipple, inherit.aes = FALSE, color = "#151d20", size = 0.18, alpha = 0.5)
+  add_map_extent_anchor(ggplot(tx_map)) +
+    geom_sf(data = above_stipple, inherit.aes = FALSE, color = "#151d20", size = 0.18, alpha = 0.5) +
+    labs(
+      title = "Diagnosed Diabetes Relative to Texas Average",
+      subtitle = average_caption,
+      caption = source_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
 }
 
 make_diverging_map_label_layer <- function() {
@@ -1291,11 +1293,13 @@ make_diverging_map_label_layer <- function() {
 }
 
 make_svi_map_cue_layer <- function() {
-  plot <- map_boundary_cue_layer(
-    "Highest-Ranked SVI Theme by County",
-    "Texas counties, CDC/ATSDR SVI 2022",
-    svi_caption
-  )
+  plot <- add_map_extent_anchor(ggplot(tx_map)) +
+    labs(
+      title = "Highest-Ranked SVI Theme by County",
+      subtitle = "Texas counties, CDC/ATSDR SVI 2022",
+      caption = svi_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
 
   add_svi_map_symbol_layers(plot, svi_symbol_points)
 }
