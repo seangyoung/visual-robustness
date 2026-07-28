@@ -892,7 +892,7 @@ add_map_extent_anchor <- function(plot, visible = FALSE) {
       data = map_neatline,
       inherit.aes = FALSE,
       fill = NA,
-      color = if (visible) "#798487" else NA,
+      color = if (visible) "#f8f6ee" else NA,
       linewidth = if (visible) 0.18 else 0
     )
 }
