@@ -262,7 +262,7 @@ names(svi_shapes) <- svi_theme_labels
 svi_symbol_fills <- c("#151d20", "#f8f6ee", "#151d20", "#f8f6ee")
 names(svi_symbol_fills) <- svi_theme_labels
 
-svi_symbol_outlines <- c("#f8f6ee", "#151d20", "#f8f6ee", "#151d20")
+svi_symbol_outlines <- svi_symbol_fills
 names(svi_symbol_outlines) <- svi_theme_labels
 
 svi_points_per_county <- c(1, 2, 3, 5)
@@ -271,13 +271,13 @@ names(svi_points_per_county) <- svi_theme_labels
 svi_chart_symbol_spacing <- c(16, 10, 7, 4.5)
 names(svi_chart_symbol_spacing) <- svi_theme_labels
 
-svi_map_symbol_sizes <- c(0.58, 0.66, 0.56, 0.72)
+svi_map_symbol_sizes <- c(0.72, 0.84, 0.72, 0.9)
 names(svi_map_symbol_sizes) <- svi_theme_labels
 
-svi_chart_symbol_sizes <- c(2.0, 2.12, 1.95, 2.2)
+svi_chart_symbol_sizes <- c(2.35, 2.55, 2.35, 2.7)
 names(svi_chart_symbol_sizes) <- svi_theme_labels
 
-svi_legend_symbol_sizes <- c(1.25, 1.35, 1.2, 1.38)
+svi_legend_symbol_sizes <- c(1.45, 1.6, 1.45, 1.68)
 names(svi_legend_symbol_sizes) <- svi_theme_labels
 
 svi_legend_symbol_counts <- c(1, 2, 3, 4)
@@ -396,7 +396,7 @@ add_svi_map_symbol_layers <- function(plot, symbol_data) {
         fill = unname(svi_symbol_fills[[label]]),
         color = unname(svi_symbol_outlines[[label]]),
         size = unname(svi_map_symbol_sizes[[label]]),
-        stroke = 0.24,
+        stroke = 0,
         alpha = 0.9
       )
   }
@@ -422,7 +422,7 @@ add_svi_chart_symbol_layers <- function(plot, symbol_data) {
         fill = unname(svi_symbol_fills[[label]]),
         color = unname(svi_symbol_outlines[[label]]),
         size = unname(svi_chart_symbol_sizes[[label]]),
-        stroke = 0.34,
+        stroke = 0,
         alpha = 0.92
       )
   }
@@ -633,7 +633,7 @@ map_legend_grob <- function(
           y = row_y + unit(symbol_y_offsets * legend_scale, "npc"),
           pch = unname(symbol_shapes[[label]]),
           size = unit(symbol_size * legend_scale, "mm"),
-          gp = gpar(col = symbol_outline, fill = symbol_fill, alpha = 0.9, lwd = 0.65)
+          gp = gpar(col = symbol_outline, fill = symbol_fill, alpha = 0.9, lwd = 0)
         )
       ))
     }
