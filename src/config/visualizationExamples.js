@@ -1,12 +1,11 @@
 import {
   INTERVENTION_KEYS,
-  interventionAssetSuffix,
   interventionsEqual,
   normalizeInterventions,
   recommendedInterventions,
 } from "./interventions.js";
 
-const publicHealthAssets = import.meta.glob("../../assets/proposed-public-health/*.png", {
+const publicHealthAssets = import.meta.glob("../../assets/proposed-public-health/*-layer-*.png", {
   eager: true,
   import: "default",
 });
@@ -20,20 +19,23 @@ function publicHealthAsset(filename) {
   return url;
 }
 
-function interventionAssets(prefix) {
-  const assets = {};
-  for (const palette of [false, true]) {
-    for (const redundantCue of [false, true]) {
-      for (const labels of [false, true]) {
-        const suffix = interventionAssetSuffix({ palette, redundantCue, labels });
-        assets[suffix] = {
-          map: publicHealthAsset(`${prefix}-map-${suffix}.png`),
-          chart: publicHealthAsset(`${prefix}-chart-${suffix}.png`),
-        };
-      }
-    }
-  }
-  return assets;
+function figureLayerAssets(prefix, kind) {
+  return {
+    color: {
+      original: publicHealthAsset(`${prefix}-${kind}-layer-color-p0.png`),
+      palette: publicHealthAsset(`${prefix}-${kind}-layer-color-p1.png`),
+    },
+    structure: publicHealthAsset(`${prefix}-${kind}-layer-structure.png`),
+    redundantCue: publicHealthAsset(`${prefix}-${kind}-layer-cue.png`),
+    labels: publicHealthAsset(`${prefix}-${kind}-layer-labels.png`),
+  };
+}
+
+function layeredPublicHealthAssets(prefix) {
+  return {
+    map: figureLayerAssets(prefix, "map"),
+    chart: figureLayerAssets(prefix, "chart"),
+  };
 }
 
 export const visualizationExamples = [
@@ -82,13 +84,7 @@ export const visualizationExamples = [
         effect: "Supports efficient lookup for selected values, while adding visual density.",
       },
     },
-    assets: {
-      mapBaseline: publicHealthAsset("cdc-places-diabetes-map-baseline.png"),
-      mapRedesign: publicHealthAsset("cdc-places-diabetes-map-redesign.png"),
-      chartBaseline: publicHealthAsset("cdc-places-diabetes-chart-baseline.png"),
-      chartRedesign: publicHealthAsset("cdc-places-diabetes-chart-redesign.png"),
-      combinations: interventionAssets("cdc-places-diabetes"),
-    },
+    assets: layeredPublicHealthAssets("cdc-places-diabetes"),
   },
   {
     id: "difference-from-average",
@@ -135,13 +131,7 @@ export const visualizationExamples = [
         effect: "Supports efficient lookup, but adds visual density.",
       },
     },
-    assets: {
-      mapBaseline: publicHealthAsset("cdc-places-diabetes-diverging-map-baseline.png"),
-      mapRedesign: publicHealthAsset("cdc-places-diabetes-diverging-map-redesign.png"),
-      chartBaseline: publicHealthAsset("cdc-places-diabetes-diverging-chart-baseline.png"),
-      chartRedesign: publicHealthAsset("cdc-places-diabetes-diverging-chart-redesign.png"),
-      combinations: interventionAssets("cdc-places-diabetes-diverging"),
-    },
+    assets: layeredPublicHealthAssets("cdc-places-diabetes-diverging"),
   },
   {
     id: "highest-svi-theme",
@@ -189,13 +179,7 @@ export const visualizationExamples = [
         effect: "Supports local lookup and makes the county-count comparison directly readable without relying on bar length alone.",
       },
     },
-    assets: {
-      mapBaseline: publicHealthAsset("cdc-svi-theme-map-baseline.png"),
-      mapRedesign: publicHealthAsset("cdc-svi-theme-map-redesign.png"),
-      chartBaseline: publicHealthAsset("cdc-svi-theme-chart-baseline.png"),
-      chartRedesign: publicHealthAsset("cdc-svi-theme-chart-redesign.png"),
-      combinations: interventionAssets("cdc-svi-theme"),
-    },
+    assets: layeredPublicHealthAssets("cdc-svi-theme"),
   },
 ];
 

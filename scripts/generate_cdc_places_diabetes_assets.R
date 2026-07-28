@@ -186,6 +186,9 @@ tx_map <- tx_counties |>
   left_join(places, by = c("GEOID" = "countyfips")) |>
   left_join(svi, by = c("GEOID" = "countyfips"))
 
+tx_outline <- tx_map |>
+  summarise(geometry = st_union(geometry))
+
 if (any(is.na(tx_map$diabetes))) {
   missing_names <- tx_map |>
     st_drop_geometry() |>
@@ -440,35 +443,47 @@ names(svi_fragile_palette) <- svi_theme_labels
 svi_robust_palette <- c("#0072b2", "#d55e00", "#009e73", "#cc79a7")
 names(svi_robust_palette) <- svi_theme_labels
 
-map_theme <- function() {
+map_theme <- function(background = "#f8f6ee", text = TRUE) {
+  background_fill <- if (isTRUE(is.na(background))) NA else background
+  title_color <- if (text) "#151d20" else "transparent"
+  subtitle_color <- if (text) "#4c5a5d" else "transparent"
+  caption_color <- if (text) "#687375" else "transparent"
+
   theme_void(base_family = "Arial") +
     theme(
-      plot.background = element_rect(fill = "#f8f6ee", color = NA),
-      panel.background = element_rect(fill = "#f8f6ee", color = NA),
-      plot.title = element_text(color = "#151d20", face = "bold", size = 22, margin = margin(b = 3)),
-      plot.subtitle = element_text(color = "#4c5a5d", size = 11, margin = margin(b = 12)),
-      plot.caption = element_text(color = "#687375", size = 8, hjust = 0, margin = margin(t = 12)),
+      plot.background = element_rect(fill = background_fill, color = NA),
+      panel.background = element_rect(fill = background_fill, color = NA),
+      plot.title = element_text(color = title_color, face = "bold", size = 22, margin = margin(b = 3)),
+      plot.subtitle = element_text(color = subtitle_color, size = 11, margin = margin(b = 12)),
+      plot.caption = element_text(color = caption_color, size = 8, hjust = 0, margin = margin(t = 12)),
       legend.position = "none",
       plot.margin = margin(24, 28, 20, 28)
     )
 }
 
-chart_theme <- function() {
+chart_theme <- function(background = "#f8f6ee", text = TRUE, grid = TRUE) {
+  background_fill <- if (isTRUE(is.na(background))) NA else background
+  title_color <- if (text) "#151d20" else "transparent"
+  subtitle_color <- if (text) "#4c5a5d" else "transparent"
+  caption_color <- if (text) "#687375" else "transparent"
+  body_color <- if (text) "#283235" else "transparent"
+  grid_color <- if (grid) "#d7ddd7" else "transparent"
+
   theme_minimal(base_family = "Arial") +
     theme(
-      plot.background = element_rect(fill = "#f8f6ee", color = NA),
-      panel.background = element_rect(fill = "#f8f6ee", color = NA),
+      plot.background = element_rect(fill = background_fill, color = NA),
+      panel.background = element_rect(fill = background_fill, color = NA),
       panel.grid.major.y = element_blank(),
       panel.grid.minor = element_blank(),
-      panel.grid.major.x = element_line(color = "#d7ddd7", linewidth = 0.35),
-      axis.title = element_text(color = "#283235", face = "bold", size = 9),
-      axis.text = element_text(color = "#283235", size = 9),
-      plot.title = element_text(color = "#151d20", face = "bold", size = 22, margin = margin(b = 3)),
-      plot.subtitle = element_text(color = "#4c5a5d", size = 11, margin = margin(b = 12)),
-      plot.caption = element_text(color = "#687375", size = 8, hjust = 0, margin = margin(t = 12)),
+      panel.grid.major.x = element_line(color = grid_color, linewidth = 0.35),
+      axis.title = element_text(color = body_color, face = "bold", size = 9),
+      axis.text = element_text(color = body_color, size = 9),
+      plot.title = element_text(color = title_color, face = "bold", size = 22, margin = margin(b = 3)),
+      plot.subtitle = element_text(color = subtitle_color, size = 11, margin = margin(b = 12)),
+      plot.caption = element_text(color = caption_color, size = 8, hjust = 0, margin = margin(t = 12)),
       legend.position = "bottom",
-      legend.title = element_text(color = "#151d20", face = "bold", size = 9),
-      legend.text = element_text(color = "#283235", size = 8),
+      legend.title = element_text(color = title_color, face = "bold", size = 9),
+      legend.text = element_text(color = body_color, size = 8),
       plot.margin = margin(24, 34, 20, 26)
     )
 }
@@ -497,7 +512,11 @@ map_legend_grob <- function(
   symbol_fills = NULL,
   symbol_outlines = NULL,
   symbol_sizes = NULL,
-  symbol_counts = NULL
+  symbol_counts = NULL,
+  draw_swatch_fills = TRUE,
+  draw_swatch_borders = TRUE,
+  draw_text = TRUE,
+  draw_cues = TRUE
 ) {
   legend_scale <- 1.6
   x <- unit(0.055, "npc")
@@ -518,15 +537,20 @@ map_legend_grob <- function(
       height = height,
       just = c("left", "top"),
       gp = gpar(fill = NA, col = NA)
-    ),
-    textGrob(
-      title,
-      x = x + padding_x,
-      y = y - padding_top,
-      just = c("left", "top"),
-      gp = gpar(col = "#151d20", fontsize = 9 * legend_scale, fontface = "bold", fontfamily = "Arial")
     )
   )
+
+  if (draw_text) {
+    grobs <- append(grobs, list(
+      textGrob(
+        title,
+        x = x + padding_x,
+        y = y - padding_top,
+        just = c("left", "top"),
+        gp = gpar(col = "#151d20", fontsize = 9 * legend_scale, fontface = "bold", fontfamily = "Arial")
+      )
+    ))
+  }
 
   key_left <- x + padding_x
   key_width <- unit(0.034 * legend_scale, "npc")
@@ -536,7 +560,8 @@ map_legend_grob <- function(
   for (index in seq_along(labels)) {
     label <- labels[[index]]
     row_y <- y - padding_top - title_height - row_height * (index - 0.5)
-    fill <- unname(palette[[label]])
+    fill <- if (draw_swatch_fills) unname(palette[[label]]) else NA
+    border <- if (draw_swatch_borders) "#d4d9d3" else NA
 
     grobs <- append(grobs, list(
       rectGrob(
@@ -545,11 +570,11 @@ map_legend_grob <- function(
         width = key_width,
         height = key_height,
         just = c("left", "center"),
-        gp = gpar(fill = fill, col = "#d4d9d3", lwd = 0.6)
+        gp = gpar(fill = fill, col = border, lwd = 0.6)
       )
     ))
 
-    if (label %in% stipple_labels) {
+    if (draw_cues && label %in% stipple_labels) {
       grobs <- append(grobs, list(
         pointsGrob(
           x = key_left + unit(rep(c(0.007, 0.016, 0.025) * legend_scale, 2), "npc"),
@@ -561,7 +586,7 @@ map_legend_grob <- function(
       ))
     }
 
-    if (!is.null(symbol_shapes) && label %in% names(symbol_shapes)) {
+    if (draw_cues && !is.null(symbol_shapes) && label %in% names(symbol_shapes)) {
       symbol_count <- if (!is.null(symbol_counts) && label %in% names(symbol_counts)) {
         unname(symbol_counts[[label]])
       } else {
@@ -608,15 +633,17 @@ map_legend_grob <- function(
       ))
     }
 
-    grobs <- append(grobs, list(
-      textGrob(
-        label,
-        x = label_x,
-        y = row_y,
-        just = c("left", "center"),
-        gp = gpar(col = "#283235", fontsize = 8 * legend_scale, fontfamily = "Arial")
-      )
-    ))
+    if (draw_text) {
+      grobs <- append(grobs, list(
+        textGrob(
+          label,
+          x = label_x,
+          y = row_y,
+          just = c("left", "center"),
+          gp = gpar(col = "#283235", fontsize = 8 * legend_scale, fontfamily = "Arial")
+        )
+      ))
+    }
   }
 
   do.call(grobTree, grobs)
@@ -843,15 +870,541 @@ diverging_chart_redesign <- ggplot(
   ) +
   chart_theme()
 
-save_png <- function(plot, filename, legend = NULL) {
+save_png <- function(plot, filename, legend = NULL, background = "#f8f6ee") {
   path <- file.path(output_dir, filename)
-  ragg::agg_png(path, width = 1400, height = 980, units = "px", res = 144, background = "#f8f6ee")
+  ragg::agg_png(path, width = 1400, height = 980, units = "px", res = 144, background = background)
   print(plot)
   if (!is.null(legend)) {
     grid.draw(legend)
   }
   dev.off()
   message("Wrote ", normalizePath(path))
+}
+
+map_color_layer <- function(fill_column, palette, title, subtitle, caption) {
+  ggplot(tx_map) +
+    geom_sf(aes(fill = .data[[fill_column]]), color = NA, linewidth = 0) +
+    scale_fill_manual(
+      values = palette,
+      drop = FALSE,
+      na.translate = FALSE,
+      na.value = "#d8d8cf",
+      guide = "none"
+    ) +
+    labs(title = title, subtitle = subtitle, caption = caption) +
+    map_theme(text = FALSE)
+}
+
+map_structure_layer <- function(title, subtitle, caption) {
+  ggplot(tx_map) +
+    geom_sf(fill = NA, color = "#ffffff", linewidth = 0.12) +
+    geom_sf(data = tx_outline, inherit.aes = FALSE, fill = NA, color = "#1b2427", linewidth = 0.35) +
+    labs(title = title, subtitle = subtitle, caption = caption) +
+    map_theme(background = NA, text = TRUE)
+}
+
+map_boundary_cue_layer <- function(title, subtitle, caption) {
+  ggplot(tx_map) +
+    geom_sf(fill = NA, color = "#151d20", linewidth = 0.18) +
+    geom_sf(data = tx_outline, inherit.aes = FALSE, fill = NA, color = "#151d20", linewidth = 0.46) +
+    labs(title = title, subtitle = subtitle, caption = caption) +
+    map_theme(background = NA, text = FALSE)
+}
+
+map_layer_legend_colors <- function(title, labels, palette) {
+  map_legend_grob(
+    title,
+    labels,
+    palette,
+    draw_swatch_fills = TRUE,
+    draw_swatch_borders = FALSE,
+    draw_text = FALSE,
+    draw_cues = FALSE
+  )
+}
+
+map_layer_legend_structure <- function(title, labels, palette) {
+  map_legend_grob(
+    title,
+    labels,
+    palette,
+    draw_swatch_fills = FALSE,
+    draw_swatch_borders = TRUE,
+    draw_text = TRUE,
+    draw_cues = FALSE
+  )
+}
+
+map_layer_legend_cues <- function(title, labels, palette, ...) {
+  map_legend_grob(
+    title,
+    labels,
+    palette,
+    ...,
+    draw_swatch_fills = FALSE,
+    draw_swatch_borders = FALSE,
+    draw_text = FALSE,
+    draw_cues = TRUE
+  )
+}
+
+prevalence_chart_scale <- function() {
+  scale_x_continuous(
+    limits = c(0, max(class_summary$county_count) * 1.32),
+    expand = expansion(mult = 0)
+  )
+}
+
+svi_chart_scale <- function() {
+  scale_x_continuous(
+    limits = c(0, max(svi_summary$county_count) * 1.32),
+    expand = expansion(mult = 0)
+  )
+}
+
+diverging_chart_x_scale <- function() {
+  scale_x_continuous(
+    labels = abs,
+    limits = max(abs(difference_summary$signed_count)) * c(-1.42, 1.42),
+    expand = expansion(mult = 0)
+  )
+}
+
+diverging_chart_y_scale <- function() {
+  scale_y_continuous(
+    breaks = seq_along(deviation_labels),
+    labels = deviation_labels,
+    expand = expansion(add = 0.45)
+  )
+}
+
+chart_color_theme <- function() {
+  chart_theme(text = FALSE, grid = FALSE)
+}
+
+chart_overlay_theme <- function(text = FALSE, grid = FALSE) {
+  chart_theme(background = NA, text = text, grid = grid)
+}
+
+make_prevalence_chart_color_layer <- function(palette = FALSE) {
+  fill_palette <- if (palette) robust_palette else fragile_palette
+
+  ggplot(class_summary, aes(x = county_count, y = diabetes_class, fill = diabetes_class)) +
+    geom_col(width = 0.72) +
+    scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
+    prevalence_chart_scale() +
+    labs(
+      title = "County Count by Diabetes Prevalence Class",
+      subtitle = "Same Texas county classes and colors as the map",
+      x = "Number of counties",
+      y = "Crude prevalence among adults",
+      caption = source_caption
+    ) +
+    chart_color_theme()
+}
+
+make_prevalence_chart_structure_layer <- function() {
+  ggplot(class_summary, aes(x = county_count, y = diabetes_class)) +
+    geom_blank() +
+    prevalence_chart_scale() +
+    labs(
+      title = "County Count by Diabetes Prevalence Class",
+      subtitle = "Same Texas county classes and colors as the map",
+      x = "Number of counties",
+      y = "Crude prevalence among adults",
+      caption = source_caption
+    ) +
+    chart_overlay_theme(text = TRUE, grid = TRUE)
+}
+
+make_prevalence_chart_cue_layer <- function() {
+  ggplot(class_summary, aes(x = county_count, y = diabetes_class)) +
+    geom_col(width = 0.72, fill = NA, color = "#151d20", linewidth = 0.18) +
+    prevalence_chart_scale() +
+    labs(
+      title = "County Count by Diabetes Prevalence Class",
+      subtitle = "Same Texas county classes and colors as the map",
+      x = "Number of counties",
+      y = "Crude prevalence among adults",
+      caption = source_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_prevalence_chart_label_layer <- function() {
+  ggplot(class_summary, aes(x = county_count, y = diabetes_class)) +
+    geom_text(
+      aes(label = label),
+      hjust = -0.05,
+      color = "#151d20",
+      family = "Arial",
+      fontface = "bold",
+      size = 3.2
+    ) +
+    prevalence_chart_scale() +
+    labs(
+      title = "County Count by Diabetes Prevalence Class",
+      subtitle = "Same Texas county classes and colors as the map",
+      x = "Number of counties",
+      y = "Crude prevalence among adults",
+      caption = source_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_diverging_chart_color_layer <- function(palette = FALSE) {
+  fill_palette <- if (palette) diverging_redesign_palette else diverging_palette
+
+  ggplot(difference_summary) +
+    geom_rect(
+      aes(
+        xmin = xmin,
+        xmax = xmax,
+        ymin = ymin,
+        ymax = ymax,
+        fill = diabetes_difference_class
+      )
+    ) +
+    scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
+    diverging_chart_x_scale() +
+    diverging_chart_y_scale() +
+    labs(
+      title = "County Count Above and Below Texas Average",
+      subtitle = "Same diverging classes and colors as the map",
+      x = "Number of counties",
+      y = "Difference from Texas average",
+      caption = source_caption
+    ) +
+    chart_color_theme()
+}
+
+make_diverging_chart_structure_layer <- function() {
+  ggplot(difference_summary) +
+    geom_vline(xintercept = 0, color = "#151d20", linewidth = 0.42) +
+    geom_blank(aes(x = signed_count, y = y_index)) +
+    diverging_chart_x_scale() +
+    diverging_chart_y_scale() +
+    labs(
+      title = "County Count Above and Below Texas Average",
+      subtitle = "Same diverging classes and colors as the map",
+      x = "Number of counties",
+      y = "Difference from Texas average",
+      caption = source_caption
+    ) +
+    chart_overlay_theme(text = TRUE, grid = TRUE)
+}
+
+make_diverging_chart_cue_layer <- function() {
+  ggplot(difference_summary) +
+    geom_rect(
+      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      fill = NA,
+      color = "#151d20",
+      linewidth = 0.18
+    ) +
+    geom_segment(
+      data = difference_bar_hatches,
+      aes(x = x, xend = xend, y = y, yend = yend),
+      inherit.aes = FALSE,
+      color = "#151d20",
+      linewidth = 0.34,
+      alpha = 0.68
+    ) +
+    diverging_chart_x_scale() +
+    diverging_chart_y_scale() +
+    labs(
+      title = "County Count Above and Below Texas Average",
+      subtitle = "Same diverging classes and colors as the map",
+      x = "Number of counties",
+      y = "Difference from Texas average",
+      caption = source_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_diverging_chart_label_layer <- function() {
+  ggplot(difference_summary) +
+    geom_text(
+      aes(
+        x = signed_count + if_else(signed_count >= 0, 2.0, -2.0),
+        y = y_index,
+        label = share_label,
+        hjust = if_else(signed_count >= 0, 0, 1)
+      ),
+      color = "#151d20",
+      family = "Arial",
+      fontface = "bold",
+      size = 3.2
+    ) +
+    diverging_chart_x_scale() +
+    diverging_chart_y_scale() +
+    labs(
+      title = "County Count Above and Below Texas Average",
+      subtitle = "Same diverging classes and colors as the map",
+      x = "Number of counties",
+      y = "Difference from Texas average",
+      caption = source_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_svi_chart_color_layer <- function(palette = FALSE) {
+  fill_palette <- if (palette) svi_robust_palette else svi_fragile_palette
+
+  ggplot(svi_summary, aes(x = county_count, y = svi_theme, fill = svi_theme)) +
+    geom_col(width = 0.72) +
+    scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
+    scale_y_discrete(labels = function(values) unname(svi_theme_short_labels[values])) +
+    svi_chart_scale() +
+    labs(
+      title = "County Count by Highest-Ranked SVI Theme",
+      subtitle = "Same SVI theme categories and colors as the map",
+      x = "Number of counties",
+      y = "SVI theme",
+      caption = svi_caption
+    ) +
+    chart_color_theme()
+}
+
+make_svi_chart_structure_layer <- function() {
+  ggplot(svi_summary, aes(x = county_count, y = svi_theme)) +
+    geom_blank() +
+    scale_y_discrete(labels = function(values) unname(svi_theme_short_labels[values])) +
+    svi_chart_scale() +
+    labs(
+      title = "County Count by Highest-Ranked SVI Theme",
+      subtitle = "Same SVI theme categories and colors as the map",
+      x = "Number of counties",
+      y = "SVI theme",
+      caption = svi_caption
+    ) +
+    chart_overlay_theme(text = TRUE, grid = TRUE)
+}
+
+make_svi_chart_cue_layer <- function() {
+  plot <- ggplot(svi_summary, aes(x = county_count, y = svi_theme)) +
+    geom_col(width = 0.72, fill = NA, color = "#151d20", linewidth = 0.18)
+
+  plot <- add_svi_chart_symbol_layers(plot, svi_chart_symbols)
+
+  plot +
+    scale_y_discrete(labels = function(values) unname(svi_theme_short_labels[values])) +
+    svi_chart_scale() +
+    labs(
+      title = "County Count by Highest-Ranked SVI Theme",
+      subtitle = "Same SVI theme categories and colors as the map",
+      x = "Number of counties",
+      y = "SVI theme",
+      caption = svi_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_svi_chart_label_layer <- function() {
+  ggplot(svi_summary, aes(x = county_count, y = svi_theme)) +
+    geom_text(
+      aes(label = label),
+      hjust = -0.05,
+      color = "#151d20",
+      family = "Arial",
+      fontface = "bold",
+      size = 3.2
+    ) +
+    scale_y_discrete(labels = function(values) unname(svi_theme_short_labels[values])) +
+    svi_chart_scale() +
+    labs(
+      title = "County Count by Highest-Ranked SVI Theme",
+      subtitle = "Same SVI theme categories and colors as the map",
+      x = "Number of counties",
+      y = "SVI theme",
+      caption = svi_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_prevalence_map_label_layer <- function() {
+  ggplot(tx_map) +
+    geom_sf_label(
+      data = top_labels,
+      aes(label = label),
+      family = "Arial",
+      size = 3.1,
+      fontface = "bold",
+      linewidth = 0.24,
+      label.padding = unit(0.17, "lines"),
+      fill = "#f8f6ee",
+      color = "#151d20"
+    ) +
+    labs(
+      title = "Diagnosed Diabetes Prevalence by County",
+      subtitle = "Texas counties, CDC PLACES 2025 release",
+      caption = source_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+}
+
+make_diverging_map_cue_layer <- function() {
+  map_boundary_cue_layer(
+    "Diagnosed Diabetes Relative to Texas Average",
+    average_caption,
+    source_caption
+  ) +
+    geom_sf(data = above_stipple, inherit.aes = FALSE, color = "#151d20", size = 0.18, alpha = 0.5)
+}
+
+make_diverging_map_label_layer <- function() {
+  ggplot(tx_map) +
+    geom_sf_label(
+      data = difference_labels,
+      aes(label = label),
+      family = "Arial",
+      size = 3.1,
+      fontface = "bold",
+      linewidth = 0.24,
+      label.padding = unit(0.17, "lines"),
+      fill = "#f8f6ee",
+      color = "#151d20"
+    ) +
+    labs(
+      title = "Diagnosed Diabetes Relative to Texas Average",
+      subtitle = average_caption,
+      caption = source_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+}
+
+make_svi_map_cue_layer <- function() {
+  plot <- map_boundary_cue_layer(
+    "Highest-Ranked SVI Theme by County",
+    "Texas counties, CDC/ATSDR SVI 2022",
+    svi_caption
+  )
+
+  add_svi_map_symbol_layers(plot, svi_symbol_points)
+}
+
+make_svi_map_label_layer <- function() {
+  ggplot(tx_map) +
+    geom_sf_label(
+      data = svi_label_points,
+      aes(label = label),
+      family = "Arial",
+      size = 3.0,
+      fontface = "bold",
+      linewidth = 0.24,
+      label.padding = unit(0.16, "lines"),
+      fill = "#f8f6ee",
+      color = "#151d20"
+    ) +
+    labs(
+      title = "Highest-Ranked SVI Theme by County",
+      subtitle = "Texas counties, CDC/ATSDR SVI 2022",
+      caption = svi_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+}
+
+save_layer_assets <- function() {
+  transparent <- "transparent"
+  reversed_class_labels <- rev(class_labels)
+  reversed_deviation_labels <- rev(deviation_labels)
+  reversed_svi_labels <- rev(svi_theme_labels)
+  above_labels <- reversed_deviation_labels[grepl("above", reversed_deviation_labels)]
+
+  save_png(
+    map_color_layer("diabetes_class", fragile_palette, "Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    "cdc-places-diabetes-map-layer-color-p0.png",
+    legend = map_layer_legend_colors("Diagnosed diabetes", reversed_class_labels, fragile_palette)
+  )
+  save_png(
+    map_color_layer("diabetes_class", robust_palette, "Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    "cdc-places-diabetes-map-layer-color-p1.png",
+    legend = map_layer_legend_colors("Diagnosed diabetes", reversed_class_labels, robust_palette)
+  )
+  save_png(
+    map_structure_layer("Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    "cdc-places-diabetes-map-layer-structure.png",
+    legend = map_layer_legend_structure("Diagnosed diabetes", reversed_class_labels, fragile_palette),
+    background = transparent
+  )
+  save_png(
+    map_boundary_cue_layer("Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    "cdc-places-diabetes-map-layer-cue.png",
+    background = transparent
+  )
+  save_png(make_prevalence_map_label_layer(), "cdc-places-diabetes-map-layer-labels.png", background = transparent)
+  save_png(make_prevalence_chart_color_layer(FALSE), "cdc-places-diabetes-chart-layer-color-p0.png")
+  save_png(make_prevalence_chart_color_layer(TRUE), "cdc-places-diabetes-chart-layer-color-p1.png")
+  save_png(make_prevalence_chart_structure_layer(), "cdc-places-diabetes-chart-layer-structure.png", background = transparent)
+  save_png(make_prevalence_chart_cue_layer(), "cdc-places-diabetes-chart-layer-cue.png", background = transparent)
+  save_png(make_prevalence_chart_label_layer(), "cdc-places-diabetes-chart-layer-labels.png", background = transparent)
+
+  save_png(
+    map_color_layer("diabetes_difference_class", diverging_palette, "Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
+    "cdc-places-diabetes-diverging-map-layer-color-p0.png",
+    legend = map_layer_legend_colors("Difference", reversed_deviation_labels, diverging_palette)
+  )
+  save_png(
+    map_color_layer("diabetes_difference_class", diverging_redesign_palette, "Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
+    "cdc-places-diabetes-diverging-map-layer-color-p1.png",
+    legend = map_layer_legend_colors("Difference", reversed_deviation_labels, diverging_redesign_palette)
+  )
+  save_png(
+    map_structure_layer("Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
+    "cdc-places-diabetes-diverging-map-layer-structure.png",
+    legend = map_layer_legend_structure("Difference", reversed_deviation_labels, diverging_palette),
+    background = transparent
+  )
+  save_png(
+    make_diverging_map_cue_layer(),
+    "cdc-places-diabetes-diverging-map-layer-cue.png",
+    legend = map_layer_legend_cues("Difference", reversed_deviation_labels, diverging_palette, stipple_labels = above_labels),
+    background = transparent
+  )
+  save_png(make_diverging_map_label_layer(), "cdc-places-diabetes-diverging-map-layer-labels.png", background = transparent)
+  save_png(make_diverging_chart_color_layer(FALSE), "cdc-places-diabetes-diverging-chart-layer-color-p0.png")
+  save_png(make_diverging_chart_color_layer(TRUE), "cdc-places-diabetes-diverging-chart-layer-color-p1.png")
+  save_png(make_diverging_chart_structure_layer(), "cdc-places-diabetes-diverging-chart-layer-structure.png", background = transparent)
+  save_png(make_diverging_chart_cue_layer(), "cdc-places-diabetes-diverging-chart-layer-cue.png", background = transparent)
+  save_png(make_diverging_chart_label_layer(), "cdc-places-diabetes-diverging-chart-layer-labels.png", background = transparent)
+
+  save_png(
+    map_color_layer("svi_theme", svi_fragile_palette, "Highest-Ranked SVI Theme by County", "Texas counties, CDC/ATSDR SVI 2022", svi_caption),
+    "cdc-svi-theme-map-layer-color-p0.png",
+    legend = map_layer_legend_colors("Highest SVI theme", reversed_svi_labels, svi_fragile_palette)
+  )
+  save_png(
+    map_color_layer("svi_theme", svi_robust_palette, "Highest-Ranked SVI Theme by County", "Texas counties, CDC/ATSDR SVI 2022", svi_caption),
+    "cdc-svi-theme-map-layer-color-p1.png",
+    legend = map_layer_legend_colors("Highest SVI theme", reversed_svi_labels, svi_robust_palette)
+  )
+  save_png(
+    map_structure_layer("Highest-Ranked SVI Theme by County", "Texas counties, CDC/ATSDR SVI 2022", svi_caption),
+    "cdc-svi-theme-map-layer-structure.png",
+    legend = map_layer_legend_structure("Highest SVI theme", reversed_svi_labels, svi_fragile_palette),
+    background = transparent
+  )
+  save_png(
+    make_svi_map_cue_layer(),
+    "cdc-svi-theme-map-layer-cue.png",
+    legend = map_layer_legend_cues(
+      "Highest SVI theme",
+      reversed_svi_labels,
+      svi_fragile_palette,
+      symbol_shapes = svi_shapes,
+      symbol_fills = svi_symbol_fills,
+      symbol_outlines = svi_symbol_outlines,
+      symbol_sizes = svi_legend_symbol_sizes,
+      symbol_counts = svi_legend_symbol_counts
+    ),
+    background = transparent
+  )
+  save_png(make_svi_map_label_layer(), "cdc-svi-theme-map-layer-labels.png", background = transparent)
+  save_png(make_svi_chart_color_layer(FALSE), "cdc-svi-theme-chart-layer-color-p0.png")
+  save_png(make_svi_chart_color_layer(TRUE), "cdc-svi-theme-chart-layer-color-p1.png")
+  save_png(make_svi_chart_structure_layer(), "cdc-svi-theme-chart-layer-structure.png", background = transparent)
+  save_png(make_svi_chart_cue_layer(), "cdc-svi-theme-chart-layer-cue.png", background = transparent)
+  save_png(make_svi_chart_label_layer(), "cdc-svi-theme-chart-layer-labels.png", background = transparent)
 }
 
 intervention_grid <- expand.grid(
@@ -1264,58 +1817,7 @@ save_intervention_assets <- function() {
   }
 }
 
-save_png(
-  baseline_map,
-  "cdc-places-diabetes-map-baseline.png",
-  legend = map_legend_grob("Diagnosed diabetes", rev(class_labels), fragile_palette)
-)
-save_png(baseline_chart, "cdc-places-diabetes-chart-baseline.png")
-save_png(
-  redesign_map,
-  "cdc-places-diabetes-map-redesign.png",
-  legend = map_legend_grob("Diagnosed diabetes", rev(class_labels), robust_palette)
-)
-save_png(redesign_chart, "cdc-places-diabetes-chart-redesign.png")
-save_png(
-  diverging_map_baseline,
-  "cdc-places-diabetes-diverging-map-baseline.png",
-  legend = map_legend_grob("Difference", rev(deviation_labels), diverging_palette)
-)
-save_png(diverging_chart_baseline, "cdc-places-diabetes-diverging-chart-baseline.png")
-save_png(
-  diverging_map_redesign,
-  "cdc-places-diabetes-diverging-map-redesign.png",
-  legend = map_legend_grob(
-    "Difference",
-    rev(deviation_labels),
-    diverging_redesign_palette,
-    stipple_labels = rev(deviation_labels)[grepl("above", rev(deviation_labels))]
-  )
-)
-save_png(diverging_chart_redesign, "cdc-places-diabetes-diverging-chart-redesign.png")
-save_png(
-  make_categorical_map(FALSE, FALSE, FALSE),
-  "cdc-svi-theme-map-baseline.png",
-  legend = map_legend_grob("Highest SVI theme", rev(svi_theme_labels), svi_fragile_palette)
-)
-save_png(make_categorical_chart(FALSE, FALSE, FALSE), "cdc-svi-theme-chart-baseline.png")
-save_png(
-  make_categorical_map(TRUE, TRUE, TRUE),
-  "cdc-svi-theme-map-redesign.png",
-  legend = map_legend_grob(
-    "Highest SVI theme",
-    rev(svi_theme_labels),
-    svi_robust_palette,
-    symbol_shapes = svi_shapes,
-    symbol_fills = svi_symbol_fills,
-    symbol_outlines = svi_symbol_outlines,
-    symbol_sizes = svi_legend_symbol_sizes,
-    symbol_counts = svi_legend_symbol_counts
-  )
-)
-save_png(make_categorical_chart(TRUE, TRUE, TRUE), "cdc-svi-theme-chart-redesign.png")
-
-save_intervention_assets()
+save_layer_assets()
 
 readr::write_csv(
   places |> arrange(desc(diabetes)),
@@ -1339,36 +1841,39 @@ writeLines(
     "Note: Loving County is drawn with the neutral missing-data fill because the CDC",
     "PLACES API did not return a 2025 county estimate for it.",
     "",
-    "Candidate assets:",
+    "Layered figure assets:",
     "",
-    "- `cdc-places-diabetes-map-baseline.png`",
-    "- `cdc-places-diabetes-chart-baseline.png`",
-    "- `cdc-places-diabetes-map-redesign.png`",
-    "- `cdc-places-diabetes-chart-redesign.png`",
-    "- `cdc-places-diabetes-diverging-map-baseline.png`",
-    "- `cdc-places-diabetes-diverging-chart-baseline.png`",
-    "- `cdc-places-diabetes-diverging-map-redesign.png`",
-    "- `cdc-places-diabetes-diverging-chart-redesign.png`",
-    "- `cdc-svi-theme-map-baseline.png`",
-    "- `cdc-svi-theme-chart-baseline.png`",
-    "- `cdc-svi-theme-map-redesign.png`",
-    "- `cdc-svi-theme-chart-redesign.png`",
+    "The app composes each map or chart from aligned PNG layers instead of",
+    "loading a pre-rendered image for every intervention combination.",
+    "",
+    "Each example prefix has map and chart layers:",
+    "",
+    "- `*-map-layer-color-p0.png`: original color fills",
+    "- `*-map-layer-color-p1.png`: alternate palette or luminance color fills",
+    "- `*-map-layer-structure.png`: titles, axes, boundaries, legend text, and other persistent structure",
+    "- `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries",
+    "- `*-map-layer-labels.png`: direct labels and annotations",
+    "- `*-chart-layer-color-p0.png`: original chart color fills",
+    "- `*-chart-layer-color-p1.png`: alternate chart color fills",
+    "- `*-chart-layer-structure.png`: axes, grid, titles, and persistent chart text",
+    "- `*-chart-layer-cue.png`: chart outlines, hatches, or marker cues",
+    "- `*-chart-layer-labels.png`: chart labels and annotations",
+    "",
+    "Current example prefixes:",
+    "",
+    "- `cdc-places-diabetes`",
+    "- `cdc-places-diabetes-diverging`",
+    "- `cdc-svi-theme`",
     "",
     "The categorical example maps the SVI theme with the highest county percentile",
     "ranking. The four categories are socioeconomic status, household characteristics,",
     "racial/ethnic minority status, and housing/transportation. The theme colors encode",
     "nominal identity, not rank.",
     "",
-    "Intervention-combination assets use the suffix pattern",
-    "`p{0|1}-r{0|1}-l{0|1}`:",
-    "",
-    "- `p`: palette or luminance intervention",
-    "- `r`: redundant cue intervention",
-    "- `l`: labels, annotations, or optional callouts intervention",
-    "",
-    "For example, `cdc-places-diabetes-diverging-map-p1-r0-l1.png`",
-    "uses the diverging palette and labels, but not the above-average pattern.",
-    "There are eight combinations for each example, each exported as map and chart PNGs.",
+    "Layer order in the app is color fill first, then structure, then optional",
+    "redundant cue and label overlays. This keeps non-color cues above the color",
+    "fill layer and makes future interventions easier to add without multiplying",
+    "exported image combinations.",
     "",
     "- `cdc-places-diabetes-texas-counties.csv`",
     "- `cdc-svi-texas-counties-2022.csv`"

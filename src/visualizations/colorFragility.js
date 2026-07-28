@@ -1,7 +1,6 @@
 import {
   INTERVENTION_KEYS,
   allInterventionsActive,
-  interventionAssetSuffix,
   normalizeInterventions,
 } from "../config/interventions.js";
 import {
@@ -114,16 +113,19 @@ const contrastLayers = [
 const categoryById = Object.fromEntries(landCoverCategories.map((category) => [category.id, category]));
 
 function publicHealthAssetEntries(example) {
-  const directAssets = Object.entries(example.assets)
-    .filter(([, url]) => typeof url === "string")
-    .map(([slot, url]) => [publicHealthAssetKey(example.id, slot), url]);
-
-  const combinationAssets = Object.entries(example.assets.combinations ?? {}).flatMap(([suffix, pair]) => [
-    [publicHealthAssetKey(example.id, `map-${suffix}`), pair.map],
-    [publicHealthAssetKey(example.id, `chart-${suffix}`), pair.chart],
+  return flattenPublicHealthAssets(example.assets).map(([slot, url]) => [
+    publicHealthAssetKey(example.id, slot),
+    url,
   ]);
+}
 
-  return [...directAssets, ...combinationAssets];
+function flattenPublicHealthAssets(value, path = []) {
+  if (typeof value === "string") return [[path.join("."), value]];
+  if (!value || typeof value !== "object") return [];
+
+  return Object.entries(value).flatMap(([key, nestedValue]) => (
+    flattenPublicHealthAssets(nestedValue, [...path, key])
+  ));
 }
 
 function recommendedVisible(state) {
@@ -299,18 +301,39 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
 
 function drawPublicHealthAsset(ctx, canvas, kind, state) {
   const example = visualizationExampleByIndex(state.exampleIndex);
-  const suffix = interventionAssetSuffix(state.workbench.interventions);
-  const slot = `${kind}-${suffix}`;
-  const assetKey = publicHealthAssetKey(example.id, slot);
-  const image = publicHealthImages.get(assetKey);
+  const layers = publicHealthLayerStack(example, kind, state);
+  const images = layers.map((layer) => ({
+    ...layer,
+    key: publicHealthAssetKey(example.id, layer.slot),
+  }));
 
-  if (!image) {
+  if (images.some((layer) => !publicHealthImages.has(layer.key))) {
     drawLoadingAssetPanel(ctx, canvas, kind, state);
     return;
   }
 
-  const source = simulatedAssetSource(assetKey, image, state);
-  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  images.forEach((layer) => {
+    const image = publicHealthImages.get(layer.key);
+    const source = simulatedAssetSource(layer.key, image, state);
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  });
+}
+
+function publicHealthLayerStack(example, kind, state) {
+  const figure = example.assets?.[kind];
+  if (!figure) return [];
+
+  const interventions = normalizeInterventions(state.workbench?.interventions);
+  const colorLayer = interventions.palette ? "palette" : "original";
+  const layers = [
+    { slot: `${kind}.color.${colorLayer}` },
+    { slot: `${kind}.structure` },
+  ];
+
+  if (interventions.redundantCue) layers.push({ slot: `${kind}.redundantCue` });
+  if (interventions.labels) layers.push({ slot: `${kind}.labels` });
+
+  return layers;
 }
 
 function colorInterventionExplanation(example, interventions) {

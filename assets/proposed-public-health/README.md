@@ -13,36 +13,39 @@ Boundary source: U.S. Census Bureau cartographic county boundaries via the `tigr
 Note: Loving County is drawn with the neutral missing-data fill because the CDC
 PLACES API did not return a 2025 county estimate for it.
 
-Candidate assets:
+Layered figure assets:
 
-- `cdc-places-diabetes-map-baseline.png`
-- `cdc-places-diabetes-chart-baseline.png`
-- `cdc-places-diabetes-map-redesign.png`
-- `cdc-places-diabetes-chart-redesign.png`
-- `cdc-places-diabetes-diverging-map-baseline.png`
-- `cdc-places-diabetes-diverging-chart-baseline.png`
-- `cdc-places-diabetes-diverging-map-redesign.png`
-- `cdc-places-diabetes-diverging-chart-redesign.png`
-- `cdc-svi-theme-map-baseline.png`
-- `cdc-svi-theme-chart-baseline.png`
-- `cdc-svi-theme-map-redesign.png`
-- `cdc-svi-theme-chart-redesign.png`
+The app composes each map or chart from aligned PNG layers instead of
+loading a pre-rendered image for every intervention combination.
+
+Each example prefix has map and chart layers:
+
+- `*-map-layer-color-p0.png`: original color fills
+- `*-map-layer-color-p1.png`: alternate palette or luminance color fills
+- `*-map-layer-structure.png`: titles, axes, boundaries, legend text, and other persistent structure
+- `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries
+- `*-map-layer-labels.png`: direct labels and annotations
+- `*-chart-layer-color-p0.png`: original chart color fills
+- `*-chart-layer-color-p1.png`: alternate chart color fills
+- `*-chart-layer-structure.png`: axes, grid, titles, and persistent chart text
+- `*-chart-layer-cue.png`: chart outlines, hatches, or marker cues
+- `*-chart-layer-labels.png`: chart labels and annotations
+
+Current example prefixes:
+
+- `cdc-places-diabetes`
+- `cdc-places-diabetes-diverging`
+- `cdc-svi-theme`
 
 The categorical example maps the SVI theme with the highest county percentile
 ranking. The four categories are socioeconomic status, household characteristics,
 racial/ethnic minority status, and housing/transportation. The theme colors encode
 nominal identity, not rank.
 
-Intervention-combination assets use the suffix pattern
-`p{0|1}-r{0|1}-l{0|1}`:
-
-- `p`: palette or luminance intervention
-- `r`: redundant cue intervention
-- `l`: labels, annotations, or optional callouts intervention
-
-For example, `cdc-places-diabetes-diverging-map-p1-r0-l1.png`
-uses the diverging palette and labels, but not the above-average pattern.
-There are eight combinations for each example, each exported as map and chart PNGs.
+Layer order in the app is color fill first, then structure, then optional
+redundant cue and label overlays. This keeps non-color cues above the color
+fill layer and makes future interventions easier to add without multiplying
+exported image combinations.
 
 - `cdc-places-diabetes-texas-counties.csv`
 - `cdc-svi-texas-counties-2022.csv`

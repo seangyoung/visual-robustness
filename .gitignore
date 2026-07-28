@@ -29,6 +29,7 @@ Thumbs.db
 *.webp
 *.mov
 *.mp4
+!assets/proposed-public-health/*-layer-*.png
 
 # Personal local notes
 DEVELOPMENT_CHEAT_SHEET.md

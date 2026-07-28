@@ -10,7 +10,7 @@ scaffolds for orientation, contrast/hierarchy, ranking, and reflection are parke
 in `src/config/futureScenes.js` so they can be restored later without staying live
 on the prototype site.
 
-The live Color Dependence scene uses generated CDC PLACES diabetes prevalence
+The live Color Dependence scene uses generated, layered CDC public-health
 map/chart assets from `assets/proposed-public-health/`. The reproducible R
 generator is `scripts/generate_cdc_places_diabetes_assets.R`.
 
@@ -31,12 +31,17 @@ Legacy or archived scene links fall back to the standalone Color Dependence scen
 
 For visual QA, the workbench can also be initialized from the URL:
 
-- `?scene=color-dependence&stress=deuteranopia&reveal=1`
+- `?scene=color-dependence&stress=deuteranopia&interventions=palette,redundantCue,labels`
 
 The `stress` parameter accepts a stress-test id such as `typical`,
 `deuteranomaly`, `protanomaly`, `deuteranopia`, `protanopia`, `tritanopia`, or
 `achromatopsia`. Older `robustness=0..100` links are mapped to the nearest
 discrete stress state for compatibility.
+
+The visualization assets are composited at runtime from aligned PNG layers:
+color fills, persistent structure, optional redundant cues, and optional labels.
+This avoids generating a separate finished PNG for every intervention
+combination.
 
 ## Deploy To GitHub Pages
 
@@ -75,13 +80,13 @@ Device smoke test:
 ## Implemented Interaction Model
 
 - Shared Visualization Workbench state for browser and WebXR modes.
-- Browser controls for Stress Test and reveal redesign.
-- WebXR controller-selectable reveal control.
+- Browser controls for Stress Test and individual design interventions.
+- WebXR controller-selectable intervention controls.
 - WebXR grab-style control for the stepped Stress Test slider.
+- WebXR snap-turn rotation for seated or standing headset users.
 - Inspection uses native interaction: mouse/trackpad and touch in browser, headset
   movement and controller-mediated pointing in VR.
-- No artificial locomotion; the gallery is stationary with subtle optional motion.
-- Accessibility settings for high contrast and reduced motion.
+- No artificial locomotion; the gallery is stationary.
 
 ## Assessment Model
 
@@ -131,13 +136,13 @@ Data statement:
 ## Prototype Test Checklist
 
 - Desktop browser loads and keyboard navigation works.
-- Scene 1 can be completed: baseline map, Stress Test, and redesign reveal.
+- Scene 1 can be completed: baseline map, Stress Test, and design interventions.
 - Stress Test slider steps through named color-vision simulations in Scene 1.
-- Reveal redesign adds labels, patterns, ordered value, and stronger figure-ground separation.
+- Intervention controls add palette/luminance changes, labels, patterns, markers,
+  or stronger figure-ground separation as appropriate for the example.
 - Non-color scenes are archived in `src/config/futureScenes.js` and are not live.
 - WebXR entry is available on a Quest-compatible browser over HTTPS.
 - In-world controls respond to controller selection.
-- High contrast and reduced motion settings update the experience.
 - Screen-reader text equivalent describes the current learning state outside XR.
 
 ## Collaborating
