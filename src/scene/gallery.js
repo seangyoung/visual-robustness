@@ -62,14 +62,15 @@ const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
 const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
 const EXAMPLE_BUTTON_Z_OFFSET = 0.05;
 const PANEL_BUTTON_Z_OFFSET = 0.06;
+const INTRO_BUTTON_Y = LAYOUT.panelY - PANEL_H / 2 + 0.12;
 const BUTTONS = [
   {
     id: "start-module",
     action: "startModule",
     label: introCopy.startLabel.replace(" ", "\n"),
     x: 0,
-    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.08,
-    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
+    y: INTRO_BUTTON_Y,
+    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
     width: 0.72,
     height: 0.22,
     rotationX: 0,
@@ -308,7 +309,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       isImmersive,
       state,
     );
-    panels.map.visible = !(isImmersive && sceneState.type === "comparison");
+    applyPanelLayout(panels, sceneState, state, isImmersive);
     updatePanel(panels.map, "map", sceneState, state);
     updatePanel(panels.task, "task", sceneState, state);
     updatePanel(panels.chart, "chart", sceneState, state);
@@ -351,7 +352,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         robustnessSlider.group.visible = false;
         rankingSet.group.visible = false;
         workbenchControlDeck.visible = false;
-        panels.map.visible = true;
+        applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, false);
         ui.setVrMode(false);
         renderState(currentState);
       });
@@ -552,9 +553,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     if (!currentSession) controls.update();
     else updateSnapTurn();
     if (dragState) updateDragState(dragState);
-    panels.map.position.y = LAYOUT.panelY;
-    panels.chart.position.y = LAYOUT.panelY;
-    panels.task.position.y = TASK_PANEL_CENTER_Y;
+    applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession));
     if (exampleButton?.mesh.visible) {
       exampleButton.mesh.position.y = panels.task.position.y + EXAMPLE_BUTTON_Y_OFFSET;
       exampleButton.mesh.position.z = panels.task.position.z + EXAMPLE_BUTTON_Z_OFFSET;
@@ -694,6 +693,30 @@ function createPanels(scene) {
   const chart = panelMesh("chart", [SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.15, 0], PANEL_W, PANEL_H);
   [map, task, chart].forEach((panel) => group.add(panel));
   return { group, map, task, chart };
+}
+
+function applyPanelLayout(panels, sceneState, state, isImmersive) {
+  const phase = state?.modulePhase ?? MODULE_PHASES.INTRO;
+  const introLayout = isImmersive && phase === MODULE_PHASES.INTRO;
+
+  if (introLayout) {
+    panels.map.visible = true;
+    panels.map.position.set(0, LAYOUT.panelY, LAYOUT.panelZ);
+    panels.map.rotation.set(0, 0, 0);
+    panels.task.visible = false;
+    panels.chart.visible = false;
+    return;
+  }
+
+  panels.map.visible = !(isImmersive && sceneState.type === "comparison");
+  panels.map.position.set(-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ);
+  panels.map.rotation.set(0, 0.15, 0);
+  panels.task.visible = true;
+  panels.task.position.set(0, TASK_PANEL_CENTER_Y, LAYOUT.taskZ);
+  panels.task.rotation.set(0, 0, 0);
+  panels.chart.visible = true;
+  panels.chart.position.set(SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ);
+  panels.chart.rotation.set(0, -0.15, 0);
 }
 
 function createWorkbenchControlDeck(scene) {

@@ -210,13 +210,12 @@ function renderBrowserWorkbench(elements, scene, state) {
   figures.classList.remove("is-single", "is-intro");
 
   if (phase === MODULE_PHASES.INTRO) {
-    chartFigure.hidden = false;
-    figures.classList.add("is-intro");
+    chartFigure.hidden = true;
+    figures.classList.add("is-single", "is-intro");
     elements.browserTaskKicker.textContent = introCopy.kicker;
     elements.browserTaskTitle.textContent = introCopy.title;
     elements.browserTaskLead.textContent = introCopy.goal;
-    renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
-    renderBrowserCanvas(elements.browserChartCanvas, "chart", scene, state);
+    renderBrowserCanvas(elements.browserMapCanvas, "intro", scene, state);
     return;
   }
 

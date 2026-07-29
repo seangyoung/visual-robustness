@@ -45,14 +45,13 @@ export const introCopy = {
     "The goal is to see when color is carrying too much interpretive weight, then test design choices that make the same information easier to recover.",
   mechanics: [
     "Use the Stress Test slider to simulate common forms of altered color perception.",
-    "Try Design Choices such as palettes, patterns, annotations, and labels.",
-    "Submit your design with a confidence judgment to receive qualitative feedback.",
+    "Experiment with various Design Choices to see how they impact the visualizations under different stress tests.",
   ],
   flow: [
-    "Review three map and chart examples.",
-    "Revise each design choice set.",
-    "Answer one new transfer challenge.",
-    "Finish with compact design takeaways.",
+    "Review each map and chart example.",
+    "Select the strongest set of design choices to make the visualizations more accessible.",
+    "Submit your design with a confidence judgment to receive qualitative feedback.",
+    "After completing the examples, test your skills.",
   ],
   startLabel: "Start Module",
 };

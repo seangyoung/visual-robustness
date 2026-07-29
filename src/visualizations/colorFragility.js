@@ -145,10 +145,11 @@ function recommendedVisible(state) {
 
 export function createPanelTexture(kind, scene, state) {
   const canvas = document.createElement("canvas");
-  canvas.width = 1400;
-  canvas.height = 980;
-  const ctx = canvas.getContext("2d");
   const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
+  const wideIntro = phase === MODULE_PHASES.INTRO && kind === "intro";
+  canvas.width = wideIntro ? 1800 : 1400;
+  canvas.height = wideIntro ? 720 : 980;
+  const ctx = canvas.getContext("2d");
 
   if (phase === MODULE_PHASES.INTRO) {
     drawIntroPanel(ctx, canvas, kind, state);
@@ -291,61 +292,137 @@ function drawIntroPanel(ctx, canvas, kind, state) {
   }
 
   if (kind === "map") {
-    panelBase(ctx, canvas, "Mechanics", "How to use the workbench", state);
-    drawIntroList(ctx, introCopy.mechanics, 120, 236, canvas.width - 240, {
-      marker: "control",
-      gap: 152,
-    });
+    drawIntroOverviewPanel(ctx, canvas, state);
     return;
   }
 
-  panelBase(ctx, canvas, "Flow", "What happens in this module", state);
-  drawIntroList(ctx, introCopy.flow, 120, 222, canvas.width - 240, {
+  drawIntroOverviewPanel(ctx, canvas, state);
+}
+
+function drawIntroOverviewPanel(ctx, canvas, state) {
+  const wide = canvas.width / canvas.height > 2;
+  panelBase(ctx, canvas, "Before you begin", "Goal, mechanics, and flow", state);
+
+  ctx.fillStyle = "#151d20";
+  ctx.font = wide ? "800 31px Arial" : "800 28px Arial";
+  wrapText(ctx, introCopy.lead, 92, wide ? 174 : 190, canvas.width - 184, wide ? 40 : 38);
+
+  const columnGap = 48;
+  const columnWidth = (canvas.width - 184 - columnGap) / 2;
+  drawIntroSection(ctx, {
+    title: "Mechanics",
+    items: introCopy.mechanics,
+    x: 92,
+    y: wide ? 258 : 294,
+    width: columnWidth,
+    marker: "control",
+    itemHeight: wide ? 108 : 132,
+    gap: wide ? 14 : 20,
+    itemFontSize: wide ? 27 : 25,
+    lineHeight: wide ? 33 : 32,
+    textTop: wide ? 36 : 42,
+  });
+  drawIntroSection(ctx, {
+    title: "Flow",
+    items: introCopy.flow,
+    x: 92 + columnWidth + columnGap,
+    y: wide ? 258 : 294,
+    width: columnWidth,
     marker: "number",
-    gap: 132,
+    itemHeight: wide ? 86 : 112,
+    gap: wide ? 10 : 16,
+    itemFontSize: wide ? 23 : 25,
+    lineHeight: wide ? 27 : 32,
+    textTop: wide ? 28 : 42,
   });
 }
 
-function drawIntroList(ctx, items, x, y, width, options = {}) {
-  const gap = options.gap ?? 130;
+function drawIntroSection(ctx, {
+  title,
+  items,
+  x,
+  y,
+  width,
+  marker,
+  itemHeight,
+  gap,
+  itemFontSize,
+  lineHeight,
+  textTop,
+}) {
+  ctx.fillStyle = "#151d20";
+  ctx.font = "900 38px Arial";
+  ctx.fillText(title, x, y);
+
   items.forEach((item, index) => {
-    const itemY = y + index * gap;
-    const markerX = x + 34;
-    const markerY = itemY + 30;
-
-    ctx.fillStyle = "#eef2ee";
-    roundRect(ctx, x, itemY - 28, width, 96, 16);
-    ctx.fill();
-    ctx.strokeStyle = "#cfd6cf";
-    ctx.lineWidth = 3;
-    roundRect(ctx, x, itemY - 28, width, 96, 16);
-    ctx.stroke();
-
-    ctx.fillStyle = "#2d837b";
-    if (options.marker === "number") {
-      ctx.beginPath();
-      ctx.arc(markerX, markerY - 3, 30, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#f8f6ee";
-      ctx.font = "900 28px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(String(index + 1), markerX, markerY + 7);
-      ctx.textAlign = "start";
-    } else {
-      ctx.lineWidth = 8;
-      ctx.strokeStyle = "#2d837b";
-      roundRect(ctx, markerX - 28, markerY - 32, 56, 56, 10);
-      ctx.stroke();
-      ctx.fillStyle = "#2d837b";
-      ctx.beginPath();
-      ctx.arc(markerX + 14, markerY - 4, 8, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.fillStyle = "#151d20";
-    ctx.font = "800 32px Arial";
-    wrapText(ctx, item, x + 94, itemY + 27, width - 132, 40);
+    const itemY = y + 56 + index * (itemHeight + gap);
+    const markerLabel = marker === "number" ? String(index + 1) : "";
+    drawIntroListItem(ctx, {
+      text: item,
+      x,
+      y: itemY,
+      width,
+      height: itemHeight,
+      marker,
+      markerLabel,
+      itemFontSize,
+      lineHeight,
+      textTop,
+    });
   });
+}
+
+function drawIntroListItem(ctx, {
+  text,
+  x,
+  y,
+  width,
+  height,
+  marker,
+  markerLabel,
+  itemFontSize,
+  lineHeight,
+  textTop,
+}) {
+  const markerX = x + 34;
+  const markerY = y + height / 2;
+
+  ctx.fillStyle = "#eef2ee";
+  roundRect(ctx, x, y, width, height, 16);
+  ctx.fill();
+  ctx.strokeStyle = "#cfd6cf";
+  ctx.lineWidth = 3;
+  roundRect(ctx, x, y, width, height, 16);
+  ctx.stroke();
+
+  ctx.fillStyle = "#2d837b";
+  if (marker === "number") {
+    ctx.beginPath();
+    ctx.arc(markerX, markerY, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f8f6ee";
+    ctx.font = "900 28px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(markerLabel, markerX, markerY + 9);
+    ctx.textAlign = "start";
+  } else {
+    drawIntroControlIcon(ctx, markerX, markerY);
+  }
+
+  ctx.fillStyle = "#151d20";
+  ctx.font = `800 ${itemFontSize}px Arial`;
+  wrapText(ctx, text, x + 88, y + textTop, width - 118, lineHeight);
+}
+
+function drawIntroControlIcon(ctx, x, y) {
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = "#2d837b";
+  roundRect(ctx, x - 28, y - 28, 56, 56, 10);
+  ctx.stroke();
+  ctx.fillStyle = "#2d837b";
+  ctx.beginPath();
+  ctx.arc(x + 14, y, 8, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawOrientationPanel(ctx, canvas, kind, scene, state) {
