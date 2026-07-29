@@ -351,6 +351,11 @@ difference_labels <- bind_rows(
     )
   )
 
+all_difference_labels <- tx_map |>
+  filter(!is.na(diabetes_diff), !is.na(countyname)) |>
+  st_point_on_surface() |>
+  mutate(label = countyname)
+
 make_svi_symbol_points <- function(map_data, labels) {
   bind_rows(lapply(labels, function(label) {
     group_count <- unname(svi_points_per_county[[label]])
@@ -450,6 +455,9 @@ names(diverging_palette) <- deviation_labels
 diverging_redesign_palette <- c("#17375e", "#6f86a3", "#d6d9d2", "#eadf9f", "#a2833e", "#553d13")
 names(diverging_redesign_palette) <- deviation_labels
 
+diverging_palette_alt <- c("#5e79b8", "#92a4ce", "#d0d6e8", "#e4d6e8", "#c79bc9", "#9259a5")
+names(diverging_palette_alt) <- deviation_labels
+
 svi_fragile_palette <- c("#69b887", "#c9ad4c", "#73aaa8", "#d58b63")
 names(svi_fragile_palette) <- svi_theme_labels
 
@@ -529,7 +537,10 @@ map_legend_grob <- function(
   draw_swatch_fills = TRUE,
   draw_swatch_borders = TRUE,
   draw_text = TRUE,
-  draw_cues = TRUE
+  draw_cues = TRUE,
+  draw_divider = FALSE,
+  divider_after = NULL,
+  divider_label = NULL
 ) {
   legend_scale <- 1.6
   x <- unit(0.055, "npc")
@@ -654,6 +665,32 @@ map_legend_grob <- function(
           y = row_y,
           just = c("left", "center"),
           gp = gpar(col = "#283235", fontsize = 8 * legend_scale, fontfamily = "Arial")
+        )
+      ))
+    }
+  }
+
+  if (isTRUE(draw_divider) && !is.null(divider_after)) {
+    divider_y <- y - padding_top - title_height - row_height * divider_after
+    divider_x0 <- x + padding_x
+    divider_x1 <- x + width - padding_x
+    grobs <- append(grobs, list(
+      segmentsGrob(
+        x0 = divider_x0,
+        x1 = divider_x1,
+        y0 = divider_y,
+        y1 = divider_y,
+        gp = gpar(col = "#151d20", lwd = 3.2, lineend = "round")
+      )
+    ))
+    if (!is.null(divider_label)) {
+      grobs <- append(grobs, list(
+        textGrob(
+          divider_label,
+          x = divider_x1,
+          y = divider_y + unit(0.003 * legend_scale, "npc"),
+          just = c("right", "bottom"),
+          gp = gpar(col = "#151d20", fontsize = 6.6 * legend_scale, fontface = "bold", fontfamily = "Arial")
         )
       ))
     }
@@ -973,6 +1010,21 @@ map_layer_legend_cues <- function(title, labels, palette, ...) {
   )
 }
 
+map_layer_legend_divider <- function(title, labels, palette) {
+  map_legend_grob(
+    title,
+    labels,
+    palette,
+    draw_swatch_fills = FALSE,
+    draw_swatch_borders = FALSE,
+    draw_text = FALSE,
+    draw_cues = FALSE,
+    draw_divider = TRUE,
+    divider_after = 3,
+    divider_label = "Texas avg."
+  )
+}
+
 prevalence_chart_scale <- function() {
   scale_x_continuous(
     limits = c(0, max(class_summary$county_count) * 1.32),
@@ -1084,7 +1136,13 @@ make_prevalence_chart_label_layer <- function() {
 }
 
 make_diverging_chart_color_layer <- function(palette = FALSE) {
-  fill_palette <- if (palette) diverging_redesign_palette else diverging_palette
+  fill_palette <- if (identical(palette, "alt") || identical(palette, "paletteAlt")) {
+    diverging_palette_alt
+  } else if (isTRUE(palette)) {
+    diverging_redesign_palette
+  } else {
+    diverging_palette
+  }
 
   ggplot(difference_summary) +
     geom_rect(
@@ -1166,6 +1224,34 @@ make_diverging_chart_label_layer <- function() {
       family = "Arial",
       fontface = "bold",
       size = 3.2
+    ) +
+    diverging_chart_x_scale() +
+    diverging_chart_y_scale() +
+    labs(
+      title = "County Count Above and Below Texas Average",
+      subtitle = "Same diverging classes and colors as the map",
+      x = "Number of counties",
+      y = "Difference from Texas average",
+      caption = source_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_diverging_chart_annotation_layer <- function() {
+  ggplot(difference_summary) +
+    geom_vline(xintercept = 0, color = "#151d20", linewidth = 1.05) +
+    annotate(
+      "label",
+      x = 0,
+      y = length(deviation_labels) + 0.34,
+      label = "Texas average",
+      family = "Arial",
+      fontface = "bold",
+      size = 3.1,
+      label.padding = unit(0.14, "lines"),
+      linewidth = 0.28,
+      fill = "#f8f6ee",
+      color = "#151d20"
     ) +
     diverging_chart_x_scale() +
     diverging_chart_y_scale() +
@@ -1325,6 +1411,35 @@ make_diverging_map_label_layer <- function() {
     map_theme(background = NA, text = FALSE)
 }
 
+make_diverging_map_all_label_layer <- function() {
+  add_map_extent_anchor(ggplot(tx_map)) +
+    geom_sf_text(
+      data = all_difference_labels,
+      aes(label = label),
+      family = "Arial",
+      size = 1.35,
+      fontface = "bold",
+      color = "#151d20",
+      check_overlap = FALSE
+    ) +
+    labs(
+      title = "Diagnosed Diabetes Relative to Texas Average",
+      subtitle = average_caption,
+      caption = source_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+}
+
+make_diverging_map_annotation_layer <- function() {
+  add_map_extent_anchor(ggplot(tx_map)) +
+    labs(
+      title = "Diagnosed Diabetes Relative to Texas Average",
+      subtitle = average_caption,
+      caption = source_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+}
+
 make_svi_map_cue_layer <- function() {
   plot <- add_map_extent_anchor(ggplot(tx_map)) +
     labs(
@@ -1411,6 +1526,11 @@ save_layer_assets <- function() {
     legend = map_layer_legend_colors("Difference", reversed_deviation_labels, diverging_redesign_palette)
   )
   save_png(
+    map_color_layer("diabetes_difference_class", diverging_palette_alt, "Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
+    "cdc-places-diabetes-diverging-map-layer-color-p2.png",
+    legend = map_layer_legend_colors("Difference", reversed_deviation_labels, diverging_palette_alt)
+  )
+  save_png(
     map_structure_layer("Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
     "cdc-places-diabetes-diverging-map-layer-structure.png",
     legend = map_layer_legend_structure("Difference", reversed_deviation_labels, diverging_palette),
@@ -1423,11 +1543,20 @@ save_layer_assets <- function() {
     background = transparent
   )
   save_png(make_diverging_map_label_layer(), "cdc-places-diabetes-diverging-map-layer-labels.png", background = transparent)
+  save_png(make_diverging_map_all_label_layer(), "cdc-places-diabetes-diverging-map-layer-all-labels.png", background = transparent)
+  save_png(
+    make_diverging_map_annotation_layer(),
+    "cdc-places-diabetes-diverging-map-layer-annotation.png",
+    legend = map_layer_legend_divider("Difference", reversed_deviation_labels, diverging_palette),
+    background = transparent
+  )
   save_png(make_diverging_chart_color_layer(FALSE), "cdc-places-diabetes-diverging-chart-layer-color-p0.png")
   save_png(make_diverging_chart_color_layer(TRUE), "cdc-places-diabetes-diverging-chart-layer-color-p1.png")
+  save_png(make_diverging_chart_color_layer("alt"), "cdc-places-diabetes-diverging-chart-layer-color-p2.png")
   save_png(make_diverging_chart_structure_layer(), "cdc-places-diabetes-diverging-chart-layer-structure.png", background = transparent)
   save_png(make_diverging_chart_cue_layer(), "cdc-places-diabetes-diverging-chart-layer-cue.png", background = transparent)
   save_png(make_diverging_chart_label_layer(), "cdc-places-diabetes-diverging-chart-layer-labels.png", background = transparent)
+  save_png(make_diverging_chart_annotation_layer(), "cdc-places-diabetes-diverging-chart-layer-annotation.png", background = transparent)
 
   save_png(
     map_color_layer("svi_theme", svi_fragile_palette, "Highest-Ranked SVI Theme by County", "Texas counties, CDC/ATSDR SVI 2022", svi_caption),
@@ -1916,12 +2045,14 @@ writeLines(
     "- `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries",
     "- `*-map-layer-labels.png`: direct labels and annotations",
     "- `*-map-layer-all-labels.png`: optional high-density all-county label overlay",
+    "- `*-map-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay",
     "- `*-chart-layer-color-p0.png`: original chart color fills",
     "- `*-chart-layer-color-p1.png`: alternate chart color fills",
     "- `*-chart-layer-color-p2.png`: optional second alternate chart palette color fills",
     "- `*-chart-layer-structure.png`: axes, grid, titles, and persistent chart text",
     "- `*-chart-layer-cue.png`: chart outlines, hatches, or marker cues",
     "- `*-chart-layer-labels.png`: chart labels and annotations",
+    "- `*-chart-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay",
     "",
     "Current example prefixes:",
     "",

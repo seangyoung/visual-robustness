@@ -1,4 +1,4 @@
-export const INTERVENTION_KEYS = ["palette", "paletteAlt", "redundantCue", "labels", "allLabels"];
+export const INTERVENTION_KEYS = ["palette", "paletteAlt", "redundantCue", "annotation", "labels", "allLabels"];
 
 const PARAM_ALIASES = {
   palette: "palette",
@@ -16,9 +16,12 @@ const PARAM_ALIASES = {
   redundantcue: "redundantCue",
   pattern: "redundantCue",
   boundaries: "redundantCue",
+  annotation: "annotation",
+  annotations: "annotation",
+  divider: "annotation",
+  threshold: "annotation",
   labels: "labels",
   selectedlabels: "labels",
-  annotations: "labels",
   alllabels: "allLabels",
   countylabels: "allLabels",
 };

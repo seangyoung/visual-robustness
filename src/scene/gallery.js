@@ -71,10 +71,11 @@ const BUTTONS = [
   { id: "palette", action: "setPaletteVariant", payload: { variant: "palette" }, label: "Palette\n2", x: 0.42, width: 0.3, deckY: CONTROL_ROWS.upper },
   { id: "palette-alt", action: "setPaletteVariant", payload: { variant: "paletteAlt" }, label: "Palette\n3", x: 0.76, width: 0.3, deckY: CONTROL_ROWS.upper },
   { id: "original", action: "clearInterventions", label: "Reset\nAll", x: 1.18, width: 0.34, deckY: CONTROL_ROWS.upper },
-  { id: "label-none", action: "setLabelMode", payload: { mode: "none" }, label: "No\nLabels", x: 0.08, width: 0.3, deckY: CONTROL_ROWS.lower },
-  { id: "labels", action: "setLabelMode", payload: { mode: "labels" }, label: "Selected\nLabels", x: 0.44, width: 0.34, deckY: CONTROL_ROWS.lower },
-  { id: "all-labels", action: "setLabelMode", payload: { mode: "allLabels" }, label: "All\nLabels", x: 0.82, width: 0.3, deckY: CONTROL_ROWS.lower },
-  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.18, width: 0.34, deckY: CONTROL_ROWS.lower },
+  { id: "label-none", action: "setLabelMode", payload: { mode: "none" }, label: "No\nLabels", x: 0.04, width: 0.28, deckY: CONTROL_ROWS.lower },
+  { id: "labels", action: "setLabelMode", payload: { mode: "labels" }, label: "Selected\nLabels", x: 0.36, width: 0.32, deckY: CONTROL_ROWS.lower },
+  { id: "all-labels", action: "setLabelMode", payload: { mode: "allLabels" }, label: "All\nLabels", x: 0.7, width: 0.28, deckY: CONTROL_ROWS.lower },
+  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.02, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "annotation", action: "toggleIntervention", payload: { key: "annotation" }, label: "Divider", x: 1.35, width: 0.3, deckY: CONTROL_ROWS.lower },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -805,6 +806,9 @@ function updateInWorldControlVisibility(
       button.action !== "setPaletteVariant" || paletteOptionIds.has(button.payload?.variant);
     const isSupportedLabelChoice =
       button.action !== "setLabelMode" || labelOptionIds.has(button.payload?.mode);
+    const isSupportedInterventionChoice =
+      !INTERVENTION_KEYS.includes(button.payload?.key) ||
+      Boolean(interventionMetadataForExample(example, button.payload.key));
     button.mesh.position.copy(controlPosition(button));
     button.mesh.visible =
       isImmersive &&
@@ -812,7 +816,8 @@ function updateInWorldControlVisibility(
       (!isExampleControl || (sceneState.type === "color" && visualizationExamples.length > 1)) &&
       (!isInterventionControl || supportsInterventions) &&
       isSupportedPaletteChoice &&
-      isSupportedLabelChoice;
+      isSupportedLabelChoice &&
+      isSupportedInterventionChoice;
   });
   setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
   robustnessSlider.group.visible = isImmersive && supportsSlider;

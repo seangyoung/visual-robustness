@@ -27,12 +27,14 @@ Each example prefix has map and chart layers:
 - `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries
 - `*-map-layer-labels.png`: direct labels and annotations
 - `*-map-layer-all-labels.png`: optional high-density all-county label overlay
+- `*-map-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay
 - `*-chart-layer-color-p0.png`: original chart color fills
 - `*-chart-layer-color-p1.png`: alternate chart color fills
 - `*-chart-layer-color-p2.png`: optional second alternate chart palette color fills
 - `*-chart-layer-structure.png`: axes, grid, titles, and persistent chart text
 - `*-chart-layer-cue.png`: chart outlines, hatches, or marker cues
 - `*-chart-layer-labels.png`: chart labels and annotations
+- `*-chart-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay
 
 Current example prefixes:
 

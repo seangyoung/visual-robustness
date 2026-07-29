@@ -192,13 +192,15 @@ function renderInterventionControls(elements, example, interventions, enabled, o
       enabled,
       onSelect: (variant) => onAction("setPaletteVariant", { variant }),
     }),
-    createToggleButton({
-      key: "redundantCue",
-      example,
-      active: normalized.redundantCue,
-      enabled,
-      onAction,
-    }),
+    ...["redundantCue", "annotation"]
+      .filter((key) => interventionMetadataForExample(example, key))
+      .map((key) => createToggleButton({
+        key,
+        example,
+        active: normalized[key],
+        enabled,
+        onAction,
+      })),
     createChoiceGroup({
       label: "Labels",
       options: labelOptions,

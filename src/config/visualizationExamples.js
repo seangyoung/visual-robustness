@@ -44,6 +44,9 @@ function figureLayerAssets(prefix, kind, options = {}) {
   const allLabels = optionalPublicHealthAsset(`${prefix}-${kind}-layer-all-labels.png`);
   if (options.allLabels && allLabels) layers.allLabels = allLabels;
 
+  const annotation = optionalPublicHealthAsset(`${prefix}-${kind}-layer-annotation.png`);
+  if (options.annotation && annotation) layers.annotation = annotation;
+
   return layers;
 }
 
@@ -73,6 +76,7 @@ export const visualizationExamples = [
       palette: true,
       paletteAlt: false,
       redundantCue: false,
+      annotation: false,
       labels: true,
       allLabels: false,
     },
@@ -189,22 +193,87 @@ export const visualizationExamples = [
     predictionPrompt:
       "Predict which intervention will make the above/below-average direction easiest to recover under the selected stress test.",
     recommendedSummary:
-      "The recommended combination uses a more distinguishable diverging palette, redundant above-average patterning, and direct labels.",
+      "The recommended combination uses the more distinguishable palette, above-average patterning, a clear average divider, and selected direct labels. All-label mode is left off because it adds more density than useful information.",
     recommendedInterventions: {
       palette: true,
       paletteAlt: false,
       redundantCue: true,
+      annotation: true,
       labels: true,
       allLabels: false,
     },
+    paletteOptions: [
+      {
+        id: "original",
+        label: "Color Palette 1",
+        shortLabel: "Palette 1",
+        vrLabel: "Palette\n1",
+        description: "The initial blue-to-red diverging palette used by the original figure.",
+        effect: "Keeps the initial diverging color set.",
+      },
+      {
+        id: "palette",
+        label: "Color Palette 2",
+        shortLabel: "Palette 2",
+        vrLabel: "Palette\n2",
+        description:
+          "A blue-to-brown diverging palette applied to the same above- and below-average classes.",
+        effect: "Replaces the class colors with an alternate diverging color set.",
+      },
+      {
+        id: "paletteAlt",
+        label: "Color Palette 3",
+        shortLabel: "Palette 3",
+        vrLabel: "Palette\n3",
+        description:
+          "A muted blue-to-purple diverging palette applied to the same above- and below-average classes.",
+        effect: "Replaces the class colors with a second alternate diverging color set.",
+      },
+    ],
+    labelOptions: [
+      {
+        id: "none",
+        label: "No added labels",
+        shortLabel: "No labels",
+        vrLabel: "No\nLabels",
+        description: "No additional county labels are added to the map.",
+        effect: "Leaves interpretation dependent on the legend and county positions.",
+      },
+      {
+        id: "labels",
+        label: "Selected labels",
+        shortLabel: "Selected labels",
+        vrLabel: "Selected\nLabels",
+        description:
+          "Selected high and low county labels appear on the map, while chart labels show county counts and percentages.",
+        effect: "Supports lookup for selected values, while adding visual density.",
+      },
+      {
+        id: "allLabels",
+        label: "All labels",
+        shortLabel: "All labels",
+        vrLabel: "All\nLabels",
+        description:
+          "Every county is labeled on the map.",
+        effect: "Places every county name directly on the map.",
+      },
+    ],
     interventions: {
       palette: {
-        label: "Robust palette",
-        shortLabel: "Robust",
-        vrLabel: "Robust\nPalette",
+        label: "Color Palette 2",
+        shortLabel: "Palette 2",
+        vrLabel: "Palette\n2",
         description:
-          "The alternative ramp separates direction and distance from the midpoint with clearer light-dark structure.",
-        effect: "Directly reduces color dependence for the above/below-average distinction.",
+          "A blue-to-brown diverging palette applied to the same above- and below-average classes.",
+        effect: "Replaces the class colors with an alternate diverging color set.",
+      },
+      paletteAlt: {
+        label: "Color Palette 3",
+        shortLabel: "Palette 3",
+        vrLabel: "Palette\n3",
+        description:
+          "A muted blue-to-purple diverging palette applied to the same above- and below-average classes.",
+        effect: "Replaces the class colors with a second alternate diverging color set.",
       },
       redundantCue: {
         label: "Pattern above average",
@@ -214,16 +283,36 @@ export const visualizationExamples = [
           "Stippling and hash marks give above-average counties and bars a redundant cue that does not depend on hue.",
         effect: "Adds a second channel for direction from the midpoint.",
       },
+      annotation: {
+        label: "Average divider",
+        shortLabel: "Divider",
+        vrLabel: "Average\nDivider",
+        description:
+          "A visible reference line marks the Texas average on the chart and separates below-average from above-average classes in the legend.",
+        effect: "Makes the above/below threshold explicit without adding county-level detail.",
+      },
       labels: {
-        label: "Labels and annotations",
-        shortLabel: "Labels",
-        vrLabel: "Labels\nCounts",
+        label: "Selected labels",
+        shortLabel: "Selected labels",
+        vrLabel: "Selected\nLabels",
         description:
           "Selected high/low labels and chart counts reduce lookup burden and make the interpretation easier to verify.",
         effect: "Supports efficient lookup, but adds visual density.",
       },
+      allLabels: {
+        label: "All labels",
+        shortLabel: "All labels",
+        vrLabel: "All\nLabels",
+        description:
+          "Every county is labeled on the map.",
+        effect: "Places every county name directly on the map.",
+      },
     },
-    assets: layeredPublicHealthAssets("cdc-places-diabetes-diverging"),
+    assets: layeredPublicHealthAssets("cdc-places-diabetes-diverging", {
+      paletteAlt: true,
+      allLabels: true,
+      annotation: true,
+    }),
   },
   {
     id: "highest-svi-theme",
@@ -244,6 +333,7 @@ export const visualizationExamples = [
       palette: true,
       paletteAlt: false,
       redundantCue: true,
+      annotation: false,
       labels: true,
       allLabels: false,
     },

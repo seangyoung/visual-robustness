@@ -333,6 +333,7 @@ function publicHealthLayerStack(example, kind, state) {
   ];
 
   if (interventions.redundantCue) layers.push({ slot: `${kind}.redundantCue` });
+  if (interventions.annotation && figure.annotation) layers.push({ slot: `${kind}.annotation` });
   if (interventions.allLabels && figure.allLabels) {
     layers.push({ slot: `${kind}.allLabels` });
   } else if (interventions.labels) {
