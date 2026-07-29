@@ -17,6 +17,8 @@ Layered figure assets:
 
 The app composes each map or chart from aligned PNG layers instead of
 loading a pre-rendered image for every intervention combination.
+Transfer challenge maps use standalone `transfer-*.png` images generated
+from additional CDC PLACES public-health measures.
 
 Each example prefix has map and chart layers:
 
@@ -43,6 +45,7 @@ Current example prefixes:
 - `cdc-places-diabetes`
 - `cdc-places-diabetes-diverging`
 - `cdc-svi-theme`
+- `transfer-*`
 
 The categorical example maps the SVI theme with the highest county percentile
 ranking. The four categories are socioeconomic status, household characteristics,
@@ -55,4 +58,5 @@ fill layer and makes future interventions easier to add without multiplying
 exported image combinations.
 
 - `cdc-places-diabetes-texas-counties.csv`
+- `cdc-places-transfer-texas-counties.csv`
 - `cdc-svi-texas-counties-2022.csv`

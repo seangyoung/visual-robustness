@@ -30,8 +30,7 @@
             <div class="browser-task-header">
               <div class="browser-task-kicker" id="browser-task-kicker">Scene 1 of 1</div>
               <div class="example-control" aria-label="Visualization example">
-                <span id="example-label">Example 1 of 3</span>
-                <button id="next-example" type="button">Switch example</button>
+                <div id="example-tabs" class="example-tabs" role="tablist" aria-label="Example type"></div>
               </div>
             </div>
             <h2 id="browser-task-title">Loading</h2>
@@ -75,12 +74,37 @@
           <input id="robustness-slider" type="range" min="0" max="6" step="1" value="0" />
           <div id="stress-test-ticks" class="stress-test-ticks" aria-hidden="true"></div>
 
-          <div class="intervention-lab" aria-label="Design intervention controls">
+          <div class="intervention-lab" aria-label="Design choice controls">
+            <span class="control-section-label">Design Choices</span>
             <div class="intervention-shortcuts">
               <button id="original-design" type="button">Reset all</button>
             </div>
             <div id="intervention-controls" class="intervention-controls"></div>
           </div>
+
+          <section id="submission-panel" class="submission-panel" aria-label="Submit design choices">
+            <div class="confidence-control">
+              <span class="control-section-label">Confidence</span>
+              <div id="confidence-controls" class="confidence-controls"></div>
+            </div>
+            <button id="submit-design" class="secondary-action" type="button">Submit Design</button>
+            <button id="continue-challenge" class="next-action" type="button" hidden>
+              Continue to Challenge
+            </button>
+            <p id="completion-status" class="completion-status"></p>
+          </section>
+        </section>
+
+        <section id="transfer-controls" class="transfer-controls" aria-label="Transfer challenge controls" hidden>
+          <div id="transfer-choices" class="transfer-choices"></div>
+          <button id="submit-transfer" class="secondary-action" type="button">Submit Answer</button>
+          <button id="continue-takeaways" class="next-action" type="button" hidden>
+            Continue
+          </button>
+        </section>
+
+        <section id="takeaway-controls" class="takeaway-controls" aria-label="Final module controls" hidden>
+          <button id="restart-module" class="next-action" type="button">Restart Module</button>
         </section>
 
         <section id="ranking-panel" class="ranking-panel" aria-label="Robust design ranking">

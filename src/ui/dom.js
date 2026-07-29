@@ -5,6 +5,12 @@ import {
   recommendedComparisonRanking,
 } from "../config/lesson.js";
 import {
+  MODULE_PHASES,
+  allExamplesSubmitted,
+  confidenceOptions,
+  finalTakeaways,
+} from "../config/moduleFlow.js";
+import {
   INTERVENTION_KEYS,
   cueVariantFromInterventions,
   hasActiveInterventions,
@@ -22,6 +28,10 @@ import {
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
+import {
+  transferChallengeById,
+  transferChoiceById,
+} from "../config/transferChallenges.js";
 import { createPanelTexture } from "../visualizations/colorFragility.js";
 
 export function createDomUi({
@@ -49,13 +59,23 @@ export function createDomUi({
     workbenchControls: document.getElementById("workbench-controls"),
     workbenchTitle: document.getElementById("workbench-title"),
     exampleControl: document.querySelector(".example-control"),
-    exampleLabel: document.getElementById("example-label"),
-    nextExample: document.getElementById("next-example"),
+    exampleTabs: document.getElementById("example-tabs"),
     robustnessSlider: document.getElementById("robustness-slider"),
     robustnessValue: document.getElementById("robustness-value"),
     stressTestTicks: document.getElementById("stress-test-ticks"),
     originalDesign: document.getElementById("original-design"),
     interventionControls: document.getElementById("intervention-controls"),
+    submissionPanel: document.getElementById("submission-panel"),
+    confidenceControls: document.getElementById("confidence-controls"),
+    submitDesign: document.getElementById("submit-design"),
+    continueChallenge: document.getElementById("continue-challenge"),
+    completionStatus: document.getElementById("completion-status"),
+    transferControls: document.getElementById("transfer-controls"),
+    transferChoices: document.getElementById("transfer-choices"),
+    submitTransfer: document.getElementById("submit-transfer"),
+    continueTakeaways: document.getElementById("continue-takeaways"),
+    takeawayControls: document.getElementById("takeaway-controls"),
+    restartModule: document.getElementById("restart-module"),
     rankingPanel: document.getElementById("ranking-panel"),
     rankingList: document.getElementById("ranking-list"),
     checkRanking: document.getElementById("check-ranking"),
@@ -66,11 +86,15 @@ export function createDomUi({
 
   elements.back.addEventListener("click", () => onAction("back"));
   elements.next.addEventListener("click", () => onAction("next"));
-  elements.nextExample.addEventListener("click", () => onAction("nextExample"));
   elements.robustnessSlider.addEventListener("input", (event) => {
     onWorkbenchChange({ stressTestIndex: Number(event.target.value) });
   });
   elements.originalDesign.addEventListener("click", () => onAction("clearInterventions"));
+  elements.submitDesign.addEventListener("click", () => onAction("submitDesign"));
+  elements.continueChallenge.addEventListener("click", () => onAction("continueToChallenge"));
+  elements.submitTransfer.addEventListener("click", () => onAction("submitTransferAnswer"));
+  elements.continueTakeaways.addEventListener("click", () => onAction("continueToTakeaways"));
+  elements.restartModule.addEventListener("click", () => onAction("restartModule"));
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
 
   window.addEventListener("keydown", (event) => {
@@ -87,20 +111,25 @@ export function createDomUi({
     elements,
     render(state) {
       const scene = moduleScenes[state.sceneIndex];
+      const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+      const isExamplePhase = phase === MODULE_PHASES.EXAMPLES;
+      const isTransferPhase = phase === MODULE_PHASES.TRANSFER;
+      const isTakeawayPhase = phase === MODULE_PHASES.TAKEAWAYS;
       const isLast = state.sceneIndex === moduleScenes.length - 1;
       const hasSceneNavigation = moduleScenes.length > 1;
-      const supportsRobustness = scene.type !== "reflection";
-      const supportsInterventions = scene.type === "color";
+      const supportsRobustness = isExamplePhase && scene.type !== "reflection";
+      const supportsInterventions = isExamplePhase && scene.type === "color";
       const activeExample = visualizationExampleByIndex(state.exampleIndex);
-      const showsWorkbenchControls =
-        scene.type === "orientation" || scene.type === "color" || scene.type === "contrast";
+      const showsWorkbenchControls = isExamplePhase && scene.type === "color";
       const prompt = scene.type === "color" ? activeExample.prompt : scene.prompt;
-      const interventionCopy = scene.type === "color"
-        ? interventionExplanation(activeExample, state.workbench.interventions)
-        : scene.reveal;
+      const interventionCopy = isExamplePhase && scene.type === "color"
+        ? feedbackOrInterventionExplanation(activeExample, state)
+        : phaseCopyForTextEquivalent(state);
+      elements.browserWorkbench.dataset.phase = phase;
+      elements.body.dataset.phase = phase;
       renderBrowserWorkbench(elements, scene, state);
 
-      elements.stepKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
+      elements.stepKicker.textContent = phaseKicker(state, scene);
       elements.stepTitle.textContent = scene.title;
       elements.stepPrompt.textContent = prompt;
       elements.progressTrack.hidden = !hasSceneNavigation;
@@ -112,11 +141,13 @@ export function createDomUi({
       elements.statusLine.textContent = scene.status;
       elements.workbenchTitle.textContent =
         scene.type === "color" ? activeExample.workbenchTitle : scene.workbenchTitle;
-      elements.exampleLabel.textContent =
-        `${activeExample.label} of ${visualizationExamples.length}: ${activeExample.shortTitle}`;
-      elements.exampleControl.hidden = scene.type !== "color" || visualizationExamples.length < 2;
+      renderExampleTabs(elements, state, onAction);
+      elements.exampleControl.hidden = !isExamplePhase || scene.type !== "color" || visualizationExamples.length < 2;
 
       elements.workbenchControls.hidden = !showsWorkbenchControls;
+      elements.submissionPanel.hidden = !isExamplePhase;
+      elements.transferControls.hidden = !isTransferPhase;
+      elements.takeawayControls.hidden = !isTakeawayPhase;
       const stressTestIndex = clampStressTestIndex(state.workbench.stressTestIndex);
       const stressTest = stressTestByIndex(stressTestIndex);
       elements.robustnessSlider.min = "0";
@@ -133,17 +164,20 @@ export function createDomUi({
       renderStressTestTicks(elements, stressTestIndex, supportsRobustness);
 
       renderInterventionControls(elements, activeExample, state.workbench.interventions, supportsInterventions, onAction);
+      renderSubmissionControls(elements, activeExample, state, onAction);
+      renderTransferControls(elements, state, onAction);
+      renderTakeawayControls(elements);
 
-      elements.rankingPanel.hidden = scene.type !== "comparison";
+      elements.rankingPanel.hidden = !isExamplePhase || scene.type !== "comparison";
       elements.checkRanking.disabled = scene.type !== "comparison";
       renderRanking(elements, state.ranking, onAction);
       renderRankingFeedback(elements, state.rankingCheck);
 
       elements.textEquivalent.textContent = [
         galleryCopy.textEquivalent,
-        `Current scene: ${scene.title}.`,
-        prompt,
-        scene.task,
+        phaseTextEquivalent(state, scene),
+        isExamplePhase ? prompt : "",
+        isExamplePhase ? scene.task : "",
         interventionCopy,
       ]
         .filter(Boolean)
@@ -161,20 +195,130 @@ export function createDomUi({
 }
 
 function renderBrowserWorkbench(elements, scene, state) {
+  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
   const activeExample = visualizationExampleByIndex(state.exampleIndex);
+  const chartFigure = elements.browserChartCanvas.closest(".browser-figure");
+  const figures = elements.browserMapCanvas.closest(".browser-figures");
+
+  if (phase === MODULE_PHASES.TRANSFER) {
+    const challenge = transferChallengeById(state.selectedChallengeId);
+    const feedback = state.transferFeedback;
+    chartFigure.hidden = true;
+    figures.classList.add("is-single");
+    elements.browserTaskKicker.textContent = "Transfer challenge";
+    elements.browserTaskTitle.textContent = challenge.title;
+    elements.browserTaskLead.textContent = feedback
+      ? `${feedback.title} ${feedback.message}`
+      : challenge.question;
+    renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
+    renderBrowserCanvas(elements.browserChartCanvas, "chart", scene, state);
+    return;
+  }
+
+  if (phase === MODULE_PHASES.TAKEAWAYS) {
+    chartFigure.hidden = true;
+    figures.classList.add("is-single");
+    elements.browserTaskKicker.textContent = "Final takeaways";
+    elements.browserTaskTitle.textContent = "Color Fragility Takeaways";
+    elements.browserTaskLead.textContent =
+      "The strongest designs keep interpretation readable when hue becomes unreliable.";
+    renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
+    renderBrowserCanvas(elements.browserChartCanvas, "chart", scene, state);
+    return;
+  }
+
+  chartFigure.hidden = false;
+  figures.classList.remove("is-single");
   const lead =
     scene.type === "color"
-      ? browserInterventionSummary(activeExample, state.workbench.interventions)
+      ? browserFeedbackOrInterventionSummary(activeExample, state)
       : hasActiveInterventions(state.workbench.interventions)
         ? scene.reveal
         : scene.task;
 
-  elements.browserTaskKicker.textContent = `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
+  elements.browserTaskKicker.textContent = activeExample.panelSubtitle ?? activeExample.shortTitle;
   elements.browserTaskTitle.textContent = scene.title;
   elements.browserTaskLead.textContent = lead || scene.task || "";
 
   renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
   renderBrowserCanvas(elements.browserChartCanvas, "chart", scene, state);
+}
+
+function renderExampleTabs(elements, state, onAction) {
+  elements.exampleTabs.replaceChildren(
+    ...visualizationExamples.map((example, index) => {
+      const active = index === state.exampleIndex;
+      const submitted = Boolean(state.submittedExamples?.[example.id]);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "example-tab";
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", String(active));
+      button.dataset.submitted = String(submitted);
+      button.textContent = example.panelSubtitle ?? example.shortTitle;
+      button.addEventListener("click", () => onAction("setExample", { index }));
+      return button;
+    }),
+  );
+}
+
+function renderSubmissionControls(elements, example, state, onAction) {
+  const activeConfidence = state.confidenceByExample?.[example.id] ?? null;
+  const submittedCount = visualizationExamples
+    .filter((item) => Boolean(state.submittedExamples?.[item.id]))
+    .length;
+  const readyForChallenge = allExamplesSubmitted(state.submittedExamples, visualizationExamples);
+
+  elements.confidenceControls.replaceChildren(
+    ...confidenceOptions.map((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "confidence-choice";
+      button.setAttribute("aria-pressed", String(activeConfidence === option.id));
+      button.textContent = option.label;
+      button.addEventListener("click", () => onAction("setConfidence", { confidence: option.id }));
+      return button;
+    }),
+  );
+
+  elements.submitDesign.disabled = !activeConfidence;
+  elements.submitDesign.textContent = state.submittedExamples?.[example.id]
+    ? "Resubmit Design"
+    : "Submit Design";
+  elements.continueChallenge.hidden = !readyForChallenge;
+  elements.continueChallenge.disabled = !readyForChallenge;
+  elements.completionStatus.textContent = readyForChallenge
+    ? "All three examples submitted. You can revisit and resubmit before continuing."
+    : `${submittedCount} of ${visualizationExamples.length} examples submitted.`;
+}
+
+function renderTransferControls(elements, state, onAction) {
+  const challenge = transferChallengeById(state.selectedChallengeId);
+  const selectedChoice = transferChoiceById(challenge, state.transferAnswer);
+
+  elements.transferChoices.replaceChildren(
+    ...challenge.choices.map((choice) => {
+      const active = choice.id === selectedChoice?.id;
+      const correct = state.transferSubmitted && choice.id === challenge.correctChoiceId;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "transfer-choice";
+      button.setAttribute("aria-pressed", String(active));
+      button.dataset.correct = String(correct);
+      button.textContent = choice.label;
+      button.addEventListener("click", () => onAction("selectTransferAnswer", { choiceId: choice.id }));
+      return button;
+    }),
+  );
+
+  elements.submitTransfer.disabled = !selectedChoice || state.transferSubmitted;
+  elements.submitTransfer.textContent = state.transferSubmitted ? "Answer Submitted" : "Submit Answer";
+  elements.continueTakeaways.hidden = !state.transferSubmitted;
+  elements.continueTakeaways.disabled = !state.transferSubmitted;
+}
+
+function renderTakeawayControls(elements) {
+  elements.restartModule.disabled = false;
 }
 
 function renderInterventionControls(elements, example, interventions, enabled, onAction) {
@@ -275,6 +419,12 @@ function createToggleButton({ key, example, active, enabled, onAction }) {
   return button;
 }
 
+function feedbackOrInterventionExplanation(example, state) {
+  const feedback = state.exampleFeedback?.[example.id];
+  if (!feedback) return interventionExplanation(example, state.workbench.interventions);
+  return formatDesignFeedback(feedback);
+}
+
 function interventionExplanation(example, interventions) {
   const normalized = normalizeInterventions(interventions);
   const active = INTERVENTION_KEYS
@@ -293,6 +443,12 @@ function interventionExplanation(example, interventions) {
   return active
     .map((item) => `${item.label}: ${item.effect}`)
     .join(" ");
+}
+
+function browserFeedbackOrInterventionSummary(example, state) {
+  const feedback = state.exampleFeedback?.[example.id];
+  if (!feedback) return browserInterventionSummary(example, state.workbench.interventions);
+  return formatDesignFeedback(feedback);
 }
 
 function browserInterventionSummary(example, interventions) {
@@ -315,13 +471,69 @@ function browserInterventionSummary(example, interventions) {
     .join(" ");
 }
 
+function formatDesignFeedback(feedback) {
+  return [
+    feedback.title,
+    feedback.message,
+    ...(feedback.details ?? []),
+    feedback.confidenceNote,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function phaseKicker(state, scene) {
+  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  if (phase === MODULE_PHASES.TRANSFER) return "Transfer challenge";
+  if (phase === MODULE_PHASES.TAKEAWAYS) return "Final takeaways";
+  return `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
+}
+
+function phaseTextEquivalent(state, scene) {
+  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  if (phase === MODULE_PHASES.TRANSFER) {
+    const challenge = transferChallengeById(state.selectedChallengeId);
+    return `Current phase: transfer challenge. ${challenge.title}. ${challenge.question}`;
+  }
+  if (phase === MODULE_PHASES.TAKEAWAYS) {
+    return `Current phase: final takeaways. ${finalTakeaways.join(" ")}`;
+  }
+  return `Current scene: ${scene.title}.`;
+}
+
+function phaseCopyForTextEquivalent(state) {
+  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  if (phase === MODULE_PHASES.TRANSFER) {
+    const challenge = transferChallengeById(state.selectedChallengeId);
+    const feedback = state.transferFeedback?.message;
+    return [challenge.question, feedback].filter(Boolean).join(" ");
+  }
+  if (phase === MODULE_PHASES.TAKEAWAYS) return finalTakeaways.join(" ");
+  return "";
+}
+
 function renderBrowserCanvas(target, kind, scene, state) {
   const source = createPanelTexture(kind, scene, state);
-  if (target.width !== source.width) target.width = source.width;
-  if (target.height !== source.height) target.height = source.height;
+  const isMobile = window.matchMedia("(max-width: 840px)").matches;
+  const mobileCanvasWidth = isMobile
+    ? Math.max(260, Math.min(source.width, Math.round(window.innerWidth - 32)))
+    : source.width;
+  const mobileCanvasHeight = Math.round(mobileCanvasWidth * (source.height / source.width));
+
+  if (target.width !== mobileCanvasWidth) target.width = mobileCanvasWidth;
+  if (target.height !== mobileCanvasHeight) target.height = mobileCanvasHeight;
+  if (isMobile) {
+    target.style.setProperty("width", `${mobileCanvasWidth}px`, "important");
+    target.style.setProperty("max-width", "100%", "important");
+    target.style.setProperty("height", "auto");
+  } else {
+    target.style.removeProperty("width");
+    target.style.removeProperty("max-width");
+    target.style.removeProperty("height");
+  }
   const ctx = target.getContext("2d");
   ctx.clearRect(0, 0, target.width, target.height);
-  ctx.drawImage(source, 0, 0);
+  ctx.drawImage(source, 0, 0, target.width, target.height);
 }
 
 function renderStressTestTicks(elements, activeIndex, enabled) {

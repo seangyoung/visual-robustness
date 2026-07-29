@@ -10,7 +10,13 @@ import {
   paletteVariantFromInterventions,
 } from "../config/interventions.js";
 import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
+import {
+  MODULE_PHASES,
+  allExamplesSubmitted,
+  confidenceOptions,
+} from "../config/moduleFlow.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
+import { transferChallengeById, transferChoiceById } from "../config/transferChallenges.js";
 import {
   cueOptionsForExample,
   interventionMetadataForExample,
@@ -52,23 +58,25 @@ const CONTROL_ROWS = {
   lower: -0.15,
 };
 const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
-const EXAMPLE_BUTTON_X = 0.5;
 const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
 const EXAMPLE_BUTTON_Z_OFFSET = 0.05;
+const PANEL_BUTTON_Z_OFFSET = 0.06;
 const BUTTONS = [
   { id: "back", action: "back", label: "Back", x: -1.22, width: 0.42, deckY: CONTROL_ROWS.upper },
   { id: "next", action: "next", label: "Next", x: -0.8, width: 0.42, deckY: CONTROL_ROWS.upper },
-  {
-    id: "example",
-    action: "nextExample",
-    label: "Switch\nExample",
-    x: EXAMPLE_BUTTON_X,
+  ...visualizationExamples.map((example, index) => ({
+    id: `example-${index}`,
+    action: "setExample",
+    payload: { index },
+    label: example.panelSubtitle ?? example.shortTitle,
+    x: -0.62 + index * 0.62,
     y: TASK_PANEL_CENTER_Y + EXAMPLE_BUTTON_Y_OFFSET,
     z: LAYOUT.taskZ + EXAMPLE_BUTTON_Z_OFFSET,
-    width: 0.84,
-    height: 0.28,
+    width: 0.56,
+    height: 0.22,
     rotationX: 0,
-  },
+    phases: [MODULE_PHASES.EXAMPLES],
+  })),
   { id: "palette-original", action: "setPaletteVariant", payload: { variant: "original" }, label: "Palette\n1", x: 0.08, width: 0.3, deckY: CONTROL_ROWS.upper },
   { id: "palette", action: "setPaletteVariant", payload: { variant: "palette" }, label: "Palette\n2", x: 0.42, width: 0.3, deckY: CONTROL_ROWS.upper },
   { id: "palette-alt", action: "setPaletteVariant", payload: { variant: "paletteAlt" }, label: "Palette\n3", x: 0.76, width: 0.3, deckY: CONTROL_ROWS.upper },
@@ -79,6 +87,95 @@ const BUTTONS = [
   { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.02, width: 0.3, deckY: CONTROL_ROWS.lower },
   { id: "cue-alt", action: "setCueVariant", payload: { variant: "cueAlt" }, label: "Cue\n2", x: 1.35, width: 0.3, deckY: CONTROL_ROWS.lower },
   { id: "annotation", action: "toggleIntervention", payload: { key: "annotation" }, label: "Divider", x: 1.35, width: 0.3, deckY: CONTROL_ROWS.lower },
+  ...confidenceOptions.map((option, index) => ({
+    id: `confidence-${option.id}`,
+    action: "setConfidence",
+    payload: { confidence: option.id },
+    label: option.vrLabel,
+    x: -0.56 + index * 0.56,
+    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.27,
+    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.5,
+    height: 0.19,
+    rotationX: 0,
+    phases: [MODULE_PHASES.EXAMPLES],
+  })),
+  {
+    id: "submit-design",
+    action: "submitDesign",
+    label: "Submit\nDesign",
+    x: -0.28,
+    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.05,
+    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.62,
+    height: 0.2,
+    rotationX: 0,
+    phases: [MODULE_PHASES.EXAMPLES],
+  },
+  {
+    id: "continue-challenge",
+    action: "continueToChallenge",
+    label: "Continue\nto Challenge",
+    x: 0.48,
+    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.05,
+    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.78,
+    height: 0.2,
+    rotationX: 0,
+    phases: [MODULE_PHASES.EXAMPLES],
+  },
+  ...[0, 1, 2, 3].map((choiceIndex) => ({
+    id: `transfer-choice-${choiceIndex}`,
+    action: "selectTransferAnswer",
+    payload: { choiceIndex },
+    label: `Choice\n${choiceIndex + 1}`,
+    x: SIDE_PANEL_X + (choiceIndex % 2 === 0 ? -0.72 : 0.72),
+    y: TASK_PANEL_CENTER_Y - 0.08 - Math.floor(choiceIndex / 2) * 0.26,
+    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
+    width: 1.22,
+    height: 0.22,
+    rotationX: 0,
+    rotationY: -0.15,
+    phases: [MODULE_PHASES.TRANSFER],
+  })),
+  {
+    id: "submit-transfer",
+    action: "submitTransferAnswer",
+    label: "Submit\nAnswer",
+    x: SIDE_PANEL_X - 0.38,
+    y: TASK_PANEL_CENTER_Y - 0.7,
+    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.68,
+    height: 0.2,
+    rotationX: 0,
+    rotationY: -0.15,
+    phases: [MODULE_PHASES.TRANSFER],
+  },
+  {
+    id: "continue-takeaways",
+    action: "continueToTakeaways",
+    label: "Continue",
+    x: SIDE_PANEL_X + 0.46,
+    y: TASK_PANEL_CENTER_Y - 0.7,
+    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.68,
+    height: 0.2,
+    rotationX: 0,
+    rotationY: -0.15,
+    phases: [MODULE_PHASES.TRANSFER],
+  },
+  {
+    id: "restart-module",
+    action: "restartModule",
+    label: "Restart\nModule",
+    x: 0,
+    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.08,
+    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.72,
+    height: 0.22,
+    rotationX: 0,
+    phases: [MODULE_PHASES.TAKEAWAYS],
+  },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -296,6 +393,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
     const hit = raycaster.intersectObjects(getVisibleInteractiveObjects(interactive), false)[0];
+    if (hit?.object.userData.disabled) return;
     if (hit?.object.userData.action) {
       selectAction(hit.object.userData.action, hit.object.userData.payload ?? {});
     }
@@ -305,6 +403,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const hit = intersectController(controller, raycaster, getVisibleInteractiveObjects(interactive));
     const target = hit?.object;
     if (!target) return;
+    if (target.userData.disabled) return;
 
     if (target.userData.action) {
       pulseController(controller);
@@ -788,18 +887,23 @@ function updateInWorldControlVisibility(
   isImmersive,
   state,
 ) {
+  const phase = state?.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  const isExamplePhase = phase === MODULE_PHASES.EXAMPLES;
   const hasSceneNavigation = moduleScenes.length > 1;
-  const supportsInterventions = sceneState.type === "color";
-  const supportsSlider =
-    sceneState.type === "orientation" || sceneState.type === "color" || sceneState.type === "contrast";
+  const supportsInterventions = isExamplePhase && sceneState.type === "color";
+  const supportsSlider = isExamplePhase && sceneState.type === "color";
   const example = visualizationExampleByIndex(state?.exampleIndex ?? 0);
   const paletteOptionIds = new Set(paletteOptionsForExample(example).map((option) => option.id));
   const labelOptionIds = new Set(labelOptionsForExample(example).map((option) => option.id));
   const cueOptionIds = new Set(cueOptionsForExample(example).map((option) => option.id));
+  const readyForChallenge = allExamplesSubmitted(state?.submittedExamples, visualizationExamples);
+  const challenge = transferChallengeById(state?.selectedChallengeId);
 
   mainButtons.forEach((button) => {
     const isNavigation = button.id === "back" || button.id === "next";
-    const isExampleControl = button.id === "example";
+    const isExampleControl = button.id.startsWith("example-");
+    const isConfidenceControl = button.id.startsWith("confidence-");
+    const isTransferChoice = button.id.startsWith("transfer-choice-");
     const isInterventionControl =
       button.id === "original" ||
       button.id === "recommended" ||
@@ -816,21 +920,48 @@ function updateInWorldControlVisibility(
     const isSupportedInterventionChoice =
       !INTERVENTION_KEYS.includes(button.payload?.key) ||
       Boolean(interventionMetadataForExample(example, button.payload.key));
-    button.mesh.position.copy(controlPosition(button));
-    button.mesh.visible =
+    const phaseMatches = !button.phases || button.phases.includes(phase);
+    const transferChoiceIndex = Number(button.payload?.choiceIndex);
+    const hasTransferChoice =
+      !isTransferChoice ||
+      (Number.isInteger(transferChoiceIndex) && Boolean(challenge.choices?.[transferChoiceIndex]));
+
+    const visible =
       isImmersive &&
-      (!isNavigation || hasSceneNavigation) &&
+      phaseMatches &&
+      (!isNavigation || (isExamplePhase && hasSceneNavigation)) &&
       (!isExampleControl || (sceneState.type === "color" && visualizationExamples.length > 1)) &&
+      (!isConfidenceControl || isExamplePhase) &&
       (!isInterventionControl || supportsInterventions) &&
+      (!isTransferChoice || hasTransferChoice) &&
+      (button.id !== "continue-challenge" || readyForChallenge) &&
+      (button.id !== "continue-takeaways" || Boolean(state?.transferSubmitted)) &&
       isSupportedPaletteChoice &&
       isSupportedLabelChoice &&
       isSupportedCueChoice &&
       isSupportedInterventionChoice;
+
+    button.mesh.position.copy(controlPosition(button));
+    button.mesh.visible = visible;
+    button.mesh.userData.disabled = buttonDisabled(button, state, readyForChallenge, challenge);
   });
-  setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
+  setInWorldControlsVisible(checkButtons, isImmersive && isExamplePhase && sceneState.type === "comparison");
   robustnessSlider.group.visible = isImmersive && supportsSlider;
   workbenchControlDeck.visible = isImmersive && supportsSlider;
-  rankingSet.group.visible = isImmersive && sceneState.type === "comparison";
+  rankingSet.group.visible = isImmersive && isExamplePhase && sceneState.type === "comparison";
+}
+
+function buttonDisabled(button, state, readyForChallenge, challenge) {
+  if (button.id === "submit-design") {
+    const example = visualizationExampleByIndex(state?.exampleIndex ?? 0);
+    return !state?.confidenceByExample?.[example.id];
+  }
+  if (button.id === "continue-challenge") return !readyForChallenge;
+  if (button.id === "submit-transfer") {
+    return !transferChoiceById(challenge, state?.transferAnswer) || Boolean(state?.transferSubmitted);
+  }
+  if (button.id === "continue-takeaways") return !state?.transferSubmitted;
+  return false;
 }
 
 function updateRobustnessSlider(slider, value, hoverControl, dragState) {
@@ -929,25 +1060,116 @@ function updateButtonTextures(buttons, hoverControl, state) {
   buttons.forEach((button) => {
     const textureSpec = buttonTextureSpec(button, state);
     const isHovered = hoverControl === button.id;
-    const isActive = textureSpec.active || isHovered;
+    const disabled = Boolean(button.mesh.userData.disabled);
+    const isActive = !disabled && (textureSpec.active || isHovered);
     const oldMap = button.mesh.material.map;
     button.mesh.material.map = textureFromCanvas(
       createButtonTexture(textureSpec.label, isActive, textureSpec.options),
     );
     button.mesh.material.map.needsUpdate = true;
+    button.mesh.material.opacity = disabled ? 0.42 : 1;
+    button.mesh.material.needsUpdate = true;
     if (oldMap) oldMap.dispose();
   });
 }
 
 function buttonTextureSpec(button, state) {
-  if (button.id === "example") {
+  if (button.id.startsWith("example-")) {
+    const index = Number(button.payload?.index);
+    const example = visualizationExampleByIndex(index);
+    const active = index === (state.exampleIndex ?? 0);
+    const submitted = Boolean(state.submittedExamples?.[example.id]);
     return {
-      label: "Next\nExample",
+      label: example.vrTabLabel ?? example.panelSubtitle?.replace("/", "/\n") ?? example.shortTitle,
+      active,
+      options: {
+        accent: submitted && !active,
+        subtitle: submitted ? "Submitted" : "Example",
+      },
+    };
+  }
+
+  if (button.id.startsWith("confidence-")) {
+    const confidence = confidenceOptions.find((option) => option.id === button.payload?.confidence);
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const active = state.confidenceByExample?.[example.id] === confidence?.id;
+    return {
+      label: confidence?.vrLabel ?? button.label,
+      active,
+      options: {
+        subtitle: active ? "Confidence" : "",
+      },
+    };
+  }
+
+  if (button.id === "submit-design") {
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const submitted = Boolean(state.submittedExamples?.[example.id]);
+    return {
+      label: submitted ? "Resubmit\nDesign" : "Submit\nDesign",
       active: false,
       options: {
         accent: true,
-        cycle: true,
-        subtitle: `Example ${(state.exampleIndex ?? 0) + 1} of ${visualizationExamples.length}`,
+        subtitle: state.confidenceByExample?.[example.id] ? "Review" : "Pick confidence",
+      },
+    };
+  }
+
+  if (button.id === "continue-challenge") {
+    return {
+      label: "Continue\nto Challenge",
+      active: false,
+      options: {
+        accent: true,
+        subtitle: "Unlocked",
+      },
+    };
+  }
+
+  if (button.id.startsWith("transfer-choice-")) {
+    const challenge = transferChallengeById(state.selectedChallengeId);
+    const choice = challenge.choices?.[Number(button.payload?.choiceIndex)];
+    const active = choice?.id === state.transferAnswer;
+    const correct = Boolean(state.transferSubmitted && choice?.id === challenge.correctChoiceId);
+    return {
+      label: wrapButtonLabel(choice?.label ?? button.label, 18),
+      active: active || correct,
+      options: {
+        accent: correct,
+        subtitle: correct ? "Supported" : active ? "Selected" : `Choice ${Number(button.payload?.choiceIndex) + 1}`,
+      },
+    };
+  }
+
+  if (button.id === "submit-transfer") {
+    return {
+      label: state.transferSubmitted ? "Answer\nSubmitted" : "Submit\nAnswer",
+      active: false,
+      options: {
+        accent: true,
+        subtitle: state.transferAnswer ? "Review" : "Select one",
+      },
+    };
+  }
+
+  if (button.id === "continue-takeaways") {
+    return {
+      label: "Continue",
+      active: false,
+      options: {
+        accent: true,
+        subtitle: "Takeaways",
+      },
+    };
+  }
+
+  if (button.id === "restart-module") {
+    return {
+      label: "Restart\nModule",
+      active: false,
+      options: {
+        accent: true,
+        subtitle: "New challenge",
       },
     };
   }
@@ -1022,6 +1244,23 @@ function buttonTextureSpec(button, state) {
     active: false,
     options: {},
   };
+}
+
+function wrapButtonLabel(label, maxChars = 18) {
+  const words = String(label).split(" ");
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
+    const next = line ? `${line} ${word}` : word;
+    if (next.length > maxChars && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  });
+  if (line) lines.push(line);
+  return lines.slice(0, 2).join("\n");
 }
 
 function createSliderLabelTexture(stressTest, active) {

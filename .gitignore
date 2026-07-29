@@ -30,6 +30,7 @@ Thumbs.db
 *.mov
 *.mp4
 !assets/proposed-public-health/*-layer-*.png
+!assets/proposed-public-health/transfer-*.png
 
 # Personal local notes
 DEVELOPMENT_CHEAT_SHEET.md

@@ -27,6 +27,26 @@ places_url <- paste0(
   "&stateabbr=TX&%24limit=5000"
 )
 
+transfer_required_fields <- c(
+  "stateabbr",
+  "statedesc",
+  "countyname",
+  "countyfips",
+  "totalpopulation",
+  "obesity_crudeprev",
+  "lpa_crudeprev",
+  "csmoking_crudeprev",
+  "depression_crudeprev",
+  "bphigh_crudeprev",
+  "access2_crudeprev"
+)
+
+transfer_url <- paste0(
+  "https://data.cdc.gov/resource/i46a-9kgh.csv?",
+  "%24select=", paste(transfer_required_fields, collapse = ","),
+  "&stateabbr=TX&%24limit=5000"
+)
+
 svi_url <- paste0(
   "https://services2.arcgis.com/LYMgRMwHfrWWEg3s/ArcGIS/rest/services/",
   "CDC_Texas_Social_Vulnerability_Index_County_2022/FeatureServer/0/query?",
@@ -43,6 +63,33 @@ places_col_types <- readr::cols(
   diabetes_crudeprev = readr::col_double(),
   .default = readr::col_skip()
 )
+
+transfer_col_types <- readr::cols(
+  stateabbr = readr::col_character(),
+  statedesc = readr::col_character(),
+  countyname = readr::col_character(),
+  countyfips = readr::col_character(),
+  totalpopulation = readr::col_double(),
+  obesity_crudeprev = readr::col_double(),
+  lpa_crudeprev = readr::col_double(),
+  csmoking_crudeprev = readr::col_double(),
+  depression_crudeprev = readr::col_double(),
+  bphigh_crudeprev = readr::col_double(),
+  access2_crudeprev = readr::col_double(),
+  .default = readr::col_skip()
+)
+
+validate_required_columns <- function(data, columns, source_name) {
+  missing_columns <- setdiff(columns, names(data))
+  if (length(missing_columns) > 0) {
+    stop(
+      source_name,
+      " is missing required CDC PLACES field(s): ",
+      paste(missing_columns, collapse = ", ")
+    )
+  }
+  data
+}
 
 places <- tryCatch(
   readr::read_csv(
@@ -68,6 +115,41 @@ if (nrow(places) == 0) {
 }
 
 texas_average <- weighted.mean(places$diabetes, places$totalpopulation, na.rm = TRUE)
+
+read_transfer_places_data <- function() {
+  local_transfer <- file.path(output_dir, "cdc-places-transfer-texas-counties.csv")
+
+  raw_transfer <- tryCatch(
+    {
+      data <- readr::read_csv(transfer_url, col_types = transfer_col_types)
+      validate_required_columns(data, transfer_required_fields, "CDC PLACES transfer query")
+      readr::write_csv(data, local_transfer)
+      data
+    },
+    error = function(error) {
+      if (!file.exists(local_transfer)) {
+        stop(error)
+      }
+      warning("CDC PLACES transfer API unavailable; using cached county data at ", local_transfer)
+      readr::read_csv(local_transfer, col_types = transfer_col_types)
+    }
+  )
+
+  raw_transfer |>
+    validate_required_columns(transfer_required_fields, "cached CDC PLACES transfer data") |>
+    transmute(
+      countyfips,
+      transfer_population = totalpopulation,
+      obesity = obesity_crudeprev,
+      inactivity = lpa_crudeprev,
+      smoking = csmoking_crudeprev,
+      depression = depression_crudeprev,
+      blood_pressure = bphigh_crudeprev,
+      uninsured = access2_crudeprev
+    )
+}
+
+transfer_places <- read_transfer_places_data()
 
 svi_theme_labels <- c(
   "Socioeconomic status",
@@ -184,7 +266,8 @@ tx_counties <- tigris::counties(state = "TX", cb = TRUE, year = 2023, class = "s
 
 tx_map <- tx_counties |>
   left_join(places, by = c("GEOID" = "countyfips")) |>
-  left_join(svi, by = c("GEOID" = "countyfips"))
+  left_join(svi, by = c("GEOID" = "countyfips")) |>
+  left_join(transfer_places, by = c("GEOID" = "countyfips"))
 
 tx_outline <- tx_map |>
   summarise(geometry = st_union(geometry))
@@ -639,6 +722,11 @@ source_caption <- paste(
   "diagnosed diabetes crude prevalence among adults."
 )
 
+transfer_caption <- paste(
+  "Source: CDC PLACES County Data GIS-Friendly Format, 2025 release;",
+  "Texas county model-based estimates."
+)
+
 average_caption <- sprintf(
   "Estimated Texas average: %.1f%% (county population-weighted).",
   texas_average
@@ -1067,8 +1155,8 @@ add_map_extent_anchor <- function(plot, visible = FALSE) {
     )
 }
 
-map_color_layer <- function(fill_column, palette, title, subtitle, caption) {
-  ggplot(tx_map) +
+map_color_layer <- function(fill_column, palette, title, subtitle, caption, map_data = tx_map) {
+  ggplot(map_data) +
     geom_sf(data = map_neatline, inherit.aes = FALSE, fill = NA, color = NA, linewidth = 0) +
     geom_sf(aes(fill = .data[[fill_column]]), color = NA, linewidth = 0) +
     scale_fill_manual(
@@ -1149,6 +1237,198 @@ map_layer_legend_divider <- function(title, labels, palette) {
     divider_label = "Texas avg."
   )
 }
+
+format_percent_label <- function(value) {
+  sprintf("%.1f%%", value)
+}
+
+make_percent_class_labels <- function(breaks) {
+  paste0(
+    format_percent_label(head(breaks, -1)),
+    "-",
+    format_percent_label(tail(breaks, -1))
+  )
+}
+
+make_quantile_breaks <- function(values, groups) {
+  breaks <- values |>
+    quantile(probs = seq(0, 1, length.out = groups + 1), na.rm = TRUE, names = FALSE) |>
+    round(1) |>
+    unique()
+
+  if (length(breaks) < groups + 1) {
+    breaks <- pretty(values, n = groups) |>
+      round(1) |>
+      unique()
+  }
+
+  breaks
+}
+
+transfer_map_theme <- function(background = "#f8f6ee") {
+  theme_void(base_family = "Arial") +
+    theme(
+      plot.background = element_rect(fill = background, color = NA),
+      panel.background = element_rect(fill = background, color = NA),
+      plot.title = element_text(color = "#151d20", face = "bold", size = 26, margin = margin(b = 3)),
+      plot.subtitle = element_text(color = "#4c5a5d", size = 12, margin = margin(b = 9)),
+      plot.caption = element_text(color = "#687375", size = 8, hjust = 0, margin = margin(t = 9)),
+      legend.position = c(0.01, 0.92),
+      legend.justification = c(0, 1),
+      legend.direction = "vertical",
+      legend.background = element_rect(fill = background, color = NA),
+      legend.title = element_text(color = "#151d20", face = "bold", size = 11),
+      legend.text = element_text(color = "#283235", size = 10),
+      legend.key.height = unit(16, "pt"),
+      legend.key.width = unit(30, "pt"),
+      legend.spacing.y = unit(3, "pt"),
+      plot.margin = margin(18, 24, 16, 24)
+    )
+}
+
+transfer_map_plot <- function(fill_column, palette, title, subtitle, caption, map_data, legend_title) {
+  add_map_extent_anchor(ggplot(map_data), visible = TRUE) +
+    geom_sf(aes(fill = .data[[fill_column]]), color = "#f8f6ee", linewidth = 0.08) +
+    geom_sf(data = tx_outline, inherit.aes = FALSE, fill = NA, color = "#1b2427", linewidth = 0.32) +
+    scale_fill_manual(
+      values = palette,
+      drop = FALSE,
+      na.translate = FALSE,
+      na.value = "#d8d8cf",
+      name = legend_title
+    ) +
+    guides(fill = guide_legend(reverse = TRUE, override.aes = list(color = NA))) +
+    labs(title = title, subtitle = subtitle, caption = caption) +
+    transfer_map_theme()
+}
+
+make_transfer_quantile_map <- function(spec) {
+  values <- tx_map[[spec$column]]
+  breaks <- make_quantile_breaks(values, spec$groups)
+  labels <- make_percent_class_labels(breaks)
+  palette <- setNames(spec$palette[seq_along(labels)], labels)
+  map_data <- tx_map |>
+    mutate(transfer_class = cut(
+      .data[[spec$column]],
+      breaks = breaks,
+      labels = labels,
+      include.lowest = TRUE
+    ))
+
+  list(
+    plot = transfer_map_plot(
+      "transfer_class",
+      palette,
+      spec$title,
+      spec$subtitle,
+      transfer_caption,
+      map_data,
+      spec$legend_title
+    ),
+    legend = NULL
+  )
+}
+
+make_transfer_diverging_map <- function(spec) {
+  values <- tx_map[[spec$column]]
+  average <- weighted.mean(values, tx_map$transfer_population, na.rm = TRUE)
+  labels <- deviation_labels
+  palette <- setNames(spec$palette[seq_along(labels)], labels)
+  map_data <- tx_map |>
+    mutate(
+      transfer_difference = .data[[spec$column]] - average,
+      transfer_class = cut(
+        transfer_difference,
+        breaks = deviation_breaks,
+        labels = labels,
+        include.lowest = TRUE,
+        right = FALSE
+      )
+    )
+
+  list(
+    plot = transfer_map_plot(
+      "transfer_class",
+      palette,
+      spec$title,
+      sprintf("%s Texas average: %.1f%%.", spec$subtitle, average),
+      transfer_caption,
+      map_data,
+      spec$legend_title
+    ),
+    legend = NULL
+  )
+}
+
+make_transfer_challenge_map <- function(spec) {
+  if (identical(spec$type, "diverging")) {
+    return(make_transfer_diverging_map(spec))
+  }
+
+  make_transfer_quantile_map(spec)
+}
+
+transfer_map_specs <- list(
+  list(
+    id = "obesity-sequential-rainbow",
+    column = "obesity",
+    type = "quantile",
+    groups = 5,
+    title = "Adult Obesity Prevalence by County",
+    subtitle = "Ordered prevalence classes shown with non-ordered rainbow hues",
+    legend_title = "Adult obesity",
+    palette = c("#4575b4", "#91bfdb", "#ffffbf", "#fc8d59", "#d73027")
+  ),
+  list(
+    id = "inactivity-diverging-redgreen",
+    column = "inactivity",
+    type = "diverging",
+    title = "Physical Inactivity Relative to Texas Average",
+    subtitle = "Above and below average classes depend on red/green hue.",
+    legend_title = "Difference",
+    palette = c("#1a9850", "#91cf60", "#d9ef8b", "#fee08b", "#fc8d59", "#d73027")
+  ),
+  list(
+    id = "smoking-too-many-classes",
+    column = "smoking",
+    type = "quantile",
+    groups = 8,
+    title = "Current Smoking Prevalence by County",
+    subtitle = "Eight narrow classes create heavy legend and color-matching burden",
+    legend_title = "Current smoking",
+    palette = c("#4dac26", "#b8e186", "#f7f7f7", "#f1b6da", "#d01c8b", "#67a9cf", "#ef8a62", "#762a83")
+  ),
+  list(
+    id = "depression-low-contrast",
+    column = "depression",
+    type = "quantile",
+    groups = 5,
+    title = "Depression Prevalence by County",
+    subtitle = "Adjacent classes have intentionally weak luminance separation",
+    legend_title = "Depression",
+    palette = c("#d6d9d2", "#cfd4cf", "#c7d0cc", "#c0cbc9", "#b9c6c5")
+  ),
+  list(
+    id = "blood-pressure-legend-load",
+    column = "blood_pressure",
+    type = "quantile",
+    groups = 5,
+    title = "High Blood Pressure Prevalence by County",
+    subtitle = "Similar hues require repeated legend lookup",
+    legend_title = "High blood pressure",
+    palette = c("#7fbf9b", "#76b99e", "#6eb2a1", "#66aba4", "#5da5a7")
+  ),
+  list(
+    id = "insurance-categorical-mismatch",
+    column = "uninsured",
+    type = "quantile",
+    groups = 5,
+    title = "Lack of Health Insurance by County",
+    subtitle = "Ordered prevalence is shown with categorical-looking colors",
+    legend_title = "No insurance",
+    palette = c("#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854")
+  )
+)
 
 prevalence_chart_scale <- function() {
   scale_x_continuous(
@@ -1799,6 +2079,15 @@ save_layer_assets <- function() {
   save_png(make_svi_chart_cue_layer(), "cdc-svi-theme-chart-layer-cue.png", background = transparent)
   save_png(make_svi_chart_cue_alt_layer(), "cdc-svi-theme-chart-layer-cue-alt.png", background = transparent)
   save_png(make_svi_chart_label_layer(), "cdc-svi-theme-chart-layer-labels.png", background = transparent)
+
+  for (spec in transfer_map_specs) {
+    transfer_map <- make_transfer_challenge_map(spec)
+    save_png(
+      transfer_map$plot,
+      paste0("transfer-", spec$id, ".png"),
+      legend = transfer_map$legend
+    )
+  }
 }
 
 intervention_grid <- expand.grid(
@@ -2239,6 +2528,8 @@ writeLines(
     "",
     "The app composes each map or chart from aligned PNG layers instead of",
     "loading a pre-rendered image for every intervention combination.",
+    "Transfer challenge maps use standalone `transfer-*.png` images generated",
+    "from additional CDC PLACES public-health measures.",
     "",
     "Each example prefix has map and chart layers:",
     "",
@@ -2265,6 +2556,7 @@ writeLines(
     "- `cdc-places-diabetes`",
     "- `cdc-places-diabetes-diverging`",
     "- `cdc-svi-theme`",
+    "- `transfer-*`",
     "",
     "The categorical example maps the SVI theme with the highest county percentile",
     "ranking. The four categories are socioeconomic status, household characteristics,",
@@ -2277,6 +2569,7 @@ writeLines(
     "exported image combinations.",
     "",
     "- `cdc-places-diabetes-texas-counties.csv`",
+    "- `cdc-places-transfer-texas-counties.csv`",
     "- `cdc-svi-texas-counties-2022.csv`"
   ),
   file.path(output_dir, "README.md")

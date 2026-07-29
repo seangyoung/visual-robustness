@@ -5,6 +5,7 @@ import {
   normalizeInterventions,
   paletteVariantFromInterventions,
 } from "../config/interventions.js";
+import { MODULE_PHASES, finalTakeaways } from "../config/moduleFlow.js";
 import {
   comparisonDesigns,
   landCoverCategories,
@@ -23,9 +24,17 @@ import {
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
+import {
+  transferChallengeById,
+  transferChallenges,
+  transferChoiceById,
+} from "../config/transferChallenges.js";
 
 const publicHealthAssetSources = Object.fromEntries(
-  visualizationExamples.flatMap((example) => publicHealthAssetEntries(example)),
+  [
+    ...visualizationExamples.flatMap((example) => publicHealthAssetEntries(example)),
+    ...transferChallenges.map((challenge) => [transferAssetKey(challenge.id), challenge.asset]),
+  ],
 );
 
 const publicHealthImages = new Map();
@@ -139,6 +148,17 @@ export function createPanelTexture(kind, scene, state) {
   canvas.width = 1400;
   canvas.height = 980;
   const ctx = canvas.getContext("2d");
+  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+
+  if (phase === MODULE_PHASES.TRANSFER) {
+    drawTransferChallengePanel(ctx, canvas, kind, state);
+    return canvas;
+  }
+
+  if (phase === MODULE_PHASES.TAKEAWAYS) {
+    drawTakeawayPanel(ctx, canvas, kind, state);
+    return canvas;
+  }
 
   if (scene.type === "orientation") drawOrientationPanel(ctx, canvas, kind, scene, state);
   if (scene.type === "color") drawColorPanel(ctx, canvas, kind, scene, state);
@@ -282,9 +302,12 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
   const example = visualizationExampleByIndex(state.exampleIndex);
 
   if (kind === "task") {
+    const feedback = state.exampleFeedback?.[example.id];
     drawTaskPanel(ctx, canvas, { ...scene, prompt: example.prompt }, state, {
       subtitle: `${example.label}: ${example.panelSubtitle ?? example.shortTitle}`,
-      lead: colorInterventionExplanation(example, state.workbench.interventions),
+      lead: feedback
+        ? compactDesignFeedback(feedback)
+        : colorInterventionExplanation(example, state.workbench.interventions),
       hint: example.answer,
     });
     return;
@@ -299,6 +322,137 @@ function drawColorPanel(ctx, canvas, kind, scene, state) {
     drawPublicHealthAsset(ctx, canvas, "chart", state);
     return;
   }
+}
+
+function drawTransferChallengePanel(ctx, canvas, kind, state) {
+  const challenge = transferChallengeById(state.selectedChallengeId);
+  const selectedChoice = transferChoiceById(challenge, state.transferAnswer);
+  const correctChoice = transferChoiceById(challenge, challenge.correctChoiceId);
+
+  if (kind === "map") {
+    drawTransferAsset(ctx, canvas, challenge, state);
+    return;
+  }
+
+  if (kind === "task") {
+    const submitted = Boolean(state.transferSubmitted);
+    drawTaskPanel(ctx, canvas, {
+      sceneNumber: "TRANSFER",
+      title: "Transfer Challenge",
+      task: challenge.question,
+    }, state, {
+      subtitle: challenge.title,
+      lead: submitted && selectedChoice
+        ? [state.transferFeedback?.title, selectedChoice.feedback].filter(Boolean).join(" ")
+        : "Use what you noticed in the examples to identify the main color-fragility problem.",
+    });
+    return;
+  }
+
+  if (kind === "chart") {
+    panelBase(ctx, canvas, "Choose the main issue", "One answer is best supported", state);
+    drawTransferChoiceSummary(ctx, canvas, challenge, selectedChoice, correctChoice, state);
+  }
+}
+
+function drawTransferAsset(ctx, canvas, challenge, state) {
+  const key = transferAssetKey(challenge.id);
+  if (!publicHealthImages.has(key)) {
+    drawLoadingAssetPanel(ctx, canvas, "map", state);
+    return;
+  }
+
+  const image = publicHealthImages.get(key);
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+}
+
+function drawTransferChoiceSummary(ctx, canvas, challenge, selectedChoice, correctChoice, state) {
+  const selectedId = selectedChoice?.id ?? null;
+  const submitted = Boolean(state.transferSubmitted);
+  let y = 196;
+
+  challenge.choices.forEach((choice, index) => {
+    const active = selectedId === choice.id;
+    const isCorrect = submitted && choice.id === challenge.correctChoiceId;
+    const x = 92;
+    const width = canvas.width - 184;
+    const height = 92;
+    ctx.fillStyle = isCorrect ? "#d9f2ee" : active ? "#fff2c4" : "#eef2ee";
+    roundRect(ctx, x, y, width, height, 16);
+    ctx.fill();
+    ctx.strokeStyle = isCorrect ? "#2d837b" : active ? "#c68b12" : "#cfd6cf";
+    ctx.lineWidth = active || isCorrect ? 6 : 3;
+    roundRect(ctx, x, y, width, height, 16);
+    ctx.stroke();
+
+    ctx.fillStyle = "#151d20";
+    ctx.font = "900 31px Arial";
+    ctx.fillText(`${String.fromCharCode(65 + index)}.`, x + 28, y + 58);
+    ctx.font = "800 30px Arial";
+    wrapText(ctx, choice.label, x + 86, y + 38, width - 128, 36);
+    y += 112;
+  });
+
+  y += 14;
+  ctx.fillStyle = submitted ? "#151d20" : "#536164";
+  ctx.font = "900 31px Arial";
+  ctx.fillText(submitted ? "Feedback" : "Select an option, then submit.", 92, y);
+  ctx.fillStyle = "#344346";
+  ctx.font = "700 26px Arial";
+  const feedback = submitted
+    ? correctChoice?.feedback ?? "Compare the options with the map encoding."
+    : "The goal is to identify the most central design fragility, not every possible weakness.";
+  wrapText(ctx, feedback, 92, y + 48, canvas.width - 184, 38);
+}
+
+function drawTakeawayPanel(ctx, canvas, kind, state) {
+  if (kind === "task") {
+    drawTaskPanel(ctx, canvas, {
+      sceneNumber: "END",
+      title: "Color Fragility Takeaways",
+      task: "Use these principles before publishing or assigning a visualization.",
+    }, state, {
+      subtitle: "Design for interpretation under varied color perception",
+      lead: "The strongest designs keep the task readable when hue becomes unreliable.",
+    });
+    return;
+  }
+
+  if (kind === "map") {
+    panelBase(ctx, canvas, "Principles", "Use during design review", state);
+    finalTakeaways.forEach((takeaway, index) => {
+      const y = 210 + index * 126;
+      ctx.fillStyle = "#eef2ee";
+      roundRect(ctx, 94, y, canvas.width - 188, 82, 16);
+      ctx.fill();
+      ctx.strokeStyle = "#ccd4cf";
+      ctx.lineWidth = 3;
+      roundRect(ctx, 94, y, canvas.width - 188, 82, 16);
+      ctx.stroke();
+      ctx.fillStyle = "#2d837b";
+      ctx.font = "900 32px Arial";
+      ctx.fillText(String(index + 1), 128, y + 53);
+      ctx.fillStyle = "#151d20";
+      ctx.font = "800 31px Arial";
+      wrapText(ctx, takeaway, 182, y + 50, canvas.width - 300, 38);
+    });
+    return;
+  }
+
+  panelBase(ctx, canvas, "Next", "Restart or continue elsewhere", state);
+  ctx.fillStyle = "#151d20";
+  ctx.font = "900 42px Arial";
+  wrapText(ctx, "Restart the module to draw another transfer challenge.", 92, 244, canvas.width - 184, 54);
+  ctx.fillStyle = "#536164";
+  ctx.font = "700 30px Arial";
+  wrapText(
+    ctx,
+    "Future versions can add navigation to other visualization accessibility modules here.",
+    92,
+    410,
+    canvas.width - 184,
+    44,
+  );
 }
 
 function drawPublicHealthAsset(ctx, canvas, kind, state) {
@@ -367,8 +521,22 @@ function colorInterventionExplanation(example, interventions) {
   return active.map((item) => `${item.shortLabel}: ${item.effect}`).join(" ");
 }
 
+function compactDesignFeedback(feedback) {
+  return [
+    feedback.title,
+    feedback.message,
+    ...(feedback.details ?? []).slice(0, 2),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function publicHealthAssetKey(exampleId, slot) {
   return `${exampleId}:${slot}`;
+}
+
+function transferAssetKey(challengeId) {
+  return `transfer:${challengeId}`;
 }
 
 function simulatedAssetSource(assetKey, image, state) {

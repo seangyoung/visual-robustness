@@ -1,6 +1,12 @@
 import "./styles.css";
 import { moduleScenes, recommendedComparisonRanking } from "./config/lesson.js";
 import {
+  MODULE_PHASES,
+  allExamplesSubmitted,
+  designSubmissionFeedback,
+  modulePhaseFromParam,
+} from "./config/moduleFlow.js";
+import {
   defaultInterventions,
   interventionsFromParam,
   interventionsToParam,
@@ -21,7 +27,14 @@ import {
   nextVisualizationExampleIndex,
   visualizationExampleByIndex,
   visualizationExampleIndexById,
+  visualizationExamples,
 } from "./config/visualizationExamples.js";
+import {
+  randomTransferChallengeId,
+  transferChallengeById,
+  transferChallengeIdFromParam,
+  transferChoiceById,
+} from "./config/transferChallenges.js";
 import { createGalleryApp } from "./scene/gallery.js";
 import { createDomUi } from "./ui/dom.js";
 import { preloadVisualizationAssets } from "./visualizations/colorFragility.js";
@@ -30,7 +43,16 @@ const canvas = document.getElementById("xr-canvas");
 
 const state = {
   sceneIndex: initialSceneIndex(),
+  modulePhase: initialModulePhase(),
   exampleIndex: initialExampleIndex(),
+  challengeForced: initialChallengeForced(),
+  selectedChallengeId: initialTransferChallengeId(),
+  confidenceByExample: initialConfidenceByExample(),
+  submittedExamples: initialSubmittedExamples(),
+  exampleFeedback: {},
+  transferAnswer: null,
+  transferSubmitted: false,
+  transferFeedback: null,
   settings: {
     highContrast: false,
     reducedMotion: false,
@@ -129,9 +151,63 @@ function handleAction(action, payload = {}) {
     state.workbench.interventions = defaultInterventions();
   }
 
+  if (action === "setExample") {
+    state.exampleIndex = clampExampleIndex(payload.index);
+    state.workbench.interventions = defaultInterventions();
+  }
+
   if (action === "nextExample") {
     state.exampleIndex = nextVisualizationExampleIndex(state.exampleIndex);
     state.workbench.interventions = defaultInterventions();
+  }
+
+  if (action === "setConfidence") {
+    const example = visualizationExampleByIndex(state.exampleIndex);
+    state.confidenceByExample = {
+      ...state.confidenceByExample,
+      [example.id]: payload.confidence ?? null,
+    };
+  }
+
+  if (action === "submitDesign") {
+    submitCurrentDesign();
+  }
+
+  if (action === "continueToChallenge") {
+    if (allExamplesSubmitted(state.submittedExamples, visualizationExamples)) {
+      state.modulePhase = MODULE_PHASES.TRANSFER;
+      state.transferAnswer = null;
+      state.transferSubmitted = false;
+      state.transferFeedback = null;
+    }
+  }
+
+  if (action === "selectTransferAnswer") {
+    const challenge = transferChallengeById(state.selectedChallengeId);
+    const choice =
+      payload.choiceId !== undefined
+        ? transferChoiceById(challenge, payload.choiceId)
+        : challenge.choices?.[Number(payload.choiceIndex)];
+    if (!choice) return;
+    state.transferAnswer = choice.id;
+    if (state.transferSubmitted) {
+      state.transferFeedback = transferFeedbackForChoice(challenge, choice.id);
+    }
+  }
+
+  if (action === "submitTransferAnswer") {
+    const challenge = transferChallengeById(state.selectedChallengeId);
+    if (!transferChoiceById(challenge, state.transferAnswer)) return;
+    state.transferSubmitted = true;
+    state.transferFeedback = transferFeedbackForChoice(challenge, state.transferAnswer);
+  }
+
+  if (action === "continueToTakeaways") {
+    if (state.transferSubmitted) state.modulePhase = MODULE_PHASES.TAKEAWAYS;
+  }
+
+  if (action === "restartModule") {
+    restartModule();
   }
 
   if (action === "moveRank") {
@@ -162,6 +238,50 @@ function applySceneDefaults() {
     stressTestIndex: 0,
     interventions: defaultInterventions(),
     ...normalizeWorkbenchPatch(defaults),
+  };
+}
+
+function submitCurrentDesign() {
+  const example = visualizationExampleByIndex(state.exampleIndex);
+  const confidenceId = state.confidenceByExample[example.id];
+  if (!confidenceId) return;
+
+  state.exampleFeedback = {
+    ...state.exampleFeedback,
+    [example.id]: designSubmissionFeedback(example, state.workbench.interventions, confidenceId),
+  };
+  state.submittedExamples = {
+    ...state.submittedExamples,
+    [example.id]: true,
+  };
+}
+
+function transferFeedbackForChoice(challenge, choiceId) {
+  const choice = transferChoiceById(challenge, choiceId);
+  if (!choice) return null;
+  return {
+    correct: choice.id === challenge.correctChoiceId,
+    title: choice.id === challenge.correctChoiceId ? "That is the central issue." : "Look again at the encoding.",
+    message: choice.feedback,
+  };
+}
+
+function restartModule() {
+  state.modulePhase = MODULE_PHASES.EXAMPLES;
+  state.sceneIndex = 0;
+  state.exampleIndex = 0;
+  state.confidenceByExample = initialConfidenceByExample();
+  state.submittedExamples = initialSubmittedExamples();
+  state.exampleFeedback = {};
+  state.transferAnswer = null;
+  state.transferSubmitted = false;
+  state.transferFeedback = null;
+  if (!state.challengeForced) {
+    state.selectedChallengeId = randomTransferChallengeId();
+  }
+  state.workbench = {
+    stressTestIndex: 0,
+    interventions: defaultInterventions(),
   };
 }
 
@@ -228,6 +348,32 @@ function initialWorkbenchOverrides() {
   return overrides;
 }
 
+function initialModulePhase() {
+  const params = new URLSearchParams(window.location.search);
+  return modulePhaseFromParam(params.get("phase"));
+}
+
+function initialChallengeForced() {
+  const params = new URLSearchParams(window.location.search);
+  return params.has("challenge");
+}
+
+function initialTransferChallengeId() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("challenge")) {
+    return transferChallengeIdFromParam(params.get("challenge"));
+  }
+  return randomTransferChallengeId();
+}
+
+function initialConfidenceByExample() {
+  return Object.fromEntries(visualizationExamples.map((example) => [example.id, null]));
+}
+
+function initialSubmittedExamples() {
+  return Object.fromEntries(visualizationExamples.map((example) => [example.id, false]));
+}
+
 function initialExampleIndex() {
   const params = new URLSearchParams(window.location.search);
   const requested = params.get("example");
@@ -246,7 +392,17 @@ function syncUrl() {
   url.searchParams.delete("stress");
   url.searchParams.delete("reveal");
   url.searchParams.delete("interventions");
+  url.searchParams.delete("phase");
+  if (!state.challengeForced) {
+    url.searchParams.delete("challenge");
+  }
   url.searchParams.set("scene", scene.id);
+  if (state.modulePhase !== MODULE_PHASES.EXAMPLES) {
+    url.searchParams.set("phase", state.modulePhase);
+  }
+  if (state.challengeForced) {
+    url.searchParams.set("challenge", state.selectedChallengeId);
+  }
   if (state.exampleIndex === 0) {
     url.searchParams.delete("example");
   } else {
