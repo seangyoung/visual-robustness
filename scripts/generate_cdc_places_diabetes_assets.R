@@ -211,6 +211,11 @@ top_labels <- top_counties |>
   st_point_on_surface() |>
   mutate(label = paste0(countyname, " ", sprintf("%.1f%%", diabetes)))
 
+all_county_labels <- tx_map |>
+  filter(!is.na(diabetes), !is.na(countyname)) |>
+  st_point_on_surface() |>
+  mutate(label = countyname)
+
 class_summary <- places |>
   count(diabetes_class, name = "county_count") |>
   mutate(
@@ -432,6 +437,9 @@ add_svi_chart_symbol_layers <- function(plot, symbol_data) {
 
 fragile_palette <- c("#1b9e77", "#66a61e", "#e6ab02", "#d95f02", "#7570b3")
 names(fragile_palette) <- class_labels
+
+fragile_palette_alt <- c("#66c2a5", "#8da0cb", "#a6d854", "#e78ac3", "#ffd92f")
+names(fragile_palette_alt) <- class_labels
 
 robust_palette <- viridisLite::cividis(length(class_labels), direction = -1)
 names(robust_palette) <- class_labels
@@ -1004,7 +1012,13 @@ chart_overlay_theme <- function(text = FALSE, grid = FALSE) {
 }
 
 make_prevalence_chart_color_layer <- function(palette = FALSE) {
-  fill_palette <- if (palette) robust_palette else fragile_palette
+  fill_palette <- if (identical(palette, "alt") || identical(palette, "paletteAlt")) {
+    fragile_palette_alt
+  } else if (isTRUE(palette)) {
+    robust_palette
+  } else {
+    fragile_palette
+  }
 
   ggplot(class_summary, aes(x = county_count, y = diabetes_class, fill = diabetes_class)) +
     geom_col(width = 0.72) +
@@ -1260,6 +1274,25 @@ make_prevalence_map_label_layer <- function() {
     map_theme(background = NA, text = FALSE)
 }
 
+make_prevalence_map_all_label_layer <- function() {
+  add_map_extent_anchor(ggplot(tx_map)) +
+    geom_sf_text(
+      data = all_county_labels,
+      aes(label = label),
+      family = "Arial",
+      size = 1.35,
+      fontface = "bold",
+      color = "#151d20",
+      check_overlap = FALSE
+    ) +
+    labs(
+      title = "Diagnosed Diabetes Prevalence by County",
+      subtitle = "Texas counties, CDC PLACES 2025 release",
+      caption = source_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+}
+
 make_diverging_map_cue_layer <- function() {
   add_map_extent_anchor(ggplot(tx_map)) +
     geom_sf(data = above_stipple, inherit.aes = FALSE, color = "#151d20", size = 0.18, alpha = 0.5) +
@@ -1343,6 +1376,11 @@ save_layer_assets <- function() {
     legend = map_layer_legend_colors("Diagnosed diabetes", reversed_class_labels, robust_palette)
   )
   save_png(
+    map_color_layer("diabetes_class", fragile_palette_alt, "Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    "cdc-places-diabetes-map-layer-color-p2.png",
+    legend = map_layer_legend_colors("Diagnosed diabetes", reversed_class_labels, fragile_palette_alt)
+  )
+  save_png(
     map_structure_layer("Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
     "cdc-places-diabetes-map-layer-structure.png",
     legend = map_layer_legend_structure("Diagnosed diabetes", reversed_class_labels, fragile_palette),
@@ -1354,8 +1392,10 @@ save_layer_assets <- function() {
     background = transparent
   )
   save_png(make_prevalence_map_label_layer(), "cdc-places-diabetes-map-layer-labels.png", background = transparent)
+  save_png(make_prevalence_map_all_label_layer(), "cdc-places-diabetes-map-layer-all-labels.png", background = transparent)
   save_png(make_prevalence_chart_color_layer(FALSE), "cdc-places-diabetes-chart-layer-color-p0.png")
   save_png(make_prevalence_chart_color_layer(TRUE), "cdc-places-diabetes-chart-layer-color-p1.png")
+  save_png(make_prevalence_chart_color_layer("alt"), "cdc-places-diabetes-chart-layer-color-p2.png")
   save_png(make_prevalence_chart_structure_layer(), "cdc-places-diabetes-chart-layer-structure.png", background = transparent)
   save_png(make_prevalence_chart_cue_layer(), "cdc-places-diabetes-chart-layer-cue.png", background = transparent)
   save_png(make_prevalence_chart_label_layer(), "cdc-places-diabetes-chart-layer-labels.png", background = transparent)
@@ -1871,11 +1911,14 @@ writeLines(
     "",
     "- `*-map-layer-color-p0.png`: original color fills",
     "- `*-map-layer-color-p1.png`: alternate palette or luminance color fills",
+    "- `*-map-layer-color-p2.png`: optional second alternate palette color fills",
     "- `*-map-layer-structure.png`: titles, axes, boundaries, legend text, and other persistent structure",
     "- `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries",
     "- `*-map-layer-labels.png`: direct labels and annotations",
+    "- `*-map-layer-all-labels.png`: optional high-density all-county label overlay",
     "- `*-chart-layer-color-p0.png`: original chart color fills",
     "- `*-chart-layer-color-p1.png`: alternate chart color fills",
+    "- `*-chart-layer-color-p2.png`: optional second alternate chart palette color fills",
     "- `*-chart-layer-structure.png`: axes, grid, titles, and persistent chart text",
     "- `*-chart-layer-cue.png`: chart outlines, hatches, or marker cues",
     "- `*-chart-layer-labels.png`: chart labels and annotations",

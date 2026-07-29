@@ -19,22 +19,38 @@ function publicHealthAsset(filename) {
   return url;
 }
 
-function figureLayerAssets(prefix, kind) {
-  return {
+function optionalPublicHealthAsset(filename) {
+  const key = `../../assets/proposed-public-health/${filename}`;
+  return publicHealthAssets[key] ?? null;
+}
+
+function figureLayerAssets(prefix, kind, options = {}) {
+  const color = {
+    original: publicHealthAsset(`${prefix}-${kind}-layer-color-p0.png`),
+    palette: publicHealthAsset(`${prefix}-${kind}-layer-color-p1.png`),
+  };
+  const paletteAlt = optionalPublicHealthAsset(`${prefix}-${kind}-layer-color-p2.png`);
+  if (options.paletteAlt && paletteAlt) color.paletteAlt = paletteAlt;
+
+  const layers = {
     color: {
-      original: publicHealthAsset(`${prefix}-${kind}-layer-color-p0.png`),
-      palette: publicHealthAsset(`${prefix}-${kind}-layer-color-p1.png`),
+      ...color,
     },
     structure: publicHealthAsset(`${prefix}-${kind}-layer-structure.png`),
     redundantCue: publicHealthAsset(`${prefix}-${kind}-layer-cue.png`),
     labels: publicHealthAsset(`${prefix}-${kind}-layer-labels.png`),
   };
+
+  const allLabels = optionalPublicHealthAsset(`${prefix}-${kind}-layer-all-labels.png`);
+  if (options.allLabels && allLabels) layers.allLabels = allLabels;
+
+  return layers;
 }
 
-function layeredPublicHealthAssets(prefix) {
+function layeredPublicHealthAssets(prefix, options = {}) {
   return {
-    map: figureLayerAssets(prefix, "map"),
-    chart: figureLayerAssets(prefix, "chart"),
+    map: figureLayerAssets(prefix, "map", options),
+    chart: figureLayerAssets(prefix, "chart", options),
   };
 }
 
@@ -55,17 +71,83 @@ export const visualizationExamples = [
       "The recommended combination uses an ordered luminance palette, selected direct labels, and chart annotations. Stronger boundaries are left off because they add density without clearly reducing color dependence.",
     recommendedInterventions: {
       palette: true,
+      paletteAlt: false,
       redundantCue: false,
       labels: true,
+      allLabels: false,
     },
+    paletteOptions: [
+      {
+        id: "original",
+        label: "Color Palette 1",
+        shortLabel: "Palette 1",
+        vrLabel: "Palette\n1",
+        description: "The initial green, gold, orange, and purple palette used by the original figure.",
+        effect: "Keeps the initial color set.",
+      },
+      {
+        id: "palette",
+        label: "Color Palette 2",
+        shortLabel: "Palette 2",
+        vrLabel: "Palette\n2",
+        description:
+          "A light-to-dark palette applied to the same prevalence classes and legend order.",
+        effect: "Replaces the class colors with a light-to-dark sequence.",
+      },
+      {
+        id: "paletteAlt",
+        label: "Color Palette 3",
+        shortLabel: "Palette 3",
+        vrLabel: "Palette\n3",
+        description:
+          "A pastel green, blue, yellow, and pink palette applied to the same prevalence classes.",
+        effect: "Replaces the class colors with a pastel color set.",
+      },
+    ],
+    labelOptions: [
+      {
+        id: "none",
+        label: "No added labels",
+        shortLabel: "No labels",
+        vrLabel: "No\nLabels",
+        description: "No additional county labels are added to the map.",
+        effect: "Leaves interpretation dependent on the legend and county positions.",
+      },
+      {
+        id: "labels",
+        label: "Selected labels",
+        shortLabel: "Selected labels",
+        vrLabel: "Selected\nLabels",
+        description:
+          "Selected map labels and chart annotations reduce repeated legend lookup for important values.",
+        effect: "Supports efficient lookup for selected values, while adding visual density.",
+      },
+      {
+        id: "allLabels",
+        label: "All labels",
+        shortLabel: "All labels",
+        vrLabel: "All\nLabels",
+        description:
+          "Every county is labeled on the map.",
+        effect: "Places every county name directly on the map.",
+      },
+    ],
     interventions: {
       palette: {
-        label: "Ordered luminance",
-        shortLabel: "Luminance",
-        vrLabel: "Luminance\nRamp",
+        label: "Color Palette 2",
+        shortLabel: "Palette 2",
+        vrLabel: "Palette\n2",
         description:
-          "Luminance ordering preserves the low-to-high sequence when hue differences become harder to separate.",
-        effect: "Directly reduces color dependence for an ordered sequence.",
+          "A light-to-dark palette applied to the same prevalence classes and legend order.",
+        effect: "Replaces the class colors with a light-to-dark sequence.",
+      },
+      paletteAlt: {
+        label: "Color Palette 3",
+        shortLabel: "Palette 3",
+        vrLabel: "Palette\n3",
+        description:
+          "A pastel green, blue, yellow, and pink palette applied to the same prevalence classes.",
+        effect: "Replaces the class colors with a pastel color set.",
       },
       redundantCue: {
         label: "Stronger boundaries",
@@ -83,8 +165,16 @@ export const visualizationExamples = [
           "Selected map labels and chart annotations reduce repeated legend lookup for the most important values.",
         effect: "Supports efficient lookup for selected values, while adding visual density.",
       },
+      allLabels: {
+        label: "All labels",
+        shortLabel: "All labels",
+        vrLabel: "All\nLabels",
+        description:
+          "Every county is labeled on the map.",
+        effect: "Places every county name directly on the map.",
+      },
     },
-    assets: layeredPublicHealthAssets("cdc-places-diabetes"),
+    assets: layeredPublicHealthAssets("cdc-places-diabetes", { paletteAlt: true, allLabels: true }),
   },
   {
     id: "difference-from-average",
@@ -102,8 +192,10 @@ export const visualizationExamples = [
       "The recommended combination uses a more distinguishable diverging palette, redundant above-average patterning, and direct labels.",
     recommendedInterventions: {
       palette: true,
+      paletteAlt: false,
       redundantCue: true,
       labels: true,
+      allLabels: false,
     },
     interventions: {
       palette: {
@@ -150,8 +242,10 @@ export const visualizationExamples = [
       "The recommended combination uses a robust palette and density-coded texture markers so theme identity no longer depends on hue alone. Labels and annotation add selected county examples on the map and direct county counts and percentages on the chart.",
     recommendedInterventions: {
       palette: true,
+      paletteAlt: false,
       redundantCue: true,
       labels: true,
+      allLabels: false,
     },
     interventions: {
       palette: {
@@ -186,6 +280,48 @@ export const visualizationExamples = [
 export function interventionMetadataForExample(example, key) {
   if (!INTERVENTION_KEYS.includes(key)) return null;
   return example.interventions?.[key] ?? null;
+}
+
+export function paletteOptionsForExample(example) {
+  return example?.paletteOptions ?? [
+    {
+      id: "original",
+      label: "Color Palette 1",
+      shortLabel: "Palette 1",
+      vrLabel: "Palette\n1",
+      description: "The original color palette.",
+      effect: "Keeps the original color palette.",
+    },
+    {
+      id: "palette",
+      label: "Color Palette 2",
+      shortLabel: "Palette 2",
+      vrLabel: "Palette\n2",
+      description: example?.interventions?.palette?.description ?? "The alternate color palette.",
+      effect: example?.interventions?.palette?.effect ?? "Changes the color palette.",
+    },
+  ];
+}
+
+export function labelOptionsForExample(example) {
+  return example?.labelOptions ?? [
+    {
+      id: "none",
+      label: "No added labels",
+      shortLabel: "No labels",
+      vrLabel: "No\nLabels",
+      description: "No additional direct labels are added.",
+      effect: "Leaves the figure without added direct labels.",
+    },
+    {
+      id: "labels",
+      label: example?.interventions?.labels?.label ?? "Labels",
+      shortLabel: example?.interventions?.labels?.shortLabel ?? "Labels",
+      vrLabel: example?.interventions?.labels?.vrLabel ?? "Labels",
+      description: example?.interventions?.labels?.description ?? "Adds direct labels and annotations.",
+      effect: example?.interventions?.labels?.effect ?? "Adds direct labels and annotations.",
+    },
+  ];
 }
 
 export function recommendedInterventionsForExample(example) {

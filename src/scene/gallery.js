@@ -4,12 +4,16 @@ import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFa
 import {
   INTERVENTION_KEYS,
   hasActiveInterventions,
+  labelModeFromInterventions,
   normalizeInterventions,
+  paletteVariantFromInterventions,
 } from "../config/interventions.js";
 import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
   interventionMetadataForExample,
+  labelOptionsForExample,
+  paletteOptionsForExample,
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
@@ -63,10 +67,14 @@ const BUTTONS = [
     height: 0.28,
     rotationX: 0,
   },
-  { id: "original", action: "clearInterventions", label: "Original", x: 0.34, width: 0.44, deckY: CONTROL_ROWS.upper },
-  { id: "palette", action: "toggleIntervention", payload: { key: "palette" }, label: "Palette", x: 0.34, width: 0.4, deckY: CONTROL_ROWS.lower },
-  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.82, width: 0.4, deckY: CONTROL_ROWS.lower },
-  { id: "labels", action: "toggleIntervention", payload: { key: "labels" }, label: "Labels", x: 1.27, width: 0.4, deckY: CONTROL_ROWS.lower },
+  { id: "palette-original", action: "setPaletteVariant", payload: { variant: "original" }, label: "Palette\n1", x: 0.08, width: 0.3, deckY: CONTROL_ROWS.upper },
+  { id: "palette", action: "setPaletteVariant", payload: { variant: "palette" }, label: "Palette\n2", x: 0.42, width: 0.3, deckY: CONTROL_ROWS.upper },
+  { id: "palette-alt", action: "setPaletteVariant", payload: { variant: "paletteAlt" }, label: "Palette\n3", x: 0.76, width: 0.3, deckY: CONTROL_ROWS.upper },
+  { id: "original", action: "clearInterventions", label: "Reset\nAll", x: 1.18, width: 0.34, deckY: CONTROL_ROWS.upper },
+  { id: "label-none", action: "setLabelMode", payload: { mode: "none" }, label: "No\nLabels", x: 0.08, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "labels", action: "setLabelMode", payload: { mode: "labels" }, label: "Selected\nLabels", x: 0.44, width: 0.34, deckY: CONTROL_ROWS.lower },
+  { id: "all-labels", action: "setLabelMode", payload: { mode: "allLabels" }, label: "All\nLabels", x: 0.82, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.18, width: 0.34, deckY: CONTROL_ROWS.lower },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
@@ -183,6 +191,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       workbenchControlDeck,
       sceneState,
       isImmersive,
+      state,
     );
     panels.map.visible = !(isImmersive && sceneState.type === "comparison");
     updatePanel(panels.map, "map", sceneState, state);
@@ -217,6 +226,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         workbenchControlDeck,
         moduleScenes[currentState.sceneIndex],
         true,
+        currentState,
       );
       session.addEventListener("end", () => {
         currentSession = null;
@@ -772,11 +782,15 @@ function updateInWorldControlVisibility(
   workbenchControlDeck,
   sceneState,
   isImmersive,
+  state,
 ) {
   const hasSceneNavigation = moduleScenes.length > 1;
   const supportsInterventions = sceneState.type === "color";
   const supportsSlider =
     sceneState.type === "orientation" || sceneState.type === "color" || sceneState.type === "contrast";
+  const example = visualizationExampleByIndex(state?.exampleIndex ?? 0);
+  const paletteOptionIds = new Set(paletteOptionsForExample(example).map((option) => option.id));
+  const labelOptionIds = new Set(labelOptionsForExample(example).map((option) => option.id));
 
   mainButtons.forEach((button) => {
     const isNavigation = button.id === "back" || button.id === "next";
@@ -784,13 +798,21 @@ function updateInWorldControlVisibility(
     const isInterventionControl =
       button.id === "original" ||
       button.id === "recommended" ||
+      button.action === "setPaletteVariant" ||
+      button.action === "setLabelMode" ||
       INTERVENTION_KEYS.includes(button.payload?.key);
+    const isSupportedPaletteChoice =
+      button.action !== "setPaletteVariant" || paletteOptionIds.has(button.payload?.variant);
+    const isSupportedLabelChoice =
+      button.action !== "setLabelMode" || labelOptionIds.has(button.payload?.mode);
     button.mesh.position.copy(controlPosition(button));
     button.mesh.visible =
       isImmersive &&
       (!isNavigation || hasSceneNavigation) &&
       (!isExampleControl || (sceneState.type === "color" && visualizationExamples.length > 1)) &&
-      (!isInterventionControl || supportsInterventions);
+      (!isInterventionControl || supportsInterventions) &&
+      isSupportedPaletteChoice &&
+      isSupportedLabelChoice;
   });
   setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
   robustnessSlider.group.visible = isImmersive && supportsSlider;
@@ -920,10 +942,36 @@ function buttonTextureSpec(button, state) {
   if (button.id === "original") {
     const active = !hasActiveInterventions(state.workbench?.interventions);
     return {
-      label: "Show\nOriginal",
+      label: "Reset\nAll",
       active,
       options: {
-        subtitle: active ? "Active" : "Reset",
+        subtitle: active ? "Original" : "Clear",
+      },
+    };
+  }
+
+  if (button.action === "setPaletteVariant") {
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const option = paletteOptionsForExample(example).find((item) => item.id === button.payload?.variant);
+    const active = paletteVariantFromInterventions(state.workbench?.interventions) === button.payload?.variant;
+    return {
+      label: option?.vrLabel ?? option?.shortLabel ?? button.label,
+      active,
+      options: {
+        subtitle: active ? "Active" : "Color",
+      },
+    };
+  }
+
+  if (button.action === "setLabelMode") {
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const option = labelOptionsForExample(example).find((item) => item.id === button.payload?.mode);
+    const active = labelModeFromInterventions(state.workbench?.interventions) === button.payload?.mode;
+    return {
+      label: option?.vrLabel ?? option?.shortLabel ?? button.label,
+      active,
+      options: {
+        subtitle: active ? "Active" : "Labels",
       },
     };
   }

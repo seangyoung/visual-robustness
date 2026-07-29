@@ -7,12 +7,16 @@ import {
 import {
   INTERVENTION_KEYS,
   hasActiveInterventions,
+  labelModeFromInterventions,
   normalizeInterventions,
+  paletteVariantFromInterventions,
 } from "../config/interventions.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
   interventionMetadataForExample,
+  labelOptionsForExample,
   matchesRecommendedInterventions,
+  paletteOptionsForExample,
   visualizationExampleByIndex,
   visualizationExamples,
 } from "../config/visualizationExamples.js";
@@ -174,25 +178,76 @@ function renderBrowserWorkbench(elements, scene, state) {
 function renderInterventionControls(elements, example, interventions, enabled, onAction) {
   const normalized = normalizeInterventions(interventions);
   const hasActive = hasActiveInterventions(normalized);
+  const paletteOptions = paletteOptionsForExample(example);
+  const labelOptions = labelOptionsForExample(example);
 
   elements.originalDesign.disabled = !enabled;
   elements.originalDesign.setAttribute("aria-pressed", String(!hasActive));
 
   elements.interventionControls.replaceChildren(
-    ...INTERVENTION_KEYS.map((key) => {
-      const metadata = interventionMetadataForExample(example, key);
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "intervention-toggle";
-      button.dataset.intervention = key;
-      button.disabled = !enabled;
-      button.setAttribute("aria-pressed", String(Boolean(normalized[key])));
-      button.title = metadata?.description ?? "";
-      button.textContent = metadata?.label ?? key;
-      button.addEventListener("click", () => onAction("toggleIntervention", { key }));
-      return button;
+    createChoiceGroup({
+      label: "Color",
+      options: paletteOptions,
+      activeId: paletteVariantFromInterventions(normalized),
+      enabled,
+      onSelect: (variant) => onAction("setPaletteVariant", { variant }),
+    }),
+    createToggleButton({
+      key: "redundantCue",
+      example,
+      active: normalized.redundantCue,
+      enabled,
+      onAction,
+    }),
+    createChoiceGroup({
+      label: "Labels",
+      options: labelOptions,
+      activeId: labelModeFromInterventions(normalized),
+      enabled,
+      onSelect: (mode) => onAction("setLabelMode", { mode }),
     }),
   );
+}
+
+function createChoiceGroup({ label, options, activeId, enabled, onSelect }) {
+  const group = document.createElement("div");
+  group.className = "intervention-group";
+  group.setAttribute("role", "group");
+  group.setAttribute("aria-label", label);
+
+  const heading = document.createElement("span");
+  heading.className = "intervention-group-label";
+  heading.textContent = label;
+  group.append(heading);
+
+  options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "intervention-choice";
+    button.dataset.choice = option.id;
+    button.disabled = !enabled;
+    button.title = option.description ?? "";
+    button.setAttribute("aria-pressed", String(option.id === activeId));
+    button.textContent = option.label;
+    button.addEventListener("click", () => onSelect(option.id));
+    group.append(button);
+  });
+
+  return group;
+}
+
+function createToggleButton({ key, example, active, enabled, onAction }) {
+  const metadata = interventionMetadataForExample(example, key);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "intervention-toggle";
+  button.dataset.intervention = key;
+  button.disabled = !enabled;
+  button.setAttribute("aria-pressed", String(Boolean(active)));
+  button.title = metadata?.description ?? "";
+  button.textContent = metadata?.label ?? key;
+  button.addEventListener("click", () => onAction("toggleIntervention", { key }));
+  return button;
 }
 
 function interventionExplanation(example, interventions) {

@@ -5,6 +5,8 @@ import {
   interventionsFromParam,
   interventionsToParam,
   normalizeInterventions,
+  setLabelMode,
+  setPaletteVariant,
   toggleIntervention,
 } from "./config/interventions.js";
 import {
@@ -108,6 +110,14 @@ function handleAction(action, payload = {}) {
 
   if (action === "toggleIntervention") {
     state.workbench.interventions = toggleIntervention(state.workbench.interventions, payload.key);
+  }
+
+  if (action === "setPaletteVariant") {
+    state.workbench.interventions = setPaletteVariant(state.workbench.interventions, payload.variant);
+  }
+
+  if (action === "setLabelMode") {
+    state.workbench.interventions = setLabelMode(state.workbench.interventions, payload.mode);
   }
 
   if (action === "clearInterventions") {

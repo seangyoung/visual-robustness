@@ -2,6 +2,7 @@ import {
   INTERVENTION_KEYS,
   allInterventionsActive,
   normalizeInterventions,
+  paletteVariantFromInterventions,
 } from "../config/interventions.js";
 import {
   comparisonDesigns,
@@ -324,14 +325,19 @@ function publicHealthLayerStack(example, kind, state) {
   if (!figure) return [];
 
   const interventions = normalizeInterventions(state.workbench?.interventions);
-  const colorLayer = interventions.palette ? "palette" : "original";
+  const paletteVariant = paletteVariantFromInterventions(interventions);
+  const colorLayer = figure.color?.[paletteVariant] ? paletteVariant : "original";
   const layers = [
     { slot: `${kind}.color.${colorLayer}` },
     { slot: `${kind}.structure` },
   ];
 
   if (interventions.redundantCue) layers.push({ slot: `${kind}.redundantCue` });
-  if (interventions.labels) layers.push({ slot: `${kind}.labels` });
+  if (interventions.allLabels && figure.allLabels) {
+    layers.push({ slot: `${kind}.allLabels` });
+  } else if (interventions.labels) {
+    layers.push({ slot: `${kind}.labels` });
+  }
 
   return layers;
 }

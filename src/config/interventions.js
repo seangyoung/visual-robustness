@@ -1,7 +1,14 @@
-export const INTERVENTION_KEYS = ["palette", "redundantCue", "labels"];
+export const INTERVENTION_KEYS = ["palette", "paletteAlt", "redundantCue", "labels", "allLabels"];
 
 const PARAM_ALIASES = {
   palette: "palette",
+  paletteone: null,
+  palette1: null,
+  palettetwo: "palette",
+  palette2: "palette",
+  palettethree: "paletteAlt",
+  palette3: "paletteAlt",
+  palettealt: "paletteAlt",
   luminance: "palette",
   ramp: "palette",
   cue: "redundantCue",
@@ -10,7 +17,10 @@ const PARAM_ALIASES = {
   pattern: "redundantCue",
   boundaries: "redundantCue",
   labels: "labels",
+  selectedlabels: "labels",
   annotations: "labels",
+  alllabels: "allLabels",
+  countylabels: "allLabels",
 };
 
 export function defaultInterventions() {
@@ -18,7 +28,12 @@ export function defaultInterventions() {
 }
 
 export function recommendedInterventions() {
-  return Object.fromEntries(INTERVENTION_KEYS.map((key) => [key, true]));
+  return {
+    ...defaultInterventions(),
+    palette: true,
+    redundantCue: true,
+    labels: true,
+  };
 }
 
 export function interventionsEqual(first, second) {
@@ -29,14 +44,57 @@ export function interventionsEqual(first, second) {
 
 export function normalizeInterventions(value = {}) {
   const source = value && typeof value === "object" ? value : {};
-  return Object.fromEntries(INTERVENTION_KEYS.map((key) => [key, Boolean(source[key])]));
+  const normalized = Object.fromEntries(INTERVENTION_KEYS.map((key) => [key, Boolean(source[key])]));
+  if (normalized.paletteAlt) normalized.palette = false;
+  if (normalized.allLabels) normalized.labels = false;
+  return normalized;
 }
 
 export function toggleIntervention(interventions, key) {
   if (!INTERVENTION_KEYS.includes(key)) return normalizeInterventions(interventions);
+  if (key === "palette" || key === "paletteAlt") {
+    const variant = normalizeInterventions(interventions)[key] ? "original" : key;
+    return setPaletteVariant(interventions, variant);
+  }
+  if (key === "labels" || key === "allLabels") {
+    const mode = normalizeInterventions(interventions)[key] ? "none" : key;
+    return setLabelMode(interventions, mode);
+  }
   return {
     ...normalizeInterventions(interventions),
     [key]: !Boolean(interventions?.[key]),
+  };
+}
+
+export function paletteVariantFromInterventions(interventions) {
+  const normalized = normalizeInterventions(interventions);
+  if (normalized.paletteAlt) return "paletteAlt";
+  if (normalized.palette) return "palette";
+  return "original";
+}
+
+export function setPaletteVariant(interventions, variant) {
+  const normalized = normalizeInterventions(interventions);
+  return {
+    ...normalized,
+    palette: variant === "palette",
+    paletteAlt: variant === "paletteAlt",
+  };
+}
+
+export function labelModeFromInterventions(interventions) {
+  const normalized = normalizeInterventions(interventions);
+  if (normalized.allLabels) return "allLabels";
+  if (normalized.labels) return "labels";
+  return "none";
+}
+
+export function setLabelMode(interventions, mode) {
+  const normalized = normalizeInterventions(interventions);
+  return {
+    ...normalized,
+    labels: mode === "labels",
+    allLabels: mode === "allLabels",
   };
 }
 
@@ -47,7 +105,7 @@ export function hasActiveInterventions(interventions) {
 
 export function allInterventionsActive(interventions) {
   const normalized = normalizeInterventions(interventions);
-  return INTERVENTION_KEYS.every((key) => normalized[key]);
+  return normalized.palette && normalized.redundantCue && normalized.labels;
 }
 
 export function interventionAssetSuffix(interventions) {
@@ -68,22 +126,22 @@ export function interventionsFromParam(value) {
 
   const compactMatch = normalizedValue.match(/^p([01])-r([01])-l([01])$/);
   if (compactMatch) {
-    return {
+    return normalizeInterventions({
       palette: compactMatch[1] === "1",
       redundantCue: compactMatch[2] === "1",
       labels: compactMatch[3] === "1",
-    };
+    });
   }
 
   const interventions = defaultInterventions();
   normalizedValue
     .split(/[,\s+]+/)
-    .map((token) => token.replace(/[^a-z]/g, ""))
+    .map((token) => token.replace(/[^a-z0-9]/g, ""))
     .forEach((token) => {
       const key = PARAM_ALIASES[token];
       if (key) interventions[key] = true;
     });
-  return interventions;
+  return normalizeInterventions(interventions);
 }
 
 export function interventionsToParam(interventions) {
