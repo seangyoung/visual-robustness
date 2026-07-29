@@ -1,6 +1,9 @@
 // Matrix states use Machado 2009/2010 CVD simulation coefficients, applied in
 // linear-light sRGB. See THIRD-PARTY-NOTICES.md for the Colour Science source
 // and BSD-3-Clause notice for the copied precomputed matrices.
+// Frequency estimates are broad congenital prevalence approximations from
+// NCBI Bookshelf/Webvision and MedlinePlus Genetics. Red-green estimates are
+// sex-specific because inheritance is usually X-linked.
 export const stressTests = [
   {
     id: "typical",
@@ -8,6 +11,7 @@ export const stressTests = [
     shortLabel: "Typical color",
     type: "identity",
     description: "No color-vision simulation is applied.",
+    frequency: "No CVD: approx. 92% men; 99.5% women",
   },
   {
     id: "deuteranomaly",
@@ -16,6 +20,7 @@ export const stressTests = [
     type: "matrix",
     severity: 0.6,
     description: "Common red-green weakness; usually the most common color vision deficiency.",
+    frequency: "Approx. 5% men; 0.4% women",
     matrix: [
       [0.498864, 0.674741, -0.173604],
       [0.205199, 0.754872, 0.039929],
@@ -29,6 +34,7 @@ export const stressTests = [
     type: "matrix",
     severity: 0.6,
     description: "Red-green weakness that also reduces the perceived brightness of reds.",
+    frequency: "Approx. 1% men; 0.01% women",
     matrix: [
       [0.38545, 0.769005, -0.154455],
       [0.100526, 0.829802, 0.069673],
@@ -42,6 +48,7 @@ export const stressTests = [
     type: "matrix",
     severity: 1,
     description: "Dichromatic red-green vision with absent M-cone response.",
+    frequency: "Approx. 1.5% men; 0.01% women",
     matrix: [
       [0.367322, 0.860646, -0.227968],
       [0.280085, 0.672501, 0.047413],
@@ -55,6 +62,7 @@ export const stressTests = [
     type: "matrix",
     severity: 1,
     description: "Dichromatic red-green vision with absent L-cone response.",
+    frequency: "Approx. 1% men; 0.01% women",
     matrix: [
       [0.152286, 1.052583, -0.204868],
       [0.114503, 0.786281, 0.099216],
@@ -68,6 +76,7 @@ export const stressTests = [
     type: "matrix",
     severity: 1,
     description: "Rare blue-yellow dichromatic vision with absent S-cone response.",
+    frequency: "Approx. 0.008% people (1 in 12,500)",
     matrix: [
       [1.255528, -0.076749, -0.178779],
       [-0.078411, 0.930809, 0.147602],
@@ -80,6 +89,7 @@ export const stressTests = [
     shortLabel: "No color",
     type: "monochrome",
     description: "Hue is removed so the visualization must work through value, label, shape, and pattern.",
+    frequency: "Achromatopsia: approx. 1 in 30,000",
   },
 ];
 

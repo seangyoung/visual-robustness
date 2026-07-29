@@ -1014,14 +1014,19 @@ function createSliderLabelTexture(stressTest, active) {
   ctx.font = "900 28px Arial";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("Stress Test", 38, 50);
+  ctx.fillText("Stress Test", 38, 42);
   ctx.fillStyle = active ? "#88e0d6" : "#c5ccc7";
   ctx.font = "900 29px Arial";
-  ctx.fillText(stressTest.shortLabel, 38, 96);
+  ctx.fillText(stressTest.shortLabel, 38, 82);
+  if (stressTest.frequency) {
+    ctx.fillStyle = "#f2c75e";
+    ctx.font = "800 20px Arial";
+    ctx.fillText(stressTest.frequency, 38, 116);
+  }
   ctx.fillStyle = "#9eadac";
   ctx.font = "700 20px Arial";
   ctx.textAlign = "right";
-  ctx.fillText(`${stressTests.indexOf(stressTest) + 1}/${stressTests.length}`, canvas.width - 38, 96);
+  ctx.fillText(`${stressTests.indexOf(stressTest) + 1}/${stressTests.length}`, canvas.width - 38, 82);
   return canvas;
 }
 

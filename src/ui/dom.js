@@ -123,10 +123,10 @@ export function createDomUi({
       elements.robustnessSlider.value = String(stressTestIndex);
       elements.robustnessSlider.setAttribute(
         "aria-valuetext",
-        `${stressTest.label}. ${stressTest.description}`,
+        [stressTest.label, stressTest.frequency, stressTest.description].filter(Boolean).join(". "),
       );
-      elements.robustnessValue.textContent = stressTest.shortLabel;
-      elements.robustnessValue.title = stressTest.description;
+      elements.robustnessValue.textContent = stressTestOutputLabel(stressTest);
+      elements.robustnessValue.title = [stressTest.description, stressTest.frequency].filter(Boolean).join(" ");
       elements.robustnessSlider.disabled = !supportsRobustness;
       renderStressTestTicks(elements, stressTestIndex, supportsRobustness);
 
@@ -308,10 +308,14 @@ function renderStressTestTicks(elements, activeIndex, enabled) {
       tick.classList.toggle("is-active", index === activeIndex);
       tick.classList.toggle("is-disabled", !enabled);
       tick.style.left = `${position}%`;
-      tick.title = test.label;
+      tick.title = stressTestOutputLabel(test);
       return tick;
     }),
   );
+}
+
+function stressTestOutputLabel(stressTest) {
+  return [stressTest.shortLabel, stressTest.frequency].filter(Boolean).join(" · ");
 }
 
 function renderRanking(elements, ranking, onAction) {

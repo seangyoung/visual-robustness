@@ -417,9 +417,10 @@ button:disabled {
 .range-control output {
   color: var(--amber);
   font-variant-numeric: tabular-nums;
-  min-width: 118px;
+  min-width: 230px;
+  max-width: min(52vw, 430px);
   text-align: right;
-  white-space: nowrap;
+  line-height: 1.25;
 }
 
 input[type="range"] {
@@ -954,8 +955,10 @@ body.is-immersive #xr-canvas {
   }
 
   .range-control output {
+    max-width: 100%;
     min-width: 0;
     text-align: left;
+    white-space: normal;
   }
 
   .intervention-controls {
