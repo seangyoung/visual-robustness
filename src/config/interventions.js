@@ -1,4 +1,12 @@
-export const INTERVENTION_KEYS = ["palette", "paletteAlt", "redundantCue", "annotation", "labels", "allLabels"];
+export const INTERVENTION_KEYS = [
+  "palette",
+  "paletteAlt",
+  "redundantCue",
+  "cueAlt",
+  "annotation",
+  "labels",
+  "allLabels",
+];
 
 const PARAM_ALIASES = {
   palette: "palette",
@@ -12,6 +20,16 @@ const PARAM_ALIASES = {
   luminance: "palette",
   ramp: "palette",
   cue: "redundantCue",
+  cueone: "redundantCue",
+  cue1: "redundantCue",
+  cuetwo: "cueAlt",
+  cue2: "cueAlt",
+  cuealt: "cueAlt",
+  markers: "redundantCue",
+  markerone: "redundantCue",
+  marker1: "redundantCue",
+  markertwo: "cueAlt",
+  marker2: "cueAlt",
   redundant: "redundantCue",
   redundantcue: "redundantCue",
   pattern: "redundantCue",
@@ -49,6 +67,7 @@ export function normalizeInterventions(value = {}) {
   const source = value && typeof value === "object" ? value : {};
   const normalized = Object.fromEntries(INTERVENTION_KEYS.map((key) => [key, Boolean(source[key])]));
   if (normalized.paletteAlt) normalized.palette = false;
+  if (normalized.cueAlt) normalized.redundantCue = false;
   if (normalized.allLabels) normalized.labels = false;
   return normalized;
 }
@@ -62,6 +81,10 @@ export function toggleIntervention(interventions, key) {
   if (key === "labels" || key === "allLabels") {
     const mode = normalizeInterventions(interventions)[key] ? "none" : key;
     return setLabelMode(interventions, mode);
+  }
+  if (key === "redundantCue" || key === "cueAlt") {
+    const variant = normalizeInterventions(interventions)[key] ? "none" : key;
+    return setCueVariant(interventions, variant);
   }
   return {
     ...normalizeInterventions(interventions),
@@ -82,6 +105,22 @@ export function setPaletteVariant(interventions, variant) {
     ...normalized,
     palette: variant === "palette",
     paletteAlt: variant === "paletteAlt",
+  };
+}
+
+export function cueVariantFromInterventions(interventions) {
+  const normalized = normalizeInterventions(interventions);
+  if (normalized.cueAlt) return "cueAlt";
+  if (normalized.redundantCue) return "redundantCue";
+  return "none";
+}
+
+export function setCueVariant(interventions, variant) {
+  const normalized = normalizeInterventions(interventions);
+  return {
+    ...normalized,
+    redundantCue: variant === "redundantCue",
+    cueAlt: variant === "cueAlt",
   };
 }
 

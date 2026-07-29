@@ -288,6 +288,33 @@ names(svi_legend_symbol_sizes) <- svi_theme_labels
 svi_legend_symbol_counts <- c(1, 2, 3, 4)
 names(svi_legend_symbol_counts) <- svi_theme_labels
 
+svi_cue_alt_shapes <- rep(21, length(svi_theme_labels))
+names(svi_cue_alt_shapes) <- svi_theme_labels
+
+svi_cue_alt_symbol_fills <- c("#2364aa", "#d04f31", "#6b9f28", "#8a63b8")
+names(svi_cue_alt_symbol_fills) <- svi_theme_labels
+
+svi_cue_alt_symbol_outlines <- rep("#151d20", length(svi_theme_labels))
+names(svi_cue_alt_symbol_outlines) <- svi_theme_labels
+
+svi_cue_alt_points_per_county <- rep(3, length(svi_theme_labels))
+names(svi_cue_alt_points_per_county) <- svi_theme_labels
+
+svi_cue_alt_chart_symbol_spacing <- rep(8, length(svi_theme_labels))
+names(svi_cue_alt_chart_symbol_spacing) <- svi_theme_labels
+
+svi_cue_alt_map_symbol_sizes <- rep(0.82, length(svi_theme_labels))
+names(svi_cue_alt_map_symbol_sizes) <- svi_theme_labels
+
+svi_cue_alt_chart_symbol_sizes <- rep(2.45, length(svi_theme_labels))
+names(svi_cue_alt_chart_symbol_sizes) <- svi_theme_labels
+
+svi_cue_alt_legend_symbol_sizes <- rep(1.55, length(svi_theme_labels))
+names(svi_cue_alt_legend_symbol_sizes) <- svi_theme_labels
+
+svi_cue_alt_legend_symbol_counts <- rep(3, length(svi_theme_labels))
+names(svi_cue_alt_legend_symbol_counts) <- svi_theme_labels
+
 make_svi_chart_symbols <- function(summary_data) {
   bind_rows(lapply(seq_len(nrow(summary_data)), function(index) {
     row <- summary_data[index, ]
@@ -301,6 +328,20 @@ make_svi_chart_symbols <- function(summary_data) {
 }
 
 svi_chart_symbols <- make_svi_chart_symbols(svi_summary)
+
+make_svi_chart_symbols_equal <- function(summary_data) {
+  bind_rows(lapply(seq_len(nrow(summary_data)), function(index) {
+    row <- summary_data[index, ]
+    spacing <- unname(svi_cue_alt_chart_symbol_spacing[[as.character(row$svi_theme)]])
+    xs <- seq(5, max(5, row$county_count - 3), by = spacing)
+    data.frame(
+      x = xs,
+      svi_theme = factor(as.character(row$svi_theme), levels = svi_theme_labels)
+    )
+  }))
+}
+
+svi_chart_symbols_alt <- make_svi_chart_symbols_equal(svi_summary)
 
 make_chart_hatches <- function(summary_data) {
   rows <- summary_data |>
@@ -381,6 +422,31 @@ make_svi_symbol_points <- function(map_data, labels) {
 
 svi_symbol_points <- make_svi_symbol_points(tx_map, svi_theme_labels)
 
+make_svi_equal_circle_points <- function(map_data, labels) {
+  bind_rows(lapply(labels, function(label) {
+    group_count <- unname(svi_cue_alt_points_per_county[[label]])
+    group_counties <- map_data |>
+      filter(svi_theme == label) |>
+      select(svi_theme, geometry)
+
+    bind_rows(lapply(seq_len(nrow(group_counties)), function(index) {
+      county <- group_counties[index, ]
+      samples <- st_sample(st_geometry(county), size = group_count, type = "regular")
+      if (length(samples) == 0) {
+        samples <- st_geometry(st_point_on_surface(county))
+      }
+
+      st_sf(
+        svi_theme = factor(label, levels = labels),
+        geometry = samples,
+        crs = st_crs(map_data)
+      )
+    }))
+  }))
+}
+
+svi_symbol_points_alt <- make_svi_equal_circle_points(tx_map, svi_theme_labels)
+
 svi_label_points <- tx_map |>
   filter(!is.na(svi_theme)) |>
   group_by(svi_theme) |>
@@ -388,6 +454,11 @@ svi_label_points <- tx_map |>
   ungroup() |>
   st_point_on_surface() |>
   mutate(label = paste0(countyname, ": ", svi_theme_short))
+
+all_svi_labels <- tx_map |>
+  filter(!is.na(svi_theme), !is.na(countyname)) |>
+  st_point_on_surface() |>
+  mutate(label = countyname)
 
 add_svi_map_symbol_layers <- function(plot, symbol_data) {
   for (label in svi_theme_labels) {
@@ -407,6 +478,31 @@ add_svi_map_symbol_layers <- function(plot, symbol_data) {
         color = unname(svi_symbol_outlines[[label]]),
         size = unname(svi_map_symbol_sizes[[label]]),
         stroke = 0,
+        alpha = 0.9
+      )
+  }
+
+  plot
+}
+
+add_svi_map_equal_circle_layers <- function(plot, symbol_data) {
+  for (label in svi_theme_labels) {
+    label_points <- symbol_data |>
+      filter(svi_theme == label)
+
+    if (nrow(label_points) == 0) {
+      next
+    }
+
+    plot <- plot +
+      geom_sf(
+        data = label_points,
+        inherit.aes = FALSE,
+        shape = unname(svi_cue_alt_shapes[[label]]),
+        fill = unname(svi_cue_alt_symbol_fills[[label]]),
+        color = unname(svi_cue_alt_symbol_outlines[[label]]),
+        size = unname(svi_cue_alt_map_symbol_sizes[[label]]),
+        stroke = 0.1,
         alpha = 0.9
       )
   }
@@ -440,6 +536,32 @@ add_svi_chart_symbol_layers <- function(plot, symbol_data) {
   plot
 }
 
+add_svi_chart_equal_circle_layers <- function(plot, symbol_data) {
+  for (label in svi_theme_labels) {
+    label_points <- symbol_data |>
+      filter(svi_theme == label)
+
+    if (nrow(label_points) == 0) {
+      next
+    }
+
+    plot <- plot +
+      geom_point(
+        data = label_points,
+        aes(x = x, y = svi_theme),
+        inherit.aes = FALSE,
+        shape = unname(svi_cue_alt_shapes[[label]]),
+        fill = unname(svi_cue_alt_symbol_fills[[label]]),
+        color = unname(svi_cue_alt_symbol_outlines[[label]]),
+        size = unname(svi_cue_alt_chart_symbol_sizes[[label]]),
+        stroke = 0.1,
+        alpha = 0.92
+      )
+  }
+
+  plot
+}
+
 fragile_palette <- c("#1b9e77", "#66a61e", "#e6ab02", "#d95f02", "#7570b3")
 names(fragile_palette) <- class_labels
 
@@ -463,6 +585,9 @@ names(svi_fragile_palette) <- svi_theme_labels
 
 svi_robust_palette <- c("#0072b2", "#d55e00", "#009e73", "#cc79a7")
 names(svi_robust_palette) <- svi_theme_labels
+
+svi_palette_alt <- c("#8dd3c7", "#bebada", "#fb8072", "#b3de69")
+names(svi_palette_alt) <- svi_theme_labels
 
 map_theme <- function(background = "#f8f6ee", text = TRUE) {
   background_fill <- if (isTRUE(is.na(background))) NA else background
@@ -1266,7 +1391,13 @@ make_diverging_chart_annotation_layer <- function() {
 }
 
 make_svi_chart_color_layer <- function(palette = FALSE) {
-  fill_palette <- if (palette) svi_robust_palette else svi_fragile_palette
+  fill_palette <- if (identical(palette, "alt") || identical(palette, "paletteAlt")) {
+    svi_palette_alt
+  } else if (isTRUE(palette)) {
+    svi_robust_palette
+  } else {
+    svi_fragile_palette
+  }
 
   ggplot(svi_summary, aes(x = county_count, y = svi_theme, fill = svi_theme)) +
     geom_col(width = 0.72) +
@@ -1303,6 +1434,25 @@ make_svi_chart_cue_layer <- function() {
     geom_col(width = 0.72, fill = NA, color = "#151d20", linewidth = 0.18)
 
   plot <- add_svi_chart_symbol_layers(plot, svi_chart_symbols)
+
+  plot +
+    scale_y_discrete(labels = function(values) unname(svi_theme_short_labels[values])) +
+    svi_chart_scale() +
+    labs(
+      title = "County Count by Highest-Ranked SVI Theme",
+      subtitle = "Same SVI theme categories and colors as the map",
+      x = "Number of counties",
+      y = "SVI theme",
+      caption = svi_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_svi_chart_cue_alt_layer <- function() {
+  plot <- ggplot(svi_summary, aes(x = county_count, y = svi_theme)) +
+    geom_col(width = 0.72, fill = NA, color = "#151d20", linewidth = 0.18)
+
+  plot <- add_svi_chart_equal_circle_layers(plot, svi_chart_symbols_alt)
 
   plot +
     scale_y_discrete(labels = function(values) unname(svi_theme_short_labels[values])) +
@@ -1452,6 +1602,18 @@ make_svi_map_cue_layer <- function() {
   add_svi_map_symbol_layers(plot, svi_symbol_points)
 }
 
+make_svi_map_cue_alt_layer <- function() {
+  plot <- add_map_extent_anchor(ggplot(tx_map)) +
+    labs(
+      title = "Highest-Ranked SVI Theme by County",
+      subtitle = "Texas counties, CDC/ATSDR SVI 2022",
+      caption = svi_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+
+  add_svi_map_equal_circle_layers(plot, svi_symbol_points_alt)
+}
+
 make_svi_map_label_layer <- function() {
   add_map_extent_anchor(ggplot(tx_map)) +
     geom_sf_label(
@@ -1464,6 +1626,25 @@ make_svi_map_label_layer <- function() {
       label.padding = unit(0.16, "lines"),
       fill = "#f8f6ee",
       color = "#151d20"
+    ) +
+    labs(
+      title = "Highest-Ranked SVI Theme by County",
+      subtitle = "Texas counties, CDC/ATSDR SVI 2022",
+      caption = svi_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+}
+
+make_svi_map_all_label_layer <- function() {
+  add_map_extent_anchor(ggplot(tx_map)) +
+    geom_sf_text(
+      data = all_svi_labels,
+      aes(label = label),
+      family = "Arial",
+      size = 1.95,
+      fontface = "bold",
+      color = "#151d20",
+      alpha = 0.8
     ) +
     labs(
       title = "Highest-Ranked SVI Theme by County",
@@ -1569,6 +1750,11 @@ save_layer_assets <- function() {
     legend = map_layer_legend_colors("Highest SVI theme", reversed_svi_labels, svi_robust_palette)
   )
   save_png(
+    map_color_layer("svi_theme", svi_palette_alt, "Highest-Ranked SVI Theme by County", "Texas counties, CDC/ATSDR SVI 2022", svi_caption),
+    "cdc-svi-theme-map-layer-color-p2.png",
+    legend = map_layer_legend_colors("Highest SVI theme", reversed_svi_labels, svi_palette_alt)
+  )
+  save_png(
     map_structure_layer("Highest-Ranked SVI Theme by County", "Texas counties, CDC/ATSDR SVI 2022", svi_caption),
     "cdc-svi-theme-map-layer-structure.png",
     legend = map_layer_legend_structure("Highest SVI theme", reversed_svi_labels, svi_fragile_palette),
@@ -1589,11 +1775,29 @@ save_layer_assets <- function() {
     ),
     background = transparent
   )
+  save_png(
+    make_svi_map_cue_alt_layer(),
+    "cdc-svi-theme-map-layer-cue-alt.png",
+    legend = map_layer_legend_cues(
+      "Highest SVI theme",
+      reversed_svi_labels,
+      svi_fragile_palette,
+      symbol_shapes = svi_cue_alt_shapes,
+      symbol_fills = svi_cue_alt_symbol_fills,
+      symbol_outlines = svi_cue_alt_symbol_outlines,
+      symbol_sizes = svi_cue_alt_legend_symbol_sizes,
+      symbol_counts = svi_cue_alt_legend_symbol_counts
+    ),
+    background = transparent
+  )
   save_png(make_svi_map_label_layer(), "cdc-svi-theme-map-layer-labels.png", background = transparent)
+  save_png(make_svi_map_all_label_layer(), "cdc-svi-theme-map-layer-all-labels.png", background = transparent)
   save_png(make_svi_chart_color_layer(FALSE), "cdc-svi-theme-chart-layer-color-p0.png")
   save_png(make_svi_chart_color_layer(TRUE), "cdc-svi-theme-chart-layer-color-p1.png")
+  save_png(make_svi_chart_color_layer("alt"), "cdc-svi-theme-chart-layer-color-p2.png")
   save_png(make_svi_chart_structure_layer(), "cdc-svi-theme-chart-layer-structure.png", background = transparent)
   save_png(make_svi_chart_cue_layer(), "cdc-svi-theme-chart-layer-cue.png", background = transparent)
+  save_png(make_svi_chart_cue_alt_layer(), "cdc-svi-theme-chart-layer-cue-alt.png", background = transparent)
   save_png(make_svi_chart_label_layer(), "cdc-svi-theme-chart-layer-labels.png", background = transparent)
 }
 
@@ -2043,6 +2247,7 @@ writeLines(
     "- `*-map-layer-color-p2.png`: optional second alternate palette color fills",
     "- `*-map-layer-structure.png`: titles, axes, boundaries, legend text, and other persistent structure",
     "- `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries",
+    "- `*-map-layer-cue-alt.png`: optional second marker or pattern cue overlay",
     "- `*-map-layer-labels.png`: direct labels and annotations",
     "- `*-map-layer-all-labels.png`: optional high-density all-county label overlay",
     "- `*-map-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay",
@@ -2051,6 +2256,7 @@ writeLines(
     "- `*-chart-layer-color-p2.png`: optional second alternate chart palette color fills",
     "- `*-chart-layer-structure.png`: axes, grid, titles, and persistent chart text",
     "- `*-chart-layer-cue.png`: chart outlines, hatches, or marker cues",
+    "- `*-chart-layer-cue-alt.png`: optional second chart marker or pattern cue overlay",
     "- `*-chart-layer-labels.png`: chart labels and annotations",
     "- `*-chart-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay",
     "",

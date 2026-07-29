@@ -1,6 +1,7 @@
 import {
   INTERVENTION_KEYS,
   allInterventionsActive,
+  cueVariantFromInterventions,
   normalizeInterventions,
   paletteVariantFromInterventions,
 } from "../config/interventions.js";
@@ -332,7 +333,12 @@ function publicHealthLayerStack(example, kind, state) {
     { slot: `${kind}.structure` },
   ];
 
-  if (interventions.redundantCue) layers.push({ slot: `${kind}.redundantCue` });
+  const cueVariant = cueVariantFromInterventions(interventions);
+  if (cueVariant === "cueAlt" && figure.cueAlt) {
+    layers.push({ slot: `${kind}.cueAlt` });
+  } else if (cueVariant === "redundantCue") {
+    layers.push({ slot: `${kind}.redundantCue` });
+  }
   if (interventions.annotation && figure.annotation) layers.push({ slot: `${kind}.annotation` });
   if (interventions.allLabels && figure.allLabels) {
     layers.push({ slot: `${kind}.allLabels` });

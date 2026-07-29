@@ -25,6 +25,7 @@ Each example prefix has map and chart layers:
 - `*-map-layer-color-p2.png`: optional second alternate palette color fills
 - `*-map-layer-structure.png`: titles, axes, boundaries, legend text, and other persistent structure
 - `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries
+- `*-map-layer-cue-alt.png`: optional second marker or pattern cue overlay
 - `*-map-layer-labels.png`: direct labels and annotations
 - `*-map-layer-all-labels.png`: optional high-density all-county label overlay
 - `*-map-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay
@@ -33,6 +34,7 @@ Each example prefix has map and chart layers:
 - `*-chart-layer-color-p2.png`: optional second alternate chart palette color fills
 - `*-chart-layer-structure.png`: axes, grid, titles, and persistent chart text
 - `*-chart-layer-cue.png`: chart outlines, hatches, or marker cues
+- `*-chart-layer-cue-alt.png`: optional second chart marker or pattern cue overlay
 - `*-chart-layer-labels.png`: chart labels and annotations
 - `*-chart-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay
 

@@ -5,6 +5,7 @@ import {
   interventionsFromParam,
   interventionsToParam,
   normalizeInterventions,
+  setCueVariant,
   setLabelMode,
   setPaletteVariant,
   toggleIntervention,
@@ -114,6 +115,10 @@ function handleAction(action, payload = {}) {
 
   if (action === "setPaletteVariant") {
     state.workbench.interventions = setPaletteVariant(state.workbench.interventions, payload.variant);
+  }
+
+  if (action === "setCueVariant") {
+    state.workbench.interventions = setCueVariant(state.workbench.interventions, payload.variant);
   }
 
   if (action === "setLabelMode") {

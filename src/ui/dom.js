@@ -6,6 +6,7 @@ import {
 } from "../config/lesson.js";
 import {
   INTERVENTION_KEYS,
+  cueVariantFromInterventions,
   hasActiveInterventions,
   labelModeFromInterventions,
   normalizeInterventions,
@@ -13,6 +14,7 @@ import {
 } from "../config/interventions.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
+  cueOptionsForExample,
   interventionMetadataForExample,
   labelOptionsForExample,
   matchesRecommendedInterventions,
@@ -179,7 +181,27 @@ function renderInterventionControls(elements, example, interventions, enabled, o
   const normalized = normalizeInterventions(interventions);
   const hasActive = hasActiveInterventions(normalized);
   const paletteOptions = paletteOptionsForExample(example);
+  const cueOptions = cueOptionsForExample(example);
   const labelOptions = labelOptionsForExample(example);
+  const cueControls = cueOptions.length > 2
+    ? [
+        createChoiceGroup({
+          label: "Markers",
+          options: cueOptions,
+          activeId: cueVariantFromInterventions(normalized),
+          enabled,
+          onSelect: (variant) => onAction("setCueVariant", { variant }),
+        }),
+      ]
+    : ["redundantCue"]
+        .filter((key) => interventionMetadataForExample(example, key))
+        .map((key) => createToggleButton({
+          key,
+          example,
+          active: normalized[key],
+          enabled,
+          onAction,
+        }));
 
   elements.originalDesign.disabled = !enabled;
   elements.originalDesign.setAttribute("aria-pressed", String(!hasActive));
@@ -192,7 +214,8 @@ function renderInterventionControls(elements, example, interventions, enabled, o
       enabled,
       onSelect: (variant) => onAction("setPaletteVariant", { variant }),
     }),
-    ...["redundantCue", "annotation"]
+    ...cueControls,
+    ...["annotation"]
       .filter((key) => interventionMetadataForExample(example, key))
       .map((key) => createToggleButton({
         key,

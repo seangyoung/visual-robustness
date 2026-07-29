@@ -44,6 +44,9 @@ function figureLayerAssets(prefix, kind, options = {}) {
   const allLabels = optionalPublicHealthAsset(`${prefix}-${kind}-layer-all-labels.png`);
   if (options.allLabels && allLabels) layers.allLabels = allLabels;
 
+  const cueAlt = optionalPublicHealthAsset(`${prefix}-${kind}-layer-cue-alt.png`);
+  if (options.cueAlt && cueAlt) layers.cueAlt = cueAlt;
+
   const annotation = optionalPublicHealthAsset(`${prefix}-${kind}-layer-annotation.png`);
   if (options.annotation && annotation) layers.annotation = annotation;
 
@@ -328,42 +331,155 @@ export const visualizationExamples = [
     predictionPrompt:
       "Predict which intervention will make theme identity easiest to recover under the selected stress test.",
     recommendedSummary:
-      "The recommended combination uses a robust palette and density-coded texture markers so theme identity no longer depends on hue alone. Labels and annotation add selected county examples on the map and direct county counts and percentages on the chart.",
+      "The recommended combination uses a high-separation palette, density-coded texture markers, and selected labels so theme identity no longer depends on hue alone.",
     recommendedInterventions: {
       palette: true,
       paletteAlt: false,
       redundantCue: true,
+      cueAlt: false,
       annotation: false,
       labels: true,
       allLabels: false,
     },
+    paletteOptions: [
+      {
+        id: "original",
+        label: "Color Palette 1",
+        shortLabel: "Palette 1",
+        vrLabel: "Palette\n1",
+        description: "The initial nominal palette used by the original SVI theme figure.",
+        effect: "Keeps the initial theme colors.",
+      },
+      {
+        id: "palette",
+        label: "Color Palette 2",
+        shortLabel: "Palette 2",
+        vrLabel: "Palette\n2",
+        description:
+          "A high-separation nominal palette applied to the same four SVI theme categories.",
+        effect: "Changes the theme colors without implying numeric order.",
+      },
+      {
+        id: "paletteAlt",
+        label: "Color Palette 3",
+        shortLabel: "Palette 3",
+        vrLabel: "Palette\n3",
+        description:
+          "A softer nominal palette applied to the same four SVI theme categories.",
+        effect: "Changes the theme colors while retaining the same category assignments.",
+      },
+    ],
+    cueOptions: [
+      {
+        id: "none",
+        label: "No markers",
+        shortLabel: "No markers",
+        vrLabel: "No\nMarkers",
+        description: "No additional marker layer is added.",
+        effect: "Leaves theme matching dependent on color and labels.",
+      },
+      {
+        id: "redundantCue",
+        label: "Marker Set 1",
+        shortLabel: "Markers 1",
+        vrLabel: "Markers\n1",
+        description:
+          "Each SVI theme gets markers that vary by shape, spacing, and light/dark contrast across the map, chart, and legend.",
+        effect: "Adds non-color cues for matching the same category across views.",
+      },
+      {
+        id: "cueAlt",
+        label: "Marker Set 2",
+        shortLabel: "Markers 2",
+        vrLabel: "Markers\n2",
+        description:
+          "Each SVI theme gets same-size, evenly spaced circle markers that differ only by color.",
+        effect: "Adds markers, but keeps the marker cue color-dependent.",
+      },
+    ],
+    labelOptions: [
+      {
+        id: "none",
+        label: "No added labels",
+        shortLabel: "No labels",
+        vrLabel: "No\nLabels",
+        description: "No additional county labels are added to the map.",
+        effect: "Leaves interpretation dependent on the legend and category positions.",
+      },
+      {
+        id: "labels",
+        label: "Selected labels",
+        shortLabel: "Selected labels",
+        vrLabel: "Selected\nLabels",
+        description:
+          "Selected county labels identify examples of each highest-ranked SVI theme on the map, while the chart labels each bar with its county count and percentage.",
+        effect: "Supports local lookup and makes the county-count comparison directly readable.",
+      },
+      {
+        id: "allLabels",
+        label: "All labels",
+        shortLabel: "All labels",
+        vrLabel: "All\nLabels",
+        description:
+          "Every county is labeled on the map.",
+        effect: "Places every county name directly on the map.",
+      },
+    ],
     interventions: {
       palette: {
-        label: "Robust palette",
-        shortLabel: "Palette",
-        vrLabel: "Robust\nPalette",
+        label: "Color Palette 2",
+        shortLabel: "Palette 2",
+        vrLabel: "Palette\n2",
         description:
-          "The robust palette uses more separable theme colors without implying a numeric order.",
-        effect: "Directly reduces color dependence for nominal category identity.",
+          "A high-separation nominal palette applied to the same four SVI theme categories.",
+        effect: "Changes the theme colors without implying numeric order.",
+      },
+      paletteAlt: {
+        label: "Color Palette 3",
+        shortLabel: "Palette 3",
+        vrLabel: "Palette\n3",
+        description:
+          "A softer nominal palette applied to the same four SVI theme categories.",
+        effect: "Changes the theme colors while retaining the same category assignments.",
       },
       redundantCue: {
-        label: "Texture markers",
-        shortLabel: "Markers",
-        vrLabel: "Texture\nMarkers",
+        label: "Marker Set 1",
+        shortLabel: "Markers 1",
+        vrLabel: "Markers\n1",
         description:
           "Each SVI theme gets a repeated marker cue that varies by shape, spacing, and light/dark contrast across the map, chart, and legend.",
         effect: "Adds a stronger non-color cue for matching the same category across views.",
       },
+      cueAlt: {
+        label: "Marker Set 2",
+        shortLabel: "Markers 2",
+        vrLabel: "Markers\n2",
+        description:
+          "Each SVI theme gets same-size, evenly spaced circle markers that differ only by color.",
+        effect: "Adds markers, but keeps the marker cue color-dependent.",
+      },
       labels: {
-        label: "Labels and Annotation",
-        shortLabel: "Labels",
-        vrLabel: "Labels\nCounts",
+        label: "Selected labels",
+        shortLabel: "Selected labels",
+        vrLabel: "Selected\nLabels",
         description:
           "Selected county labels identify examples of each highest-ranked SVI theme on the map, while the chart labels each bar with its county count and percentage.",
         effect: "Supports local lookup and makes the county-count comparison directly readable without relying on bar length alone.",
       },
+      allLabels: {
+        label: "All labels",
+        shortLabel: "All labels",
+        vrLabel: "All\nLabels",
+        description:
+          "Every county is labeled on the map.",
+        effect: "Places every county name directly on the map.",
+      },
     },
-    assets: layeredPublicHealthAssets("cdc-svi-theme"),
+    assets: layeredPublicHealthAssets("cdc-svi-theme", {
+      paletteAlt: true,
+      cueAlt: true,
+      allLabels: true,
+    }),
   },
 ];
 
@@ -410,6 +526,27 @@ export function labelOptionsForExample(example) {
       vrLabel: example?.interventions?.labels?.vrLabel ?? "Labels",
       description: example?.interventions?.labels?.description ?? "Adds direct labels and annotations.",
       effect: example?.interventions?.labels?.effect ?? "Adds direct labels and annotations.",
+    },
+  ];
+}
+
+export function cueOptionsForExample(example) {
+  return example?.cueOptions ?? [
+    {
+      id: "none",
+      label: "No markers",
+      shortLabel: "No markers",
+      vrLabel: "No\nMarkers",
+      description: "No additional marker layer is added.",
+      effect: "Leaves the figure without added marker cues.",
+    },
+    {
+      id: "redundantCue",
+      label: example?.interventions?.redundantCue?.label ?? "Markers",
+      shortLabel: example?.interventions?.redundantCue?.shortLabel ?? "Markers",
+      vrLabel: example?.interventions?.redundantCue?.vrLabel ?? "Markers",
+      description: example?.interventions?.redundantCue?.description ?? "Adds marker or pattern cues.",
+      effect: example?.interventions?.redundantCue?.effect ?? "Adds marker or pattern cues.",
     },
   ];
 }

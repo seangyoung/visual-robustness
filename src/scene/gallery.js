@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 import {
   INTERVENTION_KEYS,
+  cueVariantFromInterventions,
   hasActiveInterventions,
   labelModeFromInterventions,
   normalizeInterventions,
@@ -11,6 +12,7 @@ import {
 import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import {
+  cueOptionsForExample,
   interventionMetadataForExample,
   labelOptionsForExample,
   paletteOptionsForExample,
@@ -75,6 +77,7 @@ const BUTTONS = [
   { id: "labels", action: "setLabelMode", payload: { mode: "labels" }, label: "Selected\nLabels", x: 0.36, width: 0.32, deckY: CONTROL_ROWS.lower },
   { id: "all-labels", action: "setLabelMode", payload: { mode: "allLabels" }, label: "All\nLabels", x: 0.7, width: 0.28, deckY: CONTROL_ROWS.lower },
   { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.02, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "cue-alt", action: "setCueVariant", payload: { variant: "cueAlt" }, label: "Cue\n2", x: 1.35, width: 0.3, deckY: CONTROL_ROWS.lower },
   { id: "annotation", action: "toggleIntervention", payload: { key: "annotation" }, label: "Divider", x: 1.35, width: 0.3, deckY: CONTROL_ROWS.lower },
 ];
 const CHECK_BUTTONS = [
@@ -792,6 +795,7 @@ function updateInWorldControlVisibility(
   const example = visualizationExampleByIndex(state?.exampleIndex ?? 0);
   const paletteOptionIds = new Set(paletteOptionsForExample(example).map((option) => option.id));
   const labelOptionIds = new Set(labelOptionsForExample(example).map((option) => option.id));
+  const cueOptionIds = new Set(cueOptionsForExample(example).map((option) => option.id));
 
   mainButtons.forEach((button) => {
     const isNavigation = button.id === "back" || button.id === "next";
@@ -800,12 +804,15 @@ function updateInWorldControlVisibility(
       button.id === "original" ||
       button.id === "recommended" ||
       button.action === "setPaletteVariant" ||
+      button.action === "setCueVariant" ||
       button.action === "setLabelMode" ||
       INTERVENTION_KEYS.includes(button.payload?.key);
     const isSupportedPaletteChoice =
       button.action !== "setPaletteVariant" || paletteOptionIds.has(button.payload?.variant);
     const isSupportedLabelChoice =
       button.action !== "setLabelMode" || labelOptionIds.has(button.payload?.mode);
+    const isSupportedCueChoice =
+      button.action !== "setCueVariant" || cueOptionIds.has(button.payload?.variant);
     const isSupportedInterventionChoice =
       !INTERVENTION_KEYS.includes(button.payload?.key) ||
       Boolean(interventionMetadataForExample(example, button.payload.key));
@@ -817,6 +824,7 @@ function updateInWorldControlVisibility(
       (!isInterventionControl || supportsInterventions) &&
       isSupportedPaletteChoice &&
       isSupportedLabelChoice &&
+      isSupportedCueChoice &&
       isSupportedInterventionChoice;
   });
   setInWorldControlsVisible(checkButtons, isImmersive && sceneState.type === "comparison");
@@ -977,6 +985,19 @@ function buttonTextureSpec(button, state) {
       active,
       options: {
         subtitle: active ? "Active" : "Labels",
+      },
+    };
+  }
+
+  if (button.action === "setCueVariant") {
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const option = cueOptionsForExample(example).find((item) => item.id === button.payload?.variant);
+    const active = cueVariantFromInterventions(state.workbench?.interventions) === button.payload?.variant;
+    return {
+      label: option?.vrLabel ?? option?.shortLabel ?? button.label,
+      active,
+      options: {
+        subtitle: active ? "Active" : "Markers",
       },
     };
   }

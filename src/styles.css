@@ -816,9 +816,12 @@ body.is-immersive #xr-canvas {
   html,
   body,
   #app-shell {
+    width: 100%;
+    max-width: 100%;
     height: auto;
     min-height: 100%;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   #app-shell {
@@ -832,18 +835,27 @@ body.is-immersive #xr-canvas {
 
   .topbar {
     position: static;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
+    width: min(100%, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    gap: 8px;
     margin-bottom: 10px;
     pointer-events: auto;
   }
 
   .brand {
-    max-width: calc(100vw - 132px);
+    min-width: 0;
+    max-width: none;
     padding: 10px;
   }
 
   .brand h1 {
+    overflow: hidden;
     font-size: 15px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .brand p {
@@ -857,8 +869,9 @@ body.is-immersive #xr-canvas {
 
   .module-panel {
     position: static;
-    width: calc(100vw - 20px);
-    max-width: calc(100vw - 20px);
+    width: min(100%, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    min-width: 0;
     max-height: none;
     margin-top: 14px;
     overflow: visible;
@@ -868,11 +881,19 @@ body.is-immersive #xr-canvas {
 
   .browser-workbench {
     position: static;
-    width: calc(100vw - 20px);
-    max-width: calc(100vw - 20px);
+    width: min(100%, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    min-width: 0;
     grid-template-rows: auto auto;
     gap: 10px;
     overflow: visible;
+  }
+
+  .browser-task-panel,
+  .browser-figures,
+  .browser-figure {
+    max-width: 100%;
+    min-width: 0;
   }
 
   .browser-task-card {
@@ -880,7 +901,14 @@ body.is-immersive #xr-canvas {
     height: auto;
     max-width: 100%;
     padding: 14px;
+    overflow: hidden;
     overflow-wrap: anywhere;
+  }
+
+  .browser-task-card p {
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
   }
 
   .browser-task-header {
@@ -903,6 +931,8 @@ body.is-immersive #xr-canvas {
   }
 
   .browser-figure canvas {
+    display: block;
+    width: 100%;
     height: auto;
     max-width: 100%;
   }
@@ -1013,8 +1043,11 @@ body.is-immersive #xr-canvas {
 }
 
 @media (max-width: 420px) {
+  .primary-action {
+    display: none;
+  }
+
   .brand {
-    max-width: calc(100vw - 116px);
     gap: 8px;
   }
 
