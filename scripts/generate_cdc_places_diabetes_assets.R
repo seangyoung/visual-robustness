@@ -1351,7 +1351,7 @@ make_transfer_diverging_map <- function(spec) {
       "transfer_class",
       palette,
       spec$title,
-      sprintf("%s Texas average: %.1f%%.", spec$subtitle, average),
+      spec$subtitle,
       transfer_caption,
       map_data,
       spec$legend_title
@@ -1375,7 +1375,7 @@ transfer_map_specs <- list(
     type = "quantile",
     groups = 5,
     title = "Adult Obesity Prevalence by County",
-    subtitle = "Ordered prevalence classes shown with non-ordered rainbow hues",
+    subtitle = "Texas counties, CDC PLACES 2025 release",
     legend_title = "Adult obesity",
     palette = c("#4575b4", "#91bfdb", "#ffffbf", "#fc8d59", "#d73027")
   ),
@@ -1384,7 +1384,7 @@ transfer_map_specs <- list(
     column = "inactivity",
     type = "diverging",
     title = "Physical Inactivity Relative to Texas Average",
-    subtitle = "Above and below average classes depend on red/green hue.",
+    subtitle = "Texas counties, CDC PLACES 2025 release",
     legend_title = "Difference",
     palette = c("#1a9850", "#91cf60", "#d9ef8b", "#fee08b", "#fc8d59", "#d73027")
   ),
@@ -1394,7 +1394,7 @@ transfer_map_specs <- list(
     type = "quantile",
     groups = 8,
     title = "Current Smoking Prevalence by County",
-    subtitle = "Eight narrow classes create heavy legend and color-matching burden",
+    subtitle = "Texas counties, CDC PLACES 2025 release",
     legend_title = "Current smoking",
     palette = c("#4dac26", "#b8e186", "#f7f7f7", "#f1b6da", "#d01c8b", "#67a9cf", "#ef8a62", "#762a83")
   ),
@@ -1404,7 +1404,7 @@ transfer_map_specs <- list(
     type = "quantile",
     groups = 5,
     title = "Depression Prevalence by County",
-    subtitle = "Adjacent classes have intentionally weak luminance separation",
+    subtitle = "Texas counties, CDC PLACES 2025 release",
     legend_title = "Depression",
     palette = c("#d6d9d2", "#cfd4cf", "#c7d0cc", "#c0cbc9", "#b9c6c5")
   ),
@@ -1414,7 +1414,7 @@ transfer_map_specs <- list(
     type = "quantile",
     groups = 5,
     title = "High Blood Pressure Prevalence by County",
-    subtitle = "Similar hues require repeated legend lookup",
+    subtitle = "Texas counties, CDC PLACES 2025 release",
     legend_title = "High blood pressure",
     palette = c("#7fbf9b", "#76b99e", "#6eb2a1", "#66aba4", "#5da5a7")
   ),
@@ -1424,7 +1424,7 @@ transfer_map_specs <- list(
     type = "quantile",
     groups = 5,
     title = "Lack of Health Insurance by County",
-    subtitle = "Ordered prevalence is shown with categorical-looking colors",
+    subtitle = "Texas counties, CDC PLACES 2025 release",
     legend_title = "No insurance",
     palette = c("#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854")
   )
