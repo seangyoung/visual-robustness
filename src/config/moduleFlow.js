@@ -1,6 +1,7 @@
 import { normalizeInterventions } from "./interventions.js";
 
 export const MODULE_PHASES = {
+  INTRO: "intro",
   EXAMPLES: "examples",
   TRANSFER: "transfer",
   TAKEAWAYS: "takeaways",
@@ -35,10 +36,31 @@ export const finalTakeaways = [
   "Test visualizations under altered color perception before publishing.",
 ];
 
+export const introCopy = {
+  kicker: "Color Fragility Module",
+  title: "Stress-test color-dependent visualizations",
+  lead:
+    "This short module asks you to evaluate public-health maps and charts under changing color perception.",
+  goal:
+    "The goal is to see when color is carrying too much interpretive weight, then test design choices that make the same information easier to recover.",
+  mechanics: [
+    "Use the Stress Test slider to simulate common forms of altered color perception.",
+    "Try Design Choices such as palettes, patterns, annotations, and labels.",
+    "Submit your design with a confidence judgment to receive qualitative feedback.",
+  ],
+  flow: [
+    "Review three map and chart examples.",
+    "Revise each design choice set.",
+    "Answer one new transfer challenge.",
+    "Finish with compact design takeaways.",
+  ],
+  startLabel: "Start Module",
+};
+
 const phaseValues = new Set(Object.values(MODULE_PHASES));
 
 export function modulePhaseFromParam(value) {
-  return phaseValues.has(value) ? value : MODULE_PHASES.EXAMPLES;
+  return phaseValues.has(value) ? value : MODULE_PHASES.INTRO;
 }
 
 export function confidenceOptionById(id) {

@@ -14,6 +14,7 @@ import {
   MODULE_PHASES,
   allExamplesSubmitted,
   confidenceOptions,
+  introCopy,
 } from "../config/moduleFlow.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
 import { transferChallengeById, transferChoiceById } from "../config/transferChallenges.js";
@@ -62,6 +63,18 @@ const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
 const EXAMPLE_BUTTON_Z_OFFSET = 0.05;
 const PANEL_BUTTON_Z_OFFSET = 0.06;
 const BUTTONS = [
+  {
+    id: "start-module",
+    action: "startModule",
+    label: introCopy.startLabel.replace(" ", "\n"),
+    x: 0,
+    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.08,
+    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.72,
+    height: 0.22,
+    rotationX: 0,
+    phases: [MODULE_PHASES.INTRO],
+  },
   { id: "back", action: "back", label: "Back", x: -1.22, width: 0.42, deckY: CONTROL_ROWS.upper },
   { id: "next", action: "next", label: "Next", x: -0.8, width: 0.42, deckY: CONTROL_ROWS.upper },
   ...visualizationExamples.map((example, index) => ({
@@ -265,6 +278,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   let dragState = null;
   let currentState = {
     sceneIndex: 0,
+    modulePhase: MODULE_PHASES.INTRO,
     exampleIndex: 0,
     settings: ui.getSettings(),
     workbench: {
@@ -887,7 +901,7 @@ function updateInWorldControlVisibility(
   isImmersive,
   state,
 ) {
-  const phase = state?.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  const phase = state?.modulePhase ?? MODULE_PHASES.INTRO;
   const isExamplePhase = phase === MODULE_PHASES.EXAMPLES;
   const hasSceneNavigation = moduleScenes.length > 1;
   const supportsInterventions = isExamplePhase && sceneState.type === "color";
@@ -1074,6 +1088,17 @@ function updateButtonTextures(buttons, hoverControl, state) {
 }
 
 function buttonTextureSpec(button, state) {
+  if (button.id === "start-module") {
+    return {
+      label: introCopy.startLabel.replace(" ", "\n"),
+      active: false,
+      options: {
+        accent: true,
+        subtitle: "Begin",
+      },
+    };
+  }
+
   if (button.id.startsWith("example-")) {
     const index = Number(button.payload?.index);
     const example = visualizationExampleByIndex(index);

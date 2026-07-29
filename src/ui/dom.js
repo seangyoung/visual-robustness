@@ -9,6 +9,7 @@ import {
   allExamplesSubmitted,
   confidenceOptions,
   finalTakeaways,
+  introCopy,
 } from "../config/moduleFlow.js";
 import {
   INTERVENTION_KEYS,
@@ -56,6 +57,8 @@ export function createDomUi({
     sceneNav: document.getElementById("scene-nav"),
     back: document.getElementById("back-step"),
     next: document.getElementById("next-step"),
+    introControls: document.getElementById("intro-controls"),
+    startModule: document.getElementById("start-module"),
     workbenchControls: document.getElementById("workbench-controls"),
     workbenchTitle: document.getElementById("workbench-title"),
     exampleControl: document.querySelector(".example-control"),
@@ -86,6 +89,7 @@ export function createDomUi({
 
   elements.back.addEventListener("click", () => onAction("back"));
   elements.next.addEventListener("click", () => onAction("next"));
+  elements.startModule.addEventListener("click", () => onAction("startModule"));
   elements.robustnessSlider.addEventListener("input", (event) => {
     onWorkbenchChange({ stressTestIndex: Number(event.target.value) });
   });
@@ -106,12 +110,14 @@ export function createDomUi({
   });
 
   elements.textEquivalent.textContent = galleryCopy.textEquivalent;
+  elements.startModule.textContent = introCopy.startLabel;
 
   return {
     elements,
     render(state) {
       const scene = moduleScenes[state.sceneIndex];
-      const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+      const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
+      const isIntroPhase = phase === MODULE_PHASES.INTRO;
       const isExamplePhase = phase === MODULE_PHASES.EXAMPLES;
       const isTransferPhase = phase === MODULE_PHASES.TRANSFER;
       const isTakeawayPhase = phase === MODULE_PHASES.TAKEAWAYS;
@@ -145,6 +151,7 @@ export function createDomUi({
       elements.exampleControl.hidden = !isExamplePhase || scene.type !== "color" || visualizationExamples.length < 2;
 
       elements.workbenchControls.hidden = !showsWorkbenchControls;
+      elements.introControls.hidden = !isIntroPhase;
       elements.submissionPanel.hidden = !isExamplePhase;
       elements.transferControls.hidden = !isTransferPhase;
       elements.takeawayControls.hidden = !isTakeawayPhase;
@@ -195,10 +202,23 @@ export function createDomUi({
 }
 
 function renderBrowserWorkbench(elements, scene, state) {
-  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
   const activeExample = visualizationExampleByIndex(state.exampleIndex);
   const chartFigure = elements.browserChartCanvas.closest(".browser-figure");
   const figures = elements.browserMapCanvas.closest(".browser-figures");
+
+  figures.classList.remove("is-single", "is-intro");
+
+  if (phase === MODULE_PHASES.INTRO) {
+    chartFigure.hidden = false;
+    figures.classList.add("is-intro");
+    elements.browserTaskKicker.textContent = introCopy.kicker;
+    elements.browserTaskTitle.textContent = introCopy.title;
+    elements.browserTaskLead.textContent = introCopy.goal;
+    renderBrowserCanvas(elements.browserMapCanvas, "map", scene, state);
+    renderBrowserCanvas(elements.browserChartCanvas, "chart", scene, state);
+    return;
+  }
 
   if (phase === MODULE_PHASES.TRANSFER) {
     const challenge = transferChallengeById(state.selectedChallengeId);
@@ -228,7 +248,6 @@ function renderBrowserWorkbench(elements, scene, state) {
   }
 
   chartFigure.hidden = false;
-  figures.classList.remove("is-single");
   const lead =
     scene.type === "color"
       ? browserFeedbackOrInterventionSummary(activeExample, state)
@@ -483,14 +502,18 @@ function formatDesignFeedback(feedback) {
 }
 
 function phaseKicker(state, scene) {
-  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
+  if (phase === MODULE_PHASES.INTRO) return "Start here";
   if (phase === MODULE_PHASES.TRANSFER) return "Transfer challenge";
   if (phase === MODULE_PHASES.TAKEAWAYS) return "Final takeaways";
   return `Scene ${scene.sceneNumber} of ${moduleScenes.length} • ${scene.duration}`;
 }
 
 function phaseTextEquivalent(state, scene) {
-  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
+  if (phase === MODULE_PHASES.INTRO) {
+    return `Current phase: introduction. ${introCopy.title}. ${introCopy.lead} ${introCopy.goal}`;
+  }
   if (phase === MODULE_PHASES.TRANSFER) {
     const challenge = transferChallengeById(state.selectedChallengeId);
     return `Current phase: transfer challenge. ${challenge.title}. ${challenge.question}`;
@@ -502,7 +525,10 @@ function phaseTextEquivalent(state, scene) {
 }
 
 function phaseCopyForTextEquivalent(state) {
-  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
+  if (phase === MODULE_PHASES.INTRO) {
+    return [...introCopy.mechanics, ...introCopy.flow].join(" ");
+  }
   if (phase === MODULE_PHASES.TRANSFER) {
     const challenge = transferChallengeById(state.selectedChallengeId);
     const feedback = state.transferFeedback?.message;

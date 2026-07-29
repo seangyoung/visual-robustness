@@ -98,6 +98,10 @@ preloadVisualizationAssets()
   });
 
 function handleAction(action, payload = {}) {
+  if (action === "startModule") {
+    startModule();
+  }
+
   if (action === "back") {
     state.sceneIndex = Math.max(0, state.sceneIndex - 1);
     applySceneDefaults();
@@ -267,7 +271,7 @@ function transferFeedbackForChoice(challenge, choiceId) {
 }
 
 function restartModule() {
-  state.modulePhase = MODULE_PHASES.EXAMPLES;
+  state.modulePhase = MODULE_PHASES.INTRO;
   state.sceneIndex = 0;
   state.exampleIndex = 0;
   state.confidenceByExample = initialConfidenceByExample();
@@ -279,6 +283,16 @@ function restartModule() {
   if (!state.challengeForced) {
     state.selectedChallengeId = randomTransferChallengeId();
   }
+  state.workbench = {
+    stressTestIndex: 0,
+    interventions: defaultInterventions(),
+  };
+}
+
+function startModule() {
+  state.modulePhase = MODULE_PHASES.EXAMPLES;
+  state.sceneIndex = 0;
+  state.exampleIndex = 0;
   state.workbench = {
     stressTestIndex: 0,
     interventions: defaultInterventions(),
@@ -397,7 +411,7 @@ function syncUrl() {
     url.searchParams.delete("challenge");
   }
   url.searchParams.set("scene", scene.id);
-  if (state.modulePhase !== MODULE_PHASES.EXAMPLES) {
+  if (state.modulePhase !== MODULE_PHASES.INTRO) {
     url.searchParams.set("phase", state.modulePhase);
   }
   if (state.challengeForced) {

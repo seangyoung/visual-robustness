@@ -5,7 +5,7 @@ import {
   normalizeInterventions,
   paletteVariantFromInterventions,
 } from "../config/interventions.js";
-import { MODULE_PHASES, finalTakeaways } from "../config/moduleFlow.js";
+import { MODULE_PHASES, finalTakeaways, introCopy } from "../config/moduleFlow.js";
 import {
   comparisonDesigns,
   landCoverCategories,
@@ -148,7 +148,12 @@ export function createPanelTexture(kind, scene, state) {
   canvas.width = 1400;
   canvas.height = 980;
   const ctx = canvas.getContext("2d");
-  const phase = state.modulePhase ?? MODULE_PHASES.EXAMPLES;
+  const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
+
+  if (phase === MODULE_PHASES.INTRO) {
+    drawIntroPanel(ctx, canvas, kind, state);
+    return canvas;
+  }
 
   if (phase === MODULE_PHASES.TRANSFER) {
     drawTransferChallengePanel(ctx, canvas, kind, state);
@@ -250,6 +255,97 @@ export function createComparisonCardTexture(design, rank, active = false) {
     ctx.stroke();
   }
   return canvas;
+}
+
+function drawIntroPanel(ctx, canvas, kind, state) {
+  if (kind === "task") {
+    const bg = state.settings.highContrast ? "#0f1618" : "#131b1e";
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = state.settings.highContrast ? "#e9efe9" : "#465356";
+    ctx.lineWidth = 9;
+    ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
+
+    ctx.fillStyle = "#55c6ba";
+    ctx.font = "900 32px Arial";
+    ctx.fillText("START HERE", 88, 132);
+    ctx.fillStyle = "#f8f6ee";
+    ctx.font = "900 62px Arial";
+    wrapText(ctx, "Color Fragility", 88, 238, 1040, 72);
+    ctx.fillStyle = "#f2c75e";
+    ctx.font = "900 34px Arial";
+    wrapText(ctx, "Perceptual accessibility in data visualization", 88, 324, 1080, 42);
+
+    ctx.strokeStyle = "rgba(248,246,238,0.16)";
+    ctx.lineWidth = 4;
+    line(ctx, 88, 420, 1210, 420);
+
+    ctx.fillStyle = "#e9efe9";
+    ctx.font = "500 38px Arial";
+    wrapText(ctx, introCopy.goal, 88, 520, 1120, 52);
+
+    ctx.fillStyle = "#f2c75e";
+    ctx.font = "900 28px Arial";
+    ctx.fillText("Select Start Module when ready.", 88, 820);
+    return;
+  }
+
+  if (kind === "map") {
+    panelBase(ctx, canvas, "Mechanics", "How to use the workbench", state);
+    drawIntroList(ctx, introCopy.mechanics, 120, 236, canvas.width - 240, {
+      marker: "control",
+      gap: 152,
+    });
+    return;
+  }
+
+  panelBase(ctx, canvas, "Flow", "What happens in this module", state);
+  drawIntroList(ctx, introCopy.flow, 120, 222, canvas.width - 240, {
+    marker: "number",
+    gap: 132,
+  });
+}
+
+function drawIntroList(ctx, items, x, y, width, options = {}) {
+  const gap = options.gap ?? 130;
+  items.forEach((item, index) => {
+    const itemY = y + index * gap;
+    const markerX = x + 34;
+    const markerY = itemY + 30;
+
+    ctx.fillStyle = "#eef2ee";
+    roundRect(ctx, x, itemY - 28, width, 96, 16);
+    ctx.fill();
+    ctx.strokeStyle = "#cfd6cf";
+    ctx.lineWidth = 3;
+    roundRect(ctx, x, itemY - 28, width, 96, 16);
+    ctx.stroke();
+
+    ctx.fillStyle = "#2d837b";
+    if (options.marker === "number") {
+      ctx.beginPath();
+      ctx.arc(markerX, markerY - 3, 30, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#f8f6ee";
+      ctx.font = "900 28px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(String(index + 1), markerX, markerY + 7);
+      ctx.textAlign = "start";
+    } else {
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = "#2d837b";
+      roundRect(ctx, markerX - 28, markerY - 32, 56, 56, 10);
+      ctx.stroke();
+      ctx.fillStyle = "#2d837b";
+      ctx.beginPath();
+      ctx.arc(markerX + 14, markerY - 4, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = "#151d20";
+    ctx.font = "800 32px Arial";
+    wrapText(ctx, item, x + 94, itemY + 27, width - 132, 40);
+  });
 }
 
 function drawOrientationPanel(ctx, canvas, kind, scene, state) {
