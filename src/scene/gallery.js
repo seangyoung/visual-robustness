@@ -34,8 +34,8 @@ import {
 
 const PANEL_W = 3.3;
 const PANEL_H = 2.28;
-const SIDE_PANEL_X = 2.86;
-const TASK_PANEL_W = 1.92;
+const SIDE_PANEL_X = 3.08;
+const TASK_PANEL_W = 2.34;
 const TASK_PANEL_H = 1.68;
 const CONTROL_BUTTON_H = 0.19;
 const LAYOUT = {
@@ -63,16 +63,18 @@ const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
 const EXAMPLE_BUTTON_Z_OFFSET = 0.05;
 const PANEL_BUTTON_Z_OFFSET = 0.06;
 const INTRO_BUTTON_Y = LAYOUT.panelY - PANEL_H / 2 + 0.12;
+const RESPONSE_BUTTON_Y = TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.02;
+const TRANSFER_BUTTON_Y = LAYOUT.panelY - PANEL_H / 2 + 0.12;
 const BUTTONS = [
   {
     id: "start-module",
     action: "startModule",
-    label: introCopy.startLabel.replace(" ", "\n"),
+    label: introCopy.startLabel,
     x: 0,
     y: INTRO_BUTTON_Y,
     z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
-    width: 0.72,
-    height: 0.22,
+    width: 0.92,
+    height: 0.24,
     rotationX: 0,
     phases: [MODULE_PHASES.INTRO],
   },
@@ -83,34 +85,34 @@ const BUTTONS = [
     action: "setExample",
     payload: { index },
     label: example.panelSubtitle ?? example.shortTitle,
-    x: -0.62 + index * 0.62,
+    x: -0.76 + index * 0.76,
     y: TASK_PANEL_CENTER_Y + EXAMPLE_BUTTON_Y_OFFSET,
     z: LAYOUT.taskZ + EXAMPLE_BUTTON_Z_OFFSET,
-    width: 0.56,
-    height: 0.22,
+    width: 0.68,
+    height: 0.24,
     rotationX: 0,
     phases: [MODULE_PHASES.EXAMPLES],
   })),
-  { id: "palette-original", action: "setPaletteVariant", payload: { variant: "original" }, label: "Palette\n1", x: 0.08, width: 0.3, deckY: CONTROL_ROWS.upper },
-  { id: "palette", action: "setPaletteVariant", payload: { variant: "palette" }, label: "Palette\n2", x: 0.42, width: 0.3, deckY: CONTROL_ROWS.upper },
-  { id: "palette-alt", action: "setPaletteVariant", payload: { variant: "paletteAlt" }, label: "Palette\n3", x: 0.76, width: 0.3, deckY: CONTROL_ROWS.upper },
-  { id: "original", action: "clearInterventions", label: "Reset\nAll", x: 1.18, width: 0.34, deckY: CONTROL_ROWS.upper },
-  { id: "label-none", action: "setLabelMode", payload: { mode: "none" }, label: "No\nLabels", x: 0.04, width: 0.28, deckY: CONTROL_ROWS.lower },
-  { id: "labels", action: "setLabelMode", payload: { mode: "labels" }, label: "Selected\nLabels", x: 0.36, width: 0.32, deckY: CONTROL_ROWS.lower },
-  { id: "all-labels", action: "setLabelMode", payload: { mode: "allLabels" }, label: "All\nLabels", x: 0.7, width: 0.28, deckY: CONTROL_ROWS.lower },
-  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.02, width: 0.3, deckY: CONTROL_ROWS.lower },
-  { id: "cue-alt", action: "setCueVariant", payload: { variant: "cueAlt" }, label: "Cue\n2", x: 1.35, width: 0.3, deckY: CONTROL_ROWS.lower },
-  { id: "annotation", action: "toggleIntervention", payload: { key: "annotation" }, label: "Divider", x: 1.35, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "palette-original", action: "setPaletteVariant", payload: { variant: "original" }, label: "Palette\n1", x: 0.18, width: 0.3, deckY: CONTROL_ROWS.upper },
+  { id: "palette", action: "setPaletteVariant", payload: { variant: "palette" }, label: "Palette\n2", x: 0.51, width: 0.3, deckY: CONTROL_ROWS.upper },
+  { id: "palette-alt", action: "setPaletteVariant", payload: { variant: "paletteAlt" }, label: "Palette\n3", x: 0.84, width: 0.3, deckY: CONTROL_ROWS.upper },
+  { id: "original", action: "clearInterventions", label: "Reset\nAll", x: 1.24, width: 0.34, deckY: CONTROL_ROWS.upper },
+  { id: "label-none", action: "setLabelMode", payload: { mode: "none" }, label: "No\nLabels", x: 0.18, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "labels", action: "setLabelMode", payload: { mode: "labels" }, label: "Selected\nLabels", x: 0.51, width: 0.32, deckY: CONTROL_ROWS.lower },
+  { id: "all-labels", action: "setLabelMode", payload: { mode: "allLabels" }, label: "All\nLabels", x: 0.84, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "cue-alt", action: "setCueVariant", payload: { variant: "cueAlt" }, label: "Cue\n2", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "annotation", action: "toggleIntervention", payload: { key: "annotation" }, label: "Divider", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
   ...confidenceOptions.map((option, index) => ({
     id: `confidence-${option.id}`,
     action: "setConfidence",
     payload: { confidence: option.id },
     label: option.vrLabel,
-    x: -0.56 + index * 0.56,
-    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.27,
+    x: -0.66 + index * 0.66,
+    y: RESPONSE_BUTTON_Y,
     z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
-    width: 0.5,
-    height: 0.19,
+    width: 0.6,
+    height: 0.22,
     rotationX: 0,
     phases: [MODULE_PHASES.EXAMPLES],
   })),
@@ -118,11 +120,11 @@ const BUTTONS = [
     id: "submit-design",
     action: "submitDesign",
     label: "Submit\nDesign",
-    x: -0.28,
-    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.05,
+    x: -0.4,
+    y: RESPONSE_BUTTON_Y - 0.21,
     z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
-    width: 0.62,
-    height: 0.2,
+    width: 0.74,
+    height: 0.22,
     rotationX: 0,
     phases: [MODULE_PHASES.EXAMPLES],
   },
@@ -131,33 +133,20 @@ const BUTTONS = [
     action: "continueToChallenge",
     label: "Continue\nto Challenge",
     x: 0.48,
-    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.05,
+    y: RESPONSE_BUTTON_Y - 0.21,
     z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
-    width: 0.78,
-    height: 0.2,
+    width: 0.86,
+    height: 0.22,
     rotationX: 0,
     phases: [MODULE_PHASES.EXAMPLES],
   },
-  ...[0, 1, 2, 3].map((choiceIndex) => ({
-    id: `transfer-choice-${choiceIndex}`,
-    action: "selectTransferAnswer",
-    payload: { choiceIndex },
-    label: `Choice\n${choiceIndex + 1}`,
-    x: SIDE_PANEL_X + (choiceIndex % 2 === 0 ? -0.72 : 0.72),
-    y: TASK_PANEL_CENTER_Y - 0.08 - Math.floor(choiceIndex / 2) * 0.26,
-    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
-    width: 1.22,
-    height: 0.22,
-    rotationX: 0,
-    rotationY: -0.15,
-    phases: [MODULE_PHASES.TRANSFER],
-  })),
+  ...[0, 1, 2, 3].map((choiceIndex) => transferChoiceHitArea(choiceIndex)),
   {
     id: "submit-transfer",
     action: "submitTransferAnswer",
     label: "Submit\nAnswer",
     x: SIDE_PANEL_X - 0.38,
-    y: TASK_PANEL_CENTER_Y - 0.7,
+    y: TRANSFER_BUTTON_Y,
     z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
     width: 0.68,
     height: 0.2,
@@ -170,7 +159,7 @@ const BUTTONS = [
     action: "continueToTakeaways",
     label: "Continue",
     x: SIDE_PANEL_X + 0.46,
-    y: TASK_PANEL_CENTER_Y - 0.7,
+    y: TRANSFER_BUTTON_Y,
     z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
     width: 0.68,
     height: 0.2,
@@ -183,25 +172,28 @@ const BUTTONS = [
     action: "restartModule",
     label: "Restart\nModule",
     x: 0,
-    y: TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.08,
+    y: RESPONSE_BUTTON_Y - 0.21,
     z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
     width: 0.72,
     height: 0.22,
     rotationX: 0,
-    phases: [MODULE_PHASES.TAKEAWAYS],
+    phases: [MODULE_PHASES.TRANSFER, MODULE_PHASES.TAKEAWAYS],
   },
 ];
 const CHECK_BUTTONS = [
   { id: "rank-check", action: "checkRanking", label: "Check", x: -2.62, y: 0.8, z: -3.35, width: 0.82 },
 ];
-const SLIDER_WIDTH = 1.24;
+const SLIDER_WIDTH = 1.04;
 const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
 const SLIDER_MAX_X = SLIDER_WIDTH / 2;
-const SLIDER_CENTER = workbenchDeckPosition(-0.76, CONTROL_ROWS.lower);
+const SLIDER_CENTER = workbenchDeckPosition(-0.84, CONTROL_ROWS.lower);
 const SNAP_TURN_RADIANS = THREE.MathUtils.degToRad(30);
 const SNAP_TURN_THRESHOLD = 0.72;
 const SNAP_TURN_RESET_THRESHOLD = 0.35;
 const SNAP_TURN_AXIS = new THREE.Vector3(0, 1, 0);
+const TASK_SCROLL_THRESHOLD = 0.36;
+const TASK_SCROLL_SPEED = 5.5;
+const TASK_SCROLL_MAX = 360;
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -226,6 +218,30 @@ function controlPosition(control) {
   }
 
   return workbenchDeckPosition(control.x, control.deckY ?? 0);
+}
+
+function transferChoiceHitArea(choiceIndex) {
+  const cardCanvasY = 196 + choiceIndex * 112;
+  const cardHeight = 92;
+  const canvasHeight = 980;
+  const cardCenterY = cardCanvasY + cardHeight / 2;
+  const panelLocalY = -((cardCenterY - canvasHeight / 2) / canvasHeight) * PANEL_H;
+
+  return {
+    id: `transfer-choice-${choiceIndex}`,
+    action: "selectTransferAnswer",
+    payload: { choiceIndex },
+    label: `Choice ${choiceIndex + 1}`,
+    x: SIDE_PANEL_X,
+    y: LAYOUT.panelY + panelLocalY,
+    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
+    width: 2.86,
+    height: 0.22,
+    rotationX: 0,
+    rotationY: -0.15,
+    phases: [MODULE_PHASES.TRANSFER],
+    hitOnly: true,
+  };
 }
 
 export function createGalleryApp({ canvas, ui, onAction }) {
@@ -277,6 +293,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   let hoverControl = null;
   let dragState = null;
+  let taskScroll = 0;
+  let taskScrollKey = "";
   let currentState = {
     sceneIndex: 0,
     modulePhase: MODULE_PHASES.INTRO,
@@ -297,8 +315,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   function renderState(state) {
     currentState = state;
+    resetTaskScrollIfNeeded(state);
     const sceneState = moduleScenes[state.sceneIndex];
     const isImmersive = Boolean(currentSession);
+    const inWorldPanelState = panelStateWithScroll(state);
     updateInWorldControlVisibility(
       mainButtons,
       checkButtons,
@@ -311,12 +331,34 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     );
     applyPanelLayout(panels, sceneState, state, isImmersive);
     updatePanel(panels.map, "map", sceneState, state);
-    updatePanel(panels.task, "task", sceneState, state);
+    updatePanel(panels.task, "task", sceneState, inWorldPanelState);
     updatePanel(panels.chart, "chart", sceneState, state);
     updateButtonTextures(inWorldButtons, hoverControl, state);
     updateRobustnessSlider(robustnessSlider, state.workbench.stressTestIndex, hoverControl, dragState);
     updateRankingSet(rankingSet, state, hoverControl, dragState);
     world.accent.visible = !state.settings.highContrast;
+  }
+
+  function resetTaskScrollIfNeeded(state) {
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const key = [
+      state.modulePhase,
+      state.sceneIndex,
+      example.id,
+      state.transferSubmitted ? "submitted" : "pending",
+      state.transferAnswer ?? "",
+      Object.keys(state.exampleFeedback ?? {}).join(","),
+    ].join(":");
+    if (key === taskScrollKey) return;
+    taskScrollKey = key;
+    taskScroll = 0;
+  }
+
+  function panelStateWithScroll(state) {
+    return {
+      ...state,
+      vrTaskScroll: taskScroll,
+    };
   }
 
   async function enterVr() {
@@ -513,6 +555,17 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     applySnapTurn(axis > 0 ? SNAP_TURN_RADIANS : -SNAP_TURN_RADIANS);
   }
 
+  function updateTaskPanelScroll() {
+    if (!currentSession || !panels.task.visible) return false;
+    const axis = getTaskScrollAxis(currentSession.inputSources);
+    if (Math.abs(axis) < TASK_SCROLL_THRESHOLD) return false;
+
+    const next = clamp(taskScroll + axis * TASK_SCROLL_SPEED, 0, TASK_SCROLL_MAX);
+    if (Math.abs(next - taskScroll) < 0.1) return false;
+    taskScroll = next;
+    return true;
+  }
+
   function applySnapTurn(delta) {
     renderer.xr.getCamera(camera).getWorldPosition(snapTurnPivot);
     snapTurnPivot.y = 0;
@@ -554,6 +607,9 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     else updateSnapTurn();
     if (dragState) updateDragState(dragState);
     applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession));
+    if (updateTaskPanelScroll()) {
+      updatePanel(panels.task, "task", moduleScenes[currentState.sceneIndex], panelStateWithScroll(currentState));
+    }
     if (exampleButton?.mesh.visible) {
       exampleButton.mesh.position.y = panels.task.position.y + EXAMPLE_BUTTON_Y_OFFSET;
       exampleButton.mesh.position.z = panels.task.position.z + EXAMPLE_BUTTON_Z_OFFSET;
@@ -589,6 +645,20 @@ function getSnapTurnAxis(inputSources) {
   for (const inputSource of inputSources) {
     const axes = inputSource.gamepad?.axes ?? [];
     for (let index = 0; index < axes.length; index += 2) {
+      const axis = axes[index] ?? 0;
+      if (Math.abs(axis) > Math.abs(strongestAxis)) {
+        strongestAxis = axis;
+      }
+    }
+  }
+  return strongestAxis;
+}
+
+function getTaskScrollAxis(inputSources) {
+  let strongestAxis = 0;
+  for (const inputSource of inputSources) {
+    const axes = inputSource.gamepad?.axes ?? [];
+    for (let index = 1; index < axes.length; index += 2) {
       const axis = axes[index] ?? 0;
       if (Math.abs(axis) > Math.abs(strongestAxis)) {
         strongestAxis = axis;
@@ -744,12 +814,18 @@ function createWorkbenchControlDeck(scene) {
   bevel.position.set(0, -0.288, -0.014);
   group.add(bevel);
 
-  const separator = new THREE.Mesh(
-    new THREE.BoxGeometry(0.028, 0.45, 0.016),
-    new THREE.MeshStandardMaterial({ color: "#344346", roughness: 0.5 }),
-  );
-  separator.position.set(0.03, 0.015, 0.011);
-  group.add(separator);
+  [
+    { x: -0.84, y: -0.02, w: 1.22, h: 0.45, color: "#182326" },
+    { x: 0.72, y: CONTROL_ROWS.upper, w: 1.52, h: 0.22, color: "#192527" },
+    { x: 0.72, y: CONTROL_ROWS.lower, w: 1.52, h: 0.22, color: "#192527" },
+  ].forEach((pad) => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(pad.w, pad.h, 0.012),
+      new THREE.MeshStandardMaterial({ color: pad.color, roughness: 0.62, metalness: 0.02 }),
+    );
+    mesh.position.set(pad.x, pad.y, -0.002);
+    group.add(mesh);
+  });
 
   return group;
 }
@@ -779,8 +855,15 @@ function createButtons(scene, buttons, defaults = {}) {
   const height = defaults.height ?? CONTROL_BUTTON_H;
   const rotationX = defaults.rotationX ?? LAYOUT.controlDeckRotationX;
   return buttons.map((button) => {
-    const texture = textureFromCanvas(createButtonTexture(button.label, false));
-    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, toneMapped: false });
+    const hitOnly = Boolean(button.hitOnly);
+    const texture = hitOnly ? null : textureFromCanvas(createButtonTexture(button.label, false));
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: hitOnly ? 0 : 1,
+      depthWrite: !hitOnly,
+      toneMapped: false,
+    });
     const buttonWidth = button.width ?? width;
     const buttonHeight = button.height ?? height;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(buttonWidth, buttonHeight), material);
@@ -789,12 +872,14 @@ function createButtons(scene, buttons, defaults = {}) {
     mesh.rotation.y = button.rotationY ?? 0;
     mesh.visible = false;
 
-    const base = new THREE.Mesh(
-      new THREE.BoxGeometry(buttonWidth + 0.028, buttonHeight + 0.028, 0.03),
-      new THREE.MeshStandardMaterial({ color: "#263236", roughness: 0.48, metalness: 0.04 }),
-    );
-    base.position.z = -0.023;
-    mesh.add(base);
+    if (!hitOnly) {
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(buttonWidth + 0.028, buttonHeight + 0.028, 0.03),
+        new THREE.MeshStandardMaterial({ color: "#263236", roughness: 0.48, metalness: 0.04 }),
+      );
+      base.position.z = -0.023;
+      mesh.add(base);
+    }
 
     mesh.userData.kind = "button";
     mesh.userData.controlId = button.id;
@@ -813,14 +898,14 @@ function createRobustnessSlider(scene) {
   scene.add(group);
 
   const label = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.26, 0.16),
+    new THREE.PlaneGeometry(1.26, 0.19),
     new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false }),
   );
-  label.position.y = 0.176;
+  label.position.y = 0.18;
   group.add(label);
 
   const hitArea = new THREE.Mesh(
-    new THREE.PlaneGeometry(SLIDER_WIDTH + 0.13, 0.22),
+    new THREE.PlaneGeometry(SLIDER_WIDTH + 0.1, 0.2),
     new THREE.MeshBasicMaterial({
       color: "#ffffff",
       transparent: true,
@@ -861,7 +946,7 @@ function createRobustnessSlider(scene) {
     roughness: 0.38,
     metalness: 0.04,
   });
-  const handle = new THREE.Mesh(new THREE.SphereGeometry(0.068, 28, 18), handleMaterial);
+  const handle = new THREE.Mesh(new THREE.SphereGeometry(0.062, 28, 18), handleMaterial);
   handle.position.z = 0.036;
   handle.userData.kind = "slider";
   handle.userData.controlId = "robustness-slider";
@@ -972,7 +1057,9 @@ function updateInWorldControlVisibility(
       (!isInterventionControl || supportsInterventions) &&
       (!isTransferChoice || hasTransferChoice) &&
       (button.id !== "continue-challenge" || readyForChallenge) &&
+      (button.id !== "submit-transfer" || !state?.transferSubmitted) &&
       (button.id !== "continue-takeaways" || Boolean(state?.transferSubmitted)) &&
+      (button.id !== "restart-module" || phase !== MODULE_PHASES.TRANSFER || Boolean(state?.transferSubmitted)) &&
       isSupportedPaletteChoice &&
       isSupportedLabelChoice &&
       isSupportedCueChoice &&
@@ -1095,6 +1182,12 @@ function updatePanel(mesh, kind, sceneState, state) {
 
 function updateButtonTextures(buttons, hoverControl, state) {
   buttons.forEach((button) => {
+    if (button.hitOnly) {
+      button.mesh.material.opacity = 0;
+      button.mesh.material.needsUpdate = true;
+      return;
+    }
+
     const textureSpec = buttonTextureSpec(button, state);
     const isHovered = hoverControl === button.id;
     const disabled = Boolean(button.mesh.userData.disabled);
@@ -1113,11 +1206,11 @@ function updateButtonTextures(buttons, hoverControl, state) {
 function buttonTextureSpec(button, state) {
   if (button.id === "start-module") {
     return {
-      label: introCopy.startLabel.replace(" ", "\n"),
+      label: introCopy.startLabel,
       active: false,
       options: {
         accent: true,
-        subtitle: "Begin",
+        surface: "light",
       },
     };
   }
@@ -1132,7 +1225,6 @@ function buttonTextureSpec(button, state) {
       active,
       options: {
         accent: submitted && !active,
-        subtitle: submitted ? "Submitted" : "Example",
       },
     };
   }
@@ -1144,9 +1236,7 @@ function buttonTextureSpec(button, state) {
     return {
       label: confidence?.vrLabel ?? button.label,
       active,
-      options: {
-        subtitle: active ? "Confidence" : "",
-      },
+      options: {},
     };
   }
 
@@ -1158,7 +1248,6 @@ function buttonTextureSpec(button, state) {
       active: false,
       options: {
         accent: true,
-        subtitle: state.confidenceByExample?.[example.id] ? "Review" : "Pick confidence",
       },
     };
   }
@@ -1169,7 +1258,6 @@ function buttonTextureSpec(button, state) {
       active: false,
       options: {
         accent: true,
-        subtitle: "Unlocked",
       },
     };
   }
@@ -1184,7 +1272,6 @@ function buttonTextureSpec(button, state) {
       active: active || correct,
       options: {
         accent: correct,
-        subtitle: correct ? "Supported" : active ? "Selected" : `Choice ${Number(button.payload?.choiceIndex) + 1}`,
       },
     };
   }
@@ -1195,7 +1282,6 @@ function buttonTextureSpec(button, state) {
       active: false,
       options: {
         accent: true,
-        subtitle: state.transferAnswer ? "Review" : "Select one",
       },
     };
   }
@@ -1206,7 +1292,6 @@ function buttonTextureSpec(button, state) {
       active: false,
       options: {
         accent: true,
-        subtitle: "Takeaways",
       },
     };
   }
@@ -1217,7 +1302,6 @@ function buttonTextureSpec(button, state) {
       active: false,
       options: {
         accent: true,
-        subtitle: "New challenge",
       },
     };
   }
@@ -1227,9 +1311,7 @@ function buttonTextureSpec(button, state) {
     return {
       label: "Reset\nAll",
       active,
-      options: {
-        subtitle: active ? "Original" : "Clear",
-      },
+      options: {},
     };
   }
 
@@ -1240,9 +1322,7 @@ function buttonTextureSpec(button, state) {
     return {
       label: option?.vrLabel ?? option?.shortLabel ?? button.label,
       active,
-      options: {
-        subtitle: active ? "Active" : "Color",
-      },
+      options: {},
     };
   }
 
@@ -1253,9 +1333,7 @@ function buttonTextureSpec(button, state) {
     return {
       label: option?.vrLabel ?? option?.shortLabel ?? button.label,
       active,
-      options: {
-        subtitle: active ? "Active" : "Labels",
-      },
+      options: {},
     };
   }
 
@@ -1266,9 +1344,7 @@ function buttonTextureSpec(button, state) {
     return {
       label: option?.vrLabel ?? option?.shortLabel ?? button.label,
       active,
-      options: {
-        subtitle: active ? "Active" : "Markers",
-      },
+      options: {},
     };
   }
 
@@ -1281,9 +1357,7 @@ function buttonTextureSpec(button, state) {
     return {
       label: metadata?.vrLabel ?? metadata?.shortLabel ?? button.label,
       active,
-      options: {
-        subtitle: active ? "On" : "Off",
-      },
+      options: {},
     };
   }
 
@@ -1314,7 +1388,7 @@ function wrapButtonLabel(label, maxChars = 18) {
 function createSliderLabelTexture(stressTest, active) {
   const canvas = document.createElement("canvas");
   canvas.width = 900;
-  canvas.height = 140;
+  canvas.height = 160;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = active ? "#132628" : "#11191c";
   roundRect(ctx, 10, 10, canvas.width - 20, canvas.height - 20, 14);
@@ -1324,22 +1398,22 @@ function createSliderLabelTexture(stressTest, active) {
   roundRect(ctx, 10, 10, canvas.width - 20, canvas.height - 20, 14);
   ctx.stroke();
   ctx.fillStyle = "#f8f6ee";
-  ctx.font = "900 28px Arial";
+  ctx.font = "900 34px Arial";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("Stress Test", 38, 42);
+  ctx.fillText("Stress Test", 38, 46);
   ctx.fillStyle = active ? "#88e0d6" : "#c5ccc7";
-  ctx.font = "900 29px Arial";
-  ctx.fillText(stressTest.shortLabel, 38, 82);
+  ctx.font = "900 35px Arial";
+  ctx.fillText(stressTest.shortLabel, 38, 92);
   if (stressTest.frequency) {
     ctx.fillStyle = "#f2c75e";
-    ctx.font = "800 20px Arial";
-    ctx.fillText(stressTest.frequency, 38, 116);
+    ctx.font = "800 24px Arial";
+    ctx.fillText(stressTest.frequency, 38, 130);
   }
   ctx.fillStyle = "#9eadac";
-  ctx.font = "700 20px Arial";
+  ctx.font = "800 23px Arial";
   ctx.textAlign = "right";
-  ctx.fillText(`${stressTests.indexOf(stressTest) + 1}/${stressTests.length}`, canvas.width - 38, 82);
+  ctx.fillText(`${stressTests.indexOf(stressTest) + 1}/${stressTests.length}`, canvas.width - 38, 92);
   return canvas;
 }
 

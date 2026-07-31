@@ -204,11 +204,12 @@ export function createButtonTexture(label, active = false, options = {}) {
   const lines = String(label).split("\n").filter(Boolean);
   const subtitle = options.subtitle;
   const accent = Boolean(options.accent);
+  const lightSurface = options.surface === "light";
 
-  ctx.fillStyle = active ? "#236e66" : accent ? "#1a3c3a" : "#151d20";
+  ctx.fillStyle = lightSurface ? "#eef2ee" : active ? "#236e66" : accent ? "#1a3c3a" : "#151d20";
   roundRect(ctx, 16, 16, 608, 188, 20);
   ctx.fill();
-  ctx.strokeStyle = active ? "#88e0d6" : accent ? "#f2c75e" : "#dfe5df";
+  ctx.strokeStyle = lightSurface ? "#2d837b" : active ? "#88e0d6" : accent ? "#f2c75e" : "#dfe5df";
   ctx.lineWidth = active || accent ? 8 : 5;
   roundRect(ctx, 16, 16, 608, 188, 20);
   ctx.stroke();
@@ -222,14 +223,19 @@ export function createButtonTexture(label, active = false, options = {}) {
     ctx.fillText(">", canvas.width - 42, 112);
   }
 
-  ctx.fillStyle = "#f8f6ee";
+  ctx.fillStyle = lightSurface ? "#151d20" : "#f8f6ee";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = lines.length > 1 ? "900 39px Arial" : String(label).length > 12 ? "900 42px Arial" : "900 54px Arial";
+  const longestLineLength = Math.max(...lines.map((line) => line.length), 0);
+  const fontSize = lines.length > 1
+    ? longestLineLength > 12 ? 39 : 46
+    : String(label).length > 14 ? 40 : 54;
+  ctx.font = `900 ${fontSize}px Arial`;
   const centerY = subtitle ? 88 : 112;
   if (lines.length > 1) {
-    const startY = subtitle ? 65 : 88;
-    lines.forEach((line, index) => ctx.fillText(line, 320, startY + index * 44));
+    const lineGap = fontSize + 7;
+    const startY = subtitle ? 65 : 112 - ((lines.length - 1) * lineGap) / 2;
+    lines.forEach((line, index) => ctx.fillText(line, 320, startY + index * lineGap));
   } else {
     ctx.fillText(lines[0] || "", 320, centerY);
   }
@@ -888,6 +894,11 @@ function drawReflectionPanel(ctx, canvas, kind, scene, state) {
 
 function drawTaskPanel(ctx, canvas, scene, state, copy) {
   const bg = state.settings.highContrast ? "#0f1618" : "#131b1e";
+  const scroll = Math.max(0, Number(state.vrTaskScroll) || 0);
+  const hasSubtitle = Boolean(copy.subtitle);
+  const dividerY = hasSubtitle ? 430 : 388;
+  const contentTop = hasSubtitle ? 486 : 446;
+  const contentBottom = canvas.height - 190;
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = state.settings.highContrast ? "#e9efe9" : "#465356";
@@ -900,7 +911,7 @@ function drawTaskPanel(ctx, canvas, scene, state, copy) {
   ctx.fillStyle = "#f8f6ee";
   ctx.font = "900 66px Arial";
   wrapText(ctx, scene.title, 88, 238, 1040, 72);
-  if (copy.subtitle) {
+  if (hasSubtitle) {
     ctx.fillStyle = "#f2c75e";
     ctx.font = "900 36px Arial";
     wrapText(ctx, copy.subtitle, 88, 324, 1040, 42);
@@ -908,14 +919,26 @@ function drawTaskPanel(ctx, canvas, scene, state, copy) {
 
   ctx.strokeStyle = "rgba(248,246,238,0.16)";
   ctx.lineWidth = 4;
-  line(ctx, 88, copy.subtitle ? 430 : 388, 1210, copy.subtitle ? 430 : 388);
+  line(ctx, 88, dividerY, 1210, dividerY);
 
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(64, contentTop - 42, canvas.width - 128, contentBottom - contentTop + 58);
+  ctx.clip();
+  ctx.translate(0, -scroll);
   ctx.fillStyle = "#f2c75e";
   ctx.font = "900 34px Arial";
-  ctx.fillText("Observe", 88, copy.subtitle ? 528 : 488);
+  ctx.fillText("Observe", 88, contentTop);
   ctx.fillStyle = "#e9efe9";
   ctx.font = "500 38px Arial";
-  wrapText(ctx, copy.lead || scene.task, 88, copy.subtitle ? 612 : 572, 1120, 52);
+  wrapText(ctx, copy.lead || scene.task, 88, contentTop + 84, 1120, 52);
+  ctx.restore();
+
+  if (scroll > 0) {
+    ctx.fillStyle = "rgba(85,198,186,0.84)";
+    roundRect(ctx, canvas.width - 62, contentTop - 8, 12, 88, 6);
+    ctx.fill();
+  }
 }
 
 function drawWatershedMap(ctx, originX, originY, state) {
