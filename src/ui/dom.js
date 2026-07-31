@@ -24,7 +24,6 @@ import {
   cueOptionsForExample,
   interventionMetadataForExample,
   labelOptionsForExample,
-  matchesRecommendedInterventions,
   paletteOptionsForExample,
   visualizationExampleByIndex,
   visualizationExamples,
@@ -454,10 +453,6 @@ function interventionExplanation(example, interventions) {
     return `${example.baselineLead} ${example.predictionPrompt}`;
   }
 
-  if (matchesRecommendedInterventions(example, normalized)) {
-    return `${example.recommendedSummary} Compare this with the stressed original and consider whether the added visual detail is justified.`;
-  }
-
   return active
     .map((item) => `${item.label}: ${item.effect}`)
     .join(" ");
@@ -478,10 +473,6 @@ function browserInterventionSummary(example, interventions) {
 
   if (active.length === 0) {
     return example.baselineLead;
-  }
-
-  if (matchesRecommendedInterventions(example, normalized)) {
-    return example.recommendedSummary;
   }
 
   return active
