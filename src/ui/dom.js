@@ -485,7 +485,6 @@ function formatDesignFeedback(feedback) {
     feedback.title,
     feedback.message,
     ...(feedback.details ?? []),
-    feedback.confidenceNote,
   ]
     .filter(Boolean)
     .join(" ");
