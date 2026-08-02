@@ -530,15 +530,18 @@ function phaseCopyForTextEquivalent(state) {
 function renderBrowserCanvas(target, kind, scene, state) {
   const source = createPanelTexture(kind, scene, state);
   const isMobile = window.matchMedia("(max-width: 840px)").matches;
-  const mobileCanvasWidth = isMobile
+  const displayWidth = isMobile
     ? Math.max(260, Math.min(source.width, Math.round(window.innerWidth - 32)))
     : source.width;
-  const mobileCanvasHeight = Math.round(mobileCanvasWidth * (source.height / source.width));
+  const displayHeight = Math.round(displayWidth * (source.height / source.width));
+  const pixelRatio = isMobile ? Math.min(window.devicePixelRatio || 1, 3) : 1;
+  const canvasWidth = Math.round(displayWidth * pixelRatio);
+  const canvasHeight = Math.round(displayHeight * pixelRatio);
 
-  if (target.width !== mobileCanvasWidth) target.width = mobileCanvasWidth;
-  if (target.height !== mobileCanvasHeight) target.height = mobileCanvasHeight;
+  if (target.width !== canvasWidth) target.width = canvasWidth;
+  if (target.height !== canvasHeight) target.height = canvasHeight;
   if (isMobile) {
-    target.style.setProperty("width", `${mobileCanvasWidth}px`, "important");
+    target.style.setProperty("width", `${displayWidth}px`, "important");
     target.style.setProperty("max-width", "100%", "important");
     target.style.setProperty("height", "auto");
   } else {
