@@ -136,8 +136,8 @@ export const visualizationExamples = [
         shortLabel: "All labels",
         vrLabel: "All\nLabels",
         description:
-          "Every county is labeled on the map.",
-        effect: "Places every county name directly on the map.",
+          "Every county is labeled on the map; chart annotations match Selected labels.",
+        effect: "Places every county name directly on the map while keeping selected chart labels.",
       },
     ],
     interventions: {
@@ -178,8 +178,8 @@ export const visualizationExamples = [
         shortLabel: "All labels",
         vrLabel: "All\nLabels",
         description:
-          "Every county is labeled on the map.",
-        effect: "Places every county name directly on the map.",
+          "Every county is labeled on the map; chart annotations match Selected labels.",
+        effect: "Places every county name directly on the map while keeping selected chart labels.",
       },
     },
     assets: layeredPublicHealthAssets("cdc-places-diabetes", { paletteAlt: true, allLabels: true }),
@@ -259,8 +259,8 @@ export const visualizationExamples = [
         shortLabel: "All labels",
         vrLabel: "All\nLabels",
         description:
-          "Every county is labeled on the map.",
-        effect: "Places every county name directly on the map.",
+          "Every county is labeled on the map; chart annotations match Selected labels.",
+        effect: "Places every county name directly on the map while keeping selected chart labels.",
       },
     ],
     interventions: {
@@ -309,8 +309,8 @@ export const visualizationExamples = [
         shortLabel: "All labels",
         vrLabel: "All\nLabels",
         description:
-          "Every county is labeled on the map.",
-        effect: "Places every county name directly on the map.",
+          "Every county is labeled on the map; chart annotations match Selected labels.",
+        effect: "Places every county name directly on the map while keeping selected chart labels.",
       },
     },
     assets: layeredPublicHealthAssets("cdc-places-diabetes-diverging", {
@@ -424,8 +424,8 @@ export const visualizationExamples = [
         shortLabel: "All labels",
         vrLabel: "All\nLabels",
         description:
-          "Every county is labeled on the map.",
-        effect: "Places every county name directly on the map.",
+          "Every county is labeled on the map; chart annotations match Selected labels.",
+        effect: "Places every county name directly on the map while keeping selected chart labels.",
       },
     ],
     interventions: {
@@ -474,8 +474,8 @@ export const visualizationExamples = [
         shortLabel: "All labels",
         vrLabel: "All\nLabels",
         description:
-          "Every county is labeled on the map.",
-        effect: "Places every county name directly on the map.",
+          "Every county is labeled on the map; chart annotations match Selected labels.",
+        effect: "Places every county name directly on the map while keeping selected chart labels.",
       },
     },
     assets: layeredPublicHealthAssets("cdc-svi-theme", {

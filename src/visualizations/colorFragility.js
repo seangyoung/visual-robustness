@@ -672,9 +672,13 @@ function publicHealthLayerStack(example, kind, state) {
     layers.push({ slot: `${kind}.redundantCue` });
   }
   if (interventions.annotation && figure.annotation) layers.push({ slot: `${kind}.annotation` });
-  if (interventions.allLabels && figure.allLabels) {
-    layers.push({ slot: `${kind}.allLabels` });
-  } else if (interventions.labels) {
+  if (interventions.allLabels) {
+    if (figure.allLabels) {
+      layers.push({ slot: `${kind}.allLabels` });
+    } else if (figure.labels) {
+      layers.push({ slot: `${kind}.labels` });
+    }
+  } else if (interventions.labels && figure.labels) {
     layers.push({ slot: `${kind}.labels` });
   }
 
