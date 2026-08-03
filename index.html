@@ -47,6 +47,23 @@
         </div>
       </section>
 
+      <section
+        id="figure-inspector"
+        class="figure-inspector"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="figure-inspector-title"
+        hidden
+      >
+        <h2 id="figure-inspector-title" class="sr-only">Figure inspection</h2>
+        <div class="figure-inspector__surface">
+          <canvas id="figure-inspector-canvas" aria-label="Enlarged visualization"></canvas>
+          <button id="figure-inspector-close" class="figure-inspector__close" type="button" aria-label="Close figure inspection">
+            &times;
+          </button>
+        </div>
+      </section>
+
       <section class="module-panel" aria-live="polite" aria-label="Current module scene">
         <div class="step-kicker" id="step-kicker">Scene 1 of 1</div>
         <h2 id="step-title">Loading</h2>

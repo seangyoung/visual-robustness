@@ -194,6 +194,15 @@ const SNAP_TURN_AXIS = new THREE.Vector3(0, 1, 0);
 const TASK_SCROLL_THRESHOLD = 0.36;
 const TASK_SCROLL_SPEED = 5.5;
 const TASK_SCROLL_MAX = 360;
+const FIGURE_INSPECTOR_W = 3.72;
+const FIGURE_INSPECTOR_H = 2.54;
+const FIGURE_INSPECTOR_Y = 1.82;
+const FIGURE_INSPECTOR_Z = -2.78;
+const FIGURE_INSPECTOR_TEXTURE_W = 1800;
+const FIGURE_INSPECTOR_TEXTURE_H = 1228;
+const FIGURE_INSPECTOR_MIN_ZOOM = 1;
+const FIGURE_INSPECTOR_MAX_ZOOM = 5.2;
+const FIGURE_INSPECTOR_ZOOM_SPEED = 0.035;
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -279,6 +288,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   const checkButtons = createButtons(stage, CHECK_BUTTONS, { width: 0.82, height: 0.2, rotationX: -0.18 });
   const inWorldButtons = [...mainButtons, ...checkButtons];
   const robustnessSlider = createRobustnessSlider(stage);
+  const figureInspector = createFigureInspector(stage);
   const rankingSet = createRankingSet(stage);
   const controllers = createControllers(renderer, scene);
   const raycaster = new THREE.Raycaster();
@@ -288,11 +298,22 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     ...inWorldButtons.map((button) => button.mesh),
     robustnessSlider.hitArea,
     robustnessSlider.handle,
+    panels.map,
+    panels.chart,
+    figureInspector.surface,
+    figureInspector.close,
     ...rankingSet.cards.map((card) => card.mesh),
   ];
 
   let hoverControl = null;
   let dragState = null;
+  let figureInspection = {
+    open: false,
+    kind: "map",
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+  };
   let taskScroll = 0;
   let taskScrollKey = "";
   let currentState = {
@@ -333,6 +354,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     updatePanel(panels.map, "map", sceneState, state);
     updatePanel(panels.task, "task", sceneState, inWorldPanelState);
     updatePanel(panels.chart, "chart", sceneState, state);
+    updateFigureInspector(figureInspector, figureInspection, sceneState, state, isImmersive, hoverControl);
+    updateInspectablePanelFrames(panels, hoverControl, figureInspection);
     updateButtonTextures(inWorldButtons, hoverControl, state);
     updateRobustnessSlider(robustnessSlider, state.workbench.stressTestIndex, hoverControl, dragState);
     updateRankingSet(rankingSet, state, hoverControl, dragState);
@@ -392,6 +415,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         resetSnapTurn();
         setInWorldControlsVisible(inWorldButtons, false);
         robustnessSlider.group.visible = false;
+        figureInspection.open = false;
+        figureInspector.group.visible = false;
         rankingSet.group.visible = false;
         workbenchControlDeck.visible = false;
         applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, false);
@@ -428,6 +453,37 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     onAction(action, payload);
   }
 
+  function openVrFigureInspector(kind) {
+    const sceneState = moduleScenes[currentState.sceneIndex];
+    if (!isFigureInspectable(kind, sceneState, currentState)) return;
+    figureInspection = {
+      open: true,
+      kind,
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+    };
+    hoverControl = null;
+    dragState = null;
+    updateFigureInspector(figureInspector, figureInspection, sceneState, currentState, Boolean(currentSession), hoverControl);
+    updateInspectablePanelFrames(panels, hoverControl, figureInspection);
+  }
+
+  function closeVrFigureInspector() {
+    figureInspection.open = false;
+    hoverControl = null;
+    dragState = null;
+    figureInspector.group.visible = false;
+    updateInspectablePanelFrames(panels, hoverControl, figureInspection);
+  }
+
+  function currentInteractiveObjects() {
+    if (figureInspection.open) {
+      return [figureInspector.surface, figureInspector.close];
+    }
+    return interactive;
+  }
+
   function onPointerMove(event) {
     if (currentSession) return;
     if (!hasVisibleControls(inWorldButtons)) return;
@@ -457,10 +513,33 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   }
 
   function beginControllerInteraction(controller) {
-    const hit = intersectController(controller, raycaster, getVisibleInteractiveObjects(interactive));
+    const hit = intersectController(controller, raycaster, getVisibleInteractiveObjects(currentInteractiveObjects()));
     const target = hit?.object;
     if (!target) return;
     if (target.userData.disabled) return;
+
+    if (target.userData.kind === "figure-panel") {
+      openVrFigureInspector(target.userData.figureKind ?? "map");
+      pulseController(controller);
+      return;
+    }
+
+    if (target.userData.kind === "figure-inspector-close") {
+      closeVrFigureInspector();
+      pulseController(controller);
+      return;
+    }
+
+    if (target.userData.kind === "figure-inspector-surface") {
+      dragState = {
+        type: "figure-inspection",
+        controller,
+        lastPoint: controllerLocalPoint(controller, raycaster, figureInspector.surface),
+      };
+      hoverControl = target.userData.controlId;
+      pulseController(controller);
+      return;
+    }
 
     if (target.userData.action) {
       pulseController(controller);
@@ -499,6 +578,11 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       return;
     }
 
+    if (endedDrag.type === "figure-inspection") {
+      updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession), hoverControl);
+      return;
+    }
+
     updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
   }
 
@@ -509,6 +593,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
     if (activeDrag.type === "rank-card") {
       updateDraggedRankCard(activeDrag.controller, activeDrag.card);
+      return;
+    }
+    if (activeDrag.type === "figure-inspection") {
+      updateFigureInspectionPan(activeDrag);
     }
   }
 
@@ -535,6 +623,37 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     );
   }
 
+  function updateFigureInspectionPan(activeDrag) {
+    const point = controllerLocalPoint(activeDrag.controller, raycaster, figureInspector.surface);
+    if (!point) return;
+    if (!activeDrag.lastPoint) {
+      activeDrag.lastPoint = point;
+      return;
+    }
+
+    const dx = point.x - activeDrag.lastPoint.x;
+    const dy = point.y - activeDrag.lastPoint.y;
+    activeDrag.lastPoint = point;
+    figureInspection.panX += (dx / FIGURE_INSPECTOR_W) * FIGURE_INSPECTOR_TEXTURE_W;
+    figureInspection.panY += (dy / FIGURE_INSPECTOR_H) * FIGURE_INSPECTOR_TEXTURE_H;
+    updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession), hoverControl);
+  }
+
+  function updateFigureInspectionZoom() {
+    if (!currentSession || !figureInspection.open) return false;
+    const axis = getTaskScrollAxis(currentSession.inputSources);
+    if (Math.abs(axis) < TASK_SCROLL_THRESHOLD) return false;
+    const nextZoom = clamp(
+      figureInspection.zoom - axis * FIGURE_INSPECTOR_ZOOM_SPEED,
+      FIGURE_INSPECTOR_MIN_ZOOM,
+      FIGURE_INSPECTOR_MAX_ZOOM,
+    );
+    if (Math.abs(nextZoom - figureInspection.zoom) < 0.001) return false;
+    figureInspection.zoom = nextZoom;
+    updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, true, hoverControl);
+    return true;
+  }
+
   function updateSnapTurn() {
     if (!currentSession) return;
     if (dragState) {
@@ -556,6 +675,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   }
 
   function updateTaskPanelScroll() {
+    if (figureInspection.open) return false;
     if (!currentSession || !panels.task.visible) return false;
     const axis = getTaskScrollAxis(currentSession.inputSources);
     if (Math.abs(axis) < TASK_SCROLL_THRESHOLD) return false;
@@ -604,7 +724,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   renderer.setAnimationLoop(() => {
     if (!currentSession) controls.update();
-    else updateSnapTurn();
+    else {
+      updateSnapTurn();
+      updateFigureInspectionZoom();
+    }
     if (dragState) updateDragState(dragState);
     applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession));
     if (updateTaskPanelScroll()) {
@@ -615,10 +738,12 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       exampleButton.mesh.position.z = panels.task.position.z + EXAMPLE_BUTTON_Z_OFFSET;
     }
     stage.updateMatrixWorld(true);
-    updateControllerHover(controllers, raycaster, interactive, (controlId) => {
+    updateControllerHover(controllers, raycaster, currentInteractiveObjects(), (controlId) => {
       if (controlId !== hoverControl) {
         hoverControl = controlId;
         updateButtonTextures(inWorldButtons, hoverControl, currentState);
+        updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession), hoverControl);
+        updateInspectablePanelFrames(panels, hoverControl, figureInspection);
         updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
         updateRankingSet(rankingSet, currentState, hoverControl, dragState);
       }
@@ -761,6 +886,12 @@ function createPanels(scene) {
   const map = panelMesh("map", [-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.15, 0], PANEL_W, PANEL_H);
   const task = panelMesh("task", [0, TASK_PANEL_CENTER_Y, LAYOUT.taskZ], [0, 0, 0], TASK_PANEL_W, TASK_PANEL_H);
   const chart = panelMesh("chart", [SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.15, 0], PANEL_W, PANEL_H);
+  map.userData.kind = "figure-panel";
+  map.userData.controlId = "inspect-map";
+  map.userData.figureKind = "map";
+  chart.userData.kind = "figure-panel";
+  chart.userData.controlId = "inspect-chart";
+  chart.userData.figureKind = "chart";
   [map, task, chart].forEach((panel) => group.add(panel));
   return { group, map, task, chart };
 }
@@ -847,6 +978,7 @@ function panelMesh(name, position, rotation, width, height) {
   );
   frame.position.z = -0.025;
   mesh.add(frame);
+  mesh.userData.frame = frame;
   return mesh;
 }
 
@@ -953,6 +1085,45 @@ function createRobustnessSlider(scene) {
   group.add(handle);
 
   return { group, label, hitArea, fill, ticks, handle, handleMaterial };
+}
+
+function createFigureInspector(scene) {
+  const group = new THREE.Group();
+  group.position.set(0, FIGURE_INSPECTOR_Y, FIGURE_INSPECTOR_Z);
+  group.visible = false;
+  scene.add(group);
+
+  const backplate = new THREE.Mesh(
+    new THREE.BoxGeometry(FIGURE_INSPECTOR_W + 0.1, FIGURE_INSPECTOR_H + 0.1, 0.035),
+    new THREE.MeshStandardMaterial({ color: "#263236", roughness: 0.58, metalness: 0.03 }),
+  );
+  backplate.position.z = -0.035;
+  group.add(backplate);
+
+  const surfaceMaterial = new THREE.MeshBasicMaterial({
+    transparent: false,
+    toneMapped: false,
+  });
+  const surface = new THREE.Mesh(
+    new THREE.PlaneGeometry(FIGURE_INSPECTOR_W, FIGURE_INSPECTOR_H),
+    surfaceMaterial,
+  );
+  surface.userData.kind = "figure-inspector-surface";
+  surface.userData.controlId = "figure-inspector-surface";
+  group.add(surface);
+
+  const closeMaterial = new THREE.MeshBasicMaterial({
+    map: textureFromCanvas(createCloseButtonTexture(false)),
+    transparent: true,
+    toneMapped: false,
+  });
+  const close = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.28), closeMaterial);
+  close.position.set(FIGURE_INSPECTOR_W / 2 - 0.18, FIGURE_INSPECTOR_H / 2 - 0.18, 0.05);
+  close.userData.kind = "figure-inspector-close";
+  close.userData.controlId = "figure-inspector-close";
+  group.add(close);
+
+  return { group, surface, surfaceMaterial, close, closeMaterial };
 }
 
 function createRankingSet(scene) {
@@ -1178,6 +1349,110 @@ function updatePanel(mesh, kind, sceneState, state) {
   mesh.material.map.needsUpdate = true;
   mesh.material.needsUpdate = true;
   if (oldMap) oldMap.dispose();
+}
+
+function updateFigureInspector(inspector, inspection, sceneState, state, isImmersive, hoverControl) {
+  if (!isImmersive || !inspection.open || !isFigureInspectable(inspection.kind, sceneState, state)) {
+    inspector.group.visible = false;
+    return;
+  }
+
+  inspector.group.visible = true;
+  const oldSurfaceMap = inspector.surfaceMaterial.map;
+  inspector.surfaceMaterial.map = textureFromCanvas(createFigureInspectionTexture(inspection.kind, sceneState, state, inspection));
+  inspector.surfaceMaterial.map.needsUpdate = true;
+  inspector.surfaceMaterial.needsUpdate = true;
+  if (oldSurfaceMap) oldSurfaceMap.dispose();
+
+  const oldCloseMap = inspector.closeMaterial.map;
+  inspector.closeMaterial.map = textureFromCanvas(createCloseButtonTexture(hoverControl === "figure-inspector-close"));
+  inspector.closeMaterial.map.needsUpdate = true;
+  inspector.closeMaterial.needsUpdate = true;
+  if (oldCloseMap) oldCloseMap.dispose();
+}
+
+function updateInspectablePanelFrames(panels, hoverControl, inspection) {
+  [
+    [panels.map, "inspect-map"],
+    [panels.chart, "inspect-chart"],
+  ].forEach(([panel, controlId]) => {
+    const frame = panel.userData.frame;
+    if (!frame) return;
+    const highlighted = !inspection.open && hoverControl === controlId;
+    frame.material.color.set(highlighted ? "#2d837b" : "#263236");
+  });
+}
+
+function isFigureInspectable(kind, sceneState, state) {
+  const phase = state?.modulePhase ?? MODULE_PHASES.INTRO;
+  if (kind === "chart") {
+    return phase === MODULE_PHASES.EXAMPLES && sceneState?.type === "color";
+  }
+  if (kind === "map") {
+    return !(phase === MODULE_PHASES.EXAMPLES && sceneState?.type === "comparison");
+  }
+  return false;
+}
+
+function createFigureInspectionTexture(kind, sceneState, state, inspection) {
+  const source = createPanelTexture(kind, sceneState, state);
+  const canvas = document.createElement("canvas");
+  canvas.width = FIGURE_INSPECTOR_TEXTURE_W;
+  canvas.height = FIGURE_INSPECTOR_TEXTURE_H;
+  const ctx = canvas.getContext("2d");
+
+  drawInspectionSource(ctx, source, canvas.width, canvas.height, inspection);
+  ctx.strokeStyle = "#d3d8d2";
+  ctx.lineWidth = 10;
+  ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+  return canvas;
+}
+
+function drawInspectionSource(ctx, source, viewWidth, viewHeight, inspection) {
+  const baseScale = Math.min(viewWidth / source.width, viewHeight / source.height);
+  const drawWidth = source.width * baseScale * inspection.zoom;
+  const drawHeight = source.height * baseScale * inspection.zoom;
+  const maxPanX = Math.max(0, (drawWidth - viewWidth) / 2);
+  const maxPanY = Math.max(0, (drawHeight - viewHeight) / 2);
+
+  inspection.panX = maxPanX > 0 ? clamp(inspection.panX, -maxPanX, maxPanX) : 0;
+  inspection.panY = maxPanY > 0 ? clamp(inspection.panY, -maxPanY, maxPanY) : 0;
+
+  ctx.fillStyle = "#f8f6ee";
+  ctx.fillRect(0, 0, viewWidth, viewHeight);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(
+    source,
+    (viewWidth - drawWidth) / 2 + inspection.panX,
+    (viewHeight - drawHeight) / 2 + inspection.panY,
+    drawWidth,
+    drawHeight,
+  );
+}
+
+function createCloseButtonTexture(active) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = active ? "#ffffff" : "#f8f6ee";
+  ctx.beginPath();
+  ctx.arc(128, 128, 106, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = active ? "#55c6ba" : "#263236";
+  ctx.lineWidth = active ? 14 : 10;
+  ctx.stroke();
+  ctx.strokeStyle = "#151d20";
+  ctx.lineWidth = 18;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(88, 88);
+  ctx.lineTo(168, 168);
+  ctx.moveTo(168, 88);
+  ctx.lineTo(88, 168);
+  ctx.stroke();
+  return canvas;
 }
 
 function updateButtonTextures(buttons, hoverControl, state) {

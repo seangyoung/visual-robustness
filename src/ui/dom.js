@@ -48,6 +48,9 @@ export function createDomUi({
     browserTaskLead: document.getElementById("browser-task-lead"),
     browserMapCanvas: document.getElementById("browser-map-canvas"),
     browserChartCanvas: document.getElementById("browser-chart-canvas"),
+    figureInspector: document.getElementById("figure-inspector"),
+    figureInspectorCanvas: document.getElementById("figure-inspector-canvas"),
+    figureInspectorClose: document.getElementById("figure-inspector-close"),
     stepKicker: document.getElementById("step-kicker"),
     stepTitle: document.getElementById("step-title"),
     stepPrompt: document.getElementById("step-prompt"),
@@ -85,6 +88,18 @@ export function createDomUi({
     statusLine: document.getElementById("status-line"),
     textEquivalent: document.getElementById("text-equivalent"),
   };
+  const browserInspection = {
+    open: false,
+    kind: "map",
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    pointers: new Map(),
+    pinchDistance: null,
+    pinchZoom: 1,
+  };
+  let latestBrowserScene = null;
+  let latestBrowserState = null;
 
   elements.back.addEventListener("click", () => onAction("back"));
   elements.next.addEventListener("click", () => onAction("next"));
@@ -99,8 +114,27 @@ export function createDomUi({
   elements.continueTakeaways.addEventListener("click", () => onAction("continueToTakeaways"));
   elements.restartModule.addEventListener("click", () => onAction("restartModule"));
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
+  elements.figureInspectorClose.addEventListener("click", () => closeBrowserFigureInspector(elements, browserInspection));
+  elements.figureInspector.addEventListener("click", (event) => {
+    if (event.target === elements.figureInspector) closeBrowserFigureInspector(elements, browserInspection);
+  });
+  bindBrowserFigureInspector(elements, elements.browserMapCanvas.closest(".browser-figure"), "map", browserInspection, () => {
+    renderBrowserFigureInspector(elements, latestBrowserScene, latestBrowserState, browserInspection);
+  });
+  bindBrowserFigureInspector(elements, elements.browserChartCanvas.closest(".browser-figure"), "chart", browserInspection, () => {
+    renderBrowserFigureInspector(elements, latestBrowserScene, latestBrowserState, browserInspection);
+  });
+  bindBrowserInspectorPanZoom(elements, browserInspection, () => {
+    renderBrowserFigureInspector(elements, latestBrowserScene, latestBrowserState, browserInspection);
+  });
 
   window.addEventListener("keydown", (event) => {
+    if (browserInspection.open) {
+      handleBrowserInspectorKeydown(event, elements, browserInspection, () => {
+        renderBrowserFigureInspector(elements, latestBrowserScene, latestBrowserState, browserInspection);
+      });
+      return;
+    }
     if (event.altKey || event.metaKey || event.ctrlKey) return;
     const activeTag = document.activeElement?.tagName?.toLowerCase();
     if (activeTag === "input") return;
@@ -130,9 +164,12 @@ export function createDomUi({
       const interventionCopy = isExamplePhase && scene.type === "color"
         ? feedbackOrInterventionExplanation(activeExample, state)
         : phaseCopyForTextEquivalent(state);
+      latestBrowserScene = scene;
+      latestBrowserState = state;
       elements.browserWorkbench.dataset.phase = phase;
       elements.body.dataset.phase = phase;
       renderBrowserWorkbench(elements, scene, state);
+      renderBrowserFigureInspector(elements, scene, state, browserInspection);
 
       elements.stepKicker.textContent = phaseKicker(state, scene);
       elements.stepTitle.textContent = scene.title;
@@ -527,6 +564,254 @@ function phaseCopyForTextEquivalent(state) {
   return "";
 }
 
+const INSPECTOR_MIN_ZOOM = 1;
+const INSPECTOR_MAX_ZOOM = 6;
+const INSPECTOR_WHEEL_SENSITIVITY = 0.0015;
+const INSPECTOR_KEY_PAN = 56;
+
+function bindBrowserFigureInspector(elements, figure, kind, inspection, render) {
+  if (!figure) return;
+  figure.tabIndex = 0;
+  figure.setAttribute("role", "button");
+  figure.setAttribute("aria-label", `Inspect ${kind} visualization`);
+  figure.title = `Inspect ${kind} visualization`;
+
+  const open = (event) => {
+    if (figure.hidden || elements.body.classList.contains("is-immersive")) return;
+    event.preventDefault();
+    openBrowserFigureInspector(elements, kind, inspection);
+    render();
+  };
+
+  figure.addEventListener("click", open);
+  figure.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    open(event);
+  });
+}
+
+function openBrowserFigureInspector(elements, kind, inspection) {
+  inspection.open = true;
+  inspection.kind = kind;
+  inspection.zoom = 1;
+  inspection.panX = 0;
+  inspection.panY = 0;
+  inspection.previousFocus = document.activeElement;
+  inspection.pointers.clear();
+  inspection.pinchDistance = null;
+  elements.figureInspector.hidden = false;
+  elements.body.classList.add("has-figure-inspector");
+  elements.figureInspectorCanvas.setAttribute("aria-label", `Enlarged ${kind} visualization`);
+  elements.figureInspectorClose.focus({ preventScroll: true });
+}
+
+function closeBrowserFigureInspector(elements, inspection) {
+  inspection.open = false;
+  inspection.pointers.clear();
+  inspection.pinchDistance = null;
+  elements.figureInspector.hidden = true;
+  elements.body.classList.remove("has-figure-inspector");
+  if (inspection.previousFocus?.focus) {
+    inspection.previousFocus.focus({ preventScroll: true });
+  }
+  inspection.previousFocus = null;
+}
+
+function bindBrowserInspectorPanZoom(elements, inspection, render) {
+  const canvas = elements.figureInspectorCanvas;
+
+  canvas.addEventListener("wheel", (event) => {
+    if (!inspection.open) return;
+    event.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const point = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+    const nextZoom = inspection.zoom * Math.exp(-event.deltaY * INSPECTOR_WHEEL_SENSITIVITY);
+    zoomBrowserInspection(inspection, nextZoom, point, rect.width, rect.height);
+    render();
+  }, { passive: false });
+
+  canvas.addEventListener("dblclick", (event) => {
+    if (!inspection.open) return;
+    event.preventDefault();
+    resetBrowserInspection(inspection);
+    render();
+  });
+
+  canvas.addEventListener("pointerdown", (event) => {
+    if (!inspection.open) return;
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    inspection.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (inspection.pointers.size === 2) {
+      inspection.pinchDistance = pointerDistance(inspection.pointers);
+      inspection.pinchZoom = inspection.zoom;
+    }
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!inspection.open || !inspection.pointers.has(event.pointerId)) return;
+    event.preventDefault();
+    const previous = inspection.pointers.get(event.pointerId);
+    inspection.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (inspection.pointers.size >= 2 && inspection.pinchDistance) {
+      const rect = canvas.getBoundingClientRect();
+      const distance = pointerDistance(inspection.pointers);
+      const center = pointerCenter(inspection.pointers, rect);
+      zoomBrowserInspection(
+        inspection,
+        inspection.pinchZoom * (distance / inspection.pinchDistance),
+        center,
+        rect.width,
+        rect.height,
+      );
+      render();
+      return;
+    }
+
+    inspection.panX += event.clientX - previous.x;
+    inspection.panY += event.clientY - previous.y;
+    render();
+  });
+
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((eventName) => {
+    canvas.addEventListener(eventName, (event) => {
+      inspection.pointers.delete(event.pointerId);
+      if (inspection.pointers.size < 2) inspection.pinchDistance = null;
+    });
+  });
+}
+
+function handleBrowserInspectorKeydown(event, elements, inspection, render) {
+  let handled = true;
+  if (event.key === "Escape") {
+    closeBrowserFigureInspector(elements, inspection);
+  } else if (event.key === "0") {
+    resetBrowserInspection(inspection);
+    render();
+  } else if (event.key === "+" || event.key === "=") {
+    zoomBrowserInspection(inspection, inspection.zoom * 1.18);
+    render();
+  } else if (event.key === "-" || event.key === "_") {
+    zoomBrowserInspection(inspection, inspection.zoom / 1.18);
+    render();
+  } else if (event.key === "ArrowUp") {
+    inspection.panY += INSPECTOR_KEY_PAN;
+    render();
+  } else if (event.key === "ArrowDown") {
+    inspection.panY -= INSPECTOR_KEY_PAN;
+    render();
+  } else if (event.key === "ArrowLeft") {
+    inspection.panX += INSPECTOR_KEY_PAN;
+    render();
+  } else if (event.key === "ArrowRight") {
+    inspection.panX -= INSPECTOR_KEY_PAN;
+    render();
+  } else {
+    handled = false;
+  }
+
+  if (handled) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}
+
+function renderBrowserFigureInspector(elements, scene, state, inspection) {
+  if (!inspection.open) {
+    elements.figureInspector.hidden = true;
+    return;
+  }
+
+  const figure = inspection.kind === "chart"
+    ? elements.browserChartCanvas.closest(".browser-figure")
+    : elements.browserMapCanvas.closest(".browser-figure");
+  if (!scene || !state || figure?.hidden) {
+    closeBrowserFigureInspector(elements, inspection);
+    return;
+  }
+
+  elements.figureInspector.hidden = false;
+  const source = createPanelTexture(inspection.kind, scene, state);
+  const canvas = elements.figureInspectorCanvas;
+  const surface = canvas.parentElement;
+  const rect = surface.getBoundingClientRect();
+  const displayWidth = Math.max(280, Math.floor(rect.width));
+  const displayHeight = Math.max(220, Math.floor(rect.height));
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 3);
+  const canvasWidth = Math.round(displayWidth * pixelRatio);
+  const canvasHeight = Math.round(displayHeight * pixelRatio);
+
+  if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
+  if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
+  canvas.style.width = `${displayWidth}px`;
+  canvas.style.height = `${displayHeight}px`;
+
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  drawInspectionSource(ctx, source, displayWidth, displayHeight, inspection);
+}
+
+function resetBrowserInspection(inspection) {
+  inspection.zoom = 1;
+  inspection.panX = 0;
+  inspection.panY = 0;
+}
+
+function zoomBrowserInspection(inspection, zoom, point = null, viewWidth = 0, viewHeight = 0) {
+  const previousZoom = inspection.zoom;
+  const nextZoom = clamp(zoom, INSPECTOR_MIN_ZOOM, INSPECTOR_MAX_ZOOM);
+  if (point && viewWidth > 0 && viewHeight > 0 && previousZoom > 0) {
+    const ratio = nextZoom / previousZoom;
+    inspection.panX += (point.x - viewWidth / 2 - inspection.panX) * (1 - ratio);
+    inspection.panY += (point.y - viewHeight / 2 - inspection.panY) * (1 - ratio);
+  }
+  inspection.zoom = nextZoom;
+}
+
+function drawInspectionSource(ctx, source, viewWidth, viewHeight, inspection) {
+  const baseScale = Math.min(viewWidth / source.width, viewHeight / source.height);
+  const drawWidth = source.width * baseScale * inspection.zoom;
+  const drawHeight = source.height * baseScale * inspection.zoom;
+  const maxPanX = Math.max(0, (drawWidth - viewWidth) / 2);
+  const maxPanY = Math.max(0, (drawHeight - viewHeight) / 2);
+
+  inspection.panX = maxPanX > 0 ? clamp(inspection.panX, -maxPanX, maxPanX) : 0;
+  inspection.panY = maxPanY > 0 ? clamp(inspection.panY, -maxPanY, maxPanY) : 0;
+
+  ctx.fillStyle = "#f8f6ee";
+  ctx.fillRect(0, 0, viewWidth, viewHeight);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(
+    source,
+    (viewWidth - drawWidth) / 2 + inspection.panX,
+    (viewHeight - drawHeight) / 2 + inspection.panY,
+    drawWidth,
+    drawHeight,
+  );
+}
+
+function pointerDistance(pointers) {
+  const points = [...pointers.values()];
+  if (points.length < 2) return 0;
+  return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+}
+
+function pointerCenter(pointers, rect) {
+  const points = [...pointers.values()];
+  if (points.length < 2) return { x: rect.width / 2, y: rect.height / 2 };
+  return {
+    x: (points[0].x + points[1].x) / 2 - rect.left,
+    y: (points[0].y + points[1].y) / 2 - rect.top,
+  };
+}
+
 function renderBrowserCanvas(target, kind, scene, state) {
   const source = createPanelTexture(kind, scene, state);
   const isMobile = window.matchMedia("(max-width: 840px)").matches;
@@ -552,6 +837,10 @@ function renderBrowserCanvas(target, kind, scene, state) {
   const ctx = target.getContext("2d");
   ctx.clearRect(0, 0, target.width, target.height);
   ctx.drawImage(source, 0, 0, target.width, target.height);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function renderStressTestTicks(elements, activeIndex, enabled) {
