@@ -54,9 +54,11 @@ const LAYOUT = {
   taskZ: -4.18,
 };
 const CONTROL_ROWS = {
-  upper: 0.14,
-  lower: -0.15,
-  bottom: -0.4,
+  upper: 0.18,
+  marker: -0.06,
+  lower: -0.3,
+  bottom: -0.54,
+  stress: -0.15,
 };
 const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
 const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
@@ -101,9 +103,10 @@ const BUTTONS = [
   { id: "label-none", action: "setLabelMode", payload: { mode: "none" }, label: "No\nLabels", x: 0.18, width: 0.3, deckY: CONTROL_ROWS.lower },
   { id: "labels", action: "setLabelMode", payload: { mode: "labels" }, label: "Selected\nLabels", x: 0.51, width: 0.32, deckY: CONTROL_ROWS.lower },
   { id: "all-labels", action: "setLabelMode", payload: { mode: "allLabels" }, label: "All\nLabels", x: 0.84, width: 0.3, deckY: CONTROL_ROWS.lower },
-  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
-  { id: "cue-alt", action: "setCueVariant", payload: { variant: "cueAlt" }, label: "Cue\n2", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
-  { id: "annotation", action: "toggleIntervention", payload: { key: "annotation" }, label: "Divider", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
+  { id: "cue-none", action: "setCueVariant", payload: { variant: "none" }, label: "No\nMarkers", x: 0.18, width: 0.32, deckY: CONTROL_ROWS.marker },
+  { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 0.54, width: 0.38, deckY: CONTROL_ROWS.marker },
+  { id: "cue-alt", action: "setCueVariant", payload: { variant: "cueAlt" }, label: "Cue\n2", x: 0.94, width: 0.36, deckY: CONTROL_ROWS.marker },
+  { id: "annotation", action: "toggleIntervention", payload: { key: "annotation" }, label: "Divider", x: 1.28, width: 0.38, deckY: CONTROL_ROWS.marker },
   {
     id: "submit-design",
     action: "submitDesign",
@@ -170,7 +173,7 @@ const CHECK_BUTTONS = [
 const SLIDER_WIDTH = 1.04;
 const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
 const SLIDER_MAX_X = SLIDER_WIDTH / 2;
-const SLIDER_CENTER = workbenchDeckPosition(-0.84, CONTROL_ROWS.lower);
+const SLIDER_CENTER = workbenchDeckPosition(-0.84, CONTROL_ROWS.stress);
 const SNAP_TURN_RADIANS = THREE.MathUtils.degToRad(30);
 const SNAP_TURN_THRESHOLD = 0.72;
 const SNAP_TURN_RESET_THRESHOLD = 0.35;
@@ -959,7 +962,7 @@ function createWorkbenchControlDeck(scene) {
   scene.add(group);
 
   const deck = new THREE.Mesh(
-    new THREE.BoxGeometry(2.98, 0.86, 0.045),
+    new THREE.BoxGeometry(2.98, 1.16, 0.045),
     new THREE.MeshStandardMaterial({
       color: "#11191c",
       roughness: 0.62,
@@ -973,13 +976,14 @@ function createWorkbenchControlDeck(scene) {
     new THREE.BoxGeometry(3.06, 0.064, 0.06),
     new THREE.MeshStandardMaterial({ color: "#2b383b", roughness: 0.56 }),
   );
-  bevel.position.set(0, -0.438, -0.014);
+  bevel.position.set(0, -0.598, -0.014);
   group.add(bevel);
 
   [
-    { x: -0.84, y: -0.02, w: 1.22, h: 0.45, color: "#182326" },
-    { x: 0.72, y: CONTROL_ROWS.upper, w: 1.52, h: 0.22, color: "#192527" },
-    { x: 0.72, y: CONTROL_ROWS.lower, w: 1.52, h: 0.22, color: "#192527" },
+    { x: -0.84, y: CONTROL_ROWS.stress, w: 1.22, h: 0.52, color: "#182326" },
+    { x: 0.72, y: CONTROL_ROWS.upper, w: 1.52, h: 0.2, color: "#192527" },
+    { x: 0.72, y: CONTROL_ROWS.marker, w: 1.52, h: 0.2, color: "#192527" },
+    { x: 0.72, y: CONTROL_ROWS.lower, w: 1.52, h: 0.2, color: "#192527" },
     { x: 0.72, y: CONTROL_ROWS.bottom, w: 1.52, h: 0.2, color: "#182326" },
   ].forEach((pad) => {
     const mesh = new THREE.Mesh(
@@ -1221,7 +1225,9 @@ function updateInWorldControlVisibility(
   const example = visualizationExampleByIndex(state?.exampleIndex ?? 0);
   const paletteOptionIds = new Set(paletteOptionsForExample(example).map((option) => option.id));
   const labelOptionIds = new Set(labelOptionsForExample(example).map((option) => option.id));
-  const cueOptionIds = new Set(cueOptionsForExample(example).map((option) => option.id));
+  const cueOptions = cueOptionsForExample(example);
+  const cueOptionIds = new Set(cueOptions.map((option) => option.id));
+  const usesCueChoiceGroup = cueOptions.length > 2;
   const readyForChallenge = allExamplesSubmitted(state?.submittedExamples, visualizationExamples);
   const challenge = transferChallengeById(state?.selectedChallengeId);
 
@@ -1229,6 +1235,7 @@ function updateInWorldControlVisibility(
     const isNavigation = button.id === "back" || button.id === "next";
     const isExampleControl = button.id.startsWith("example-");
     const isTransferChoice = button.id.startsWith("transfer-choice-");
+    const isCueNoneChoice = button.action === "setCueVariant" && button.payload?.variant === "none";
     const isInterventionControl =
       button.id === "original" ||
       button.id === "recommended" ||
@@ -1257,6 +1264,7 @@ function updateInWorldControlVisibility(
       (!isNavigation || (isExamplePhase && hasSceneNavigation)) &&
       (!isExampleControl || (sceneState.type === "color" && visualizationExamples.length > 1)) &&
       (!isInterventionControl || supportsInterventions) &&
+      (!isCueNoneChoice || usesCueChoiceGroup) &&
       (!isTransferChoice || hasTransferChoice) &&
       (button.id !== "continue-challenge" || readyForChallenge) &&
       (button.id !== "submit-transfer" || !state?.transferSubmitted) &&
