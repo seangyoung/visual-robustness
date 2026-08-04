@@ -230,6 +230,11 @@ function controlPosition(control) {
   return workbenchDeckPosition(control.x, control.deckY ?? 0);
 }
 
+function positionControlFace(mesh, control) {
+  mesh.position.copy(controlPosition(control));
+  mesh.translateZ(BUTTON_FACE_Z_OFFSET);
+}
+
 function transferChoiceHitArea(choiceIndex) {
   const cardCanvasY = 196 + choiceIndex * 112;
   const cardHeight = 92;
@@ -1042,10 +1047,9 @@ function createButtons(scene, buttons, defaults = {}) {
     const buttonWidth = button.width ?? width;
     const buttonHeight = button.height ?? height;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(buttonWidth, buttonHeight), material);
-    mesh.position.copy(controlPosition(button));
     mesh.rotation.x = button.rotationX ?? rotationX;
     mesh.rotation.y = button.rotationY ?? 0;
-    mesh.translateZ(BUTTON_FACE_Z_OFFSET);
+    positionControlFace(mesh, button);
     mesh.visible = false;
 
     if (!hitOnly) {
@@ -1075,9 +1079,10 @@ function createRobustnessSlider(scene) {
 
   const label = new THREE.Mesh(
     new THREE.PlaneGeometry(1.26, 0.19),
-    new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false }),
+    new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false }),
   );
-  label.position.y = 0.18;
+  label.position.set(0, 0.18, 0.07);
+  label.renderOrder = 3;
   group.add(label);
 
   const hitArea = new THREE.Mesh(
@@ -1280,7 +1285,7 @@ function updateInWorldControlVisibility(
       isSupportedCueChoice &&
       isSupportedInterventionChoice;
 
-    button.mesh.position.copy(controlPosition(button));
+    positionControlFace(button.mesh, button);
     button.mesh.visible = visible;
     button.mesh.userData.disabled = buttonDisabled(button, state, readyForChallenge, challenge);
   });
