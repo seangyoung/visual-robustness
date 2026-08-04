@@ -60,6 +60,10 @@ const CONTROL_ROWS = {
   bottom: -0.43,
   stress: -0.12,
 };
+const WORKBENCH_WRAP_HALF_WIDTH = 1.38;
+const WORKBENCH_WRAP_DEPTH = 0.2;
+const WORKBENCH_WRAP_MAX_YAW = THREE.MathUtils.degToRad(13);
+const SLIDER_X = -0.84;
 const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
 const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
 const EXAMPLE_BUTTON_Z_OFFSET = 0.05;
@@ -173,7 +177,7 @@ const CHECK_BUTTONS = [
 const SLIDER_WIDTH = 1.04;
 const SLIDER_MIN_X = -SLIDER_WIDTH / 2;
 const SLIDER_MAX_X = SLIDER_WIDTH / 2;
-const SLIDER_CENTER = workbenchDeckPosition(-0.84, CONTROL_ROWS.stress);
+const SLIDER_CENTER = workbenchDeckPosition(SLIDER_X, CONTROL_ROWS.stress);
 const SNAP_TURN_RADIANS = THREE.MathUtils.degToRad(30);
 const SNAP_TURN_THRESHOLD = 0.72;
 const SNAP_TURN_RESET_THRESHOLD = 0.35;
@@ -205,11 +209,28 @@ const RANK_CARD_SLOTS = [
 ];
 
 function workbenchDeckPosition(x, deckY = 0) {
+  const wrapZ = workbenchWrapDepth(x);
   return new THREE.Vector3(
     x,
     LAYOUT.controlDeckY + Math.cos(LAYOUT.controlDeckRotationX) * deckY,
-    LAYOUT.controlDeckZ + Math.sin(LAYOUT.controlDeckRotationX) * deckY,
+    LAYOUT.controlDeckZ + Math.sin(LAYOUT.controlDeckRotationX) * deckY + wrapZ,
   );
+}
+
+function workbenchWrapAmount(x) {
+  return Math.min(1, Math.abs(x) / WORKBENCH_WRAP_HALF_WIDTH);
+}
+
+function workbenchWrapDepth(x) {
+  return WORKBENCH_WRAP_DEPTH * workbenchWrapAmount(x) ** 1.35;
+}
+
+function workbenchControlYaw(x) {
+  return -Math.sign(x) * WORKBENCH_WRAP_MAX_YAW * workbenchWrapAmount(x);
+}
+
+function isWorkbenchControl(control) {
+  return control.deckY !== undefined && control.y === undefined && control.z === undefined;
 }
 
 function controlPosition(control) {
@@ -1052,45 +1073,40 @@ function applyPanelLayout(panels, sceneState, state, isImmersive) {
 
 function createWorkbenchControlDeck(scene) {
   const group = new THREE.Group();
-  group.position.set(0.04, LAYOUT.controlDeckY, LAYOUT.controlDeckZ);
-  group.rotation.x = LAYOUT.controlDeckRotationX;
   group.visible = false;
   scene.add(group);
 
-  const deck = new THREE.Mesh(
-    new THREE.BoxGeometry(2.98, 0.94, 0.045),
+  [
+    { x: -0.96, deckY: -0.03, width: 1.16, height: 0.68, color: "#141f22" },
+    { x: 0.74, deckY: -0.12, width: 1.72, height: 0.76, color: "#11191c" },
+  ].forEach((plate) => addWorkbenchDeckPlate(group, plate));
+
+  return group;
+}
+
+function addWorkbenchDeckPlate(group, plate) {
+  const yaw = workbenchControlYaw(plate.x);
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(plate.width, plate.height, 0.05),
     new THREE.MeshStandardMaterial({
-      color: "#11191c",
+      color: plate.color,
       roughness: 0.62,
       metalness: 0.06,
     }),
   );
-  deck.position.set(0, -0.08, -0.032);
-  group.add(deck);
+  base.position.copy(workbenchDeckPosition(plate.x, plate.deckY));
+  base.rotation.set(LAYOUT.controlDeckRotationX, yaw, 0);
+  base.translateZ(-0.04);
+  group.add(base);
 
-  const bevel = new THREE.Mesh(
-    new THREE.BoxGeometry(3.06, 0.064, 0.06),
+  const lip = new THREE.Mesh(
+    new THREE.BoxGeometry(plate.width + 0.04, 0.05, 0.065),
     new THREE.MeshStandardMaterial({ color: "#2b383b", roughness: 0.56 }),
   );
-  bevel.position.set(0, -0.552, -0.014);
-  group.add(bevel);
-
-  [
-    { x: -0.84, y: CONTROL_ROWS.stress, w: 1.22, h: 0.46, color: "#182326" },
-    { x: 0.72, y: CONTROL_ROWS.upper, w: 1.52, h: 0.18, color: "#192527" },
-    { x: 0.72, y: CONTROL_ROWS.marker, w: 1.52, h: 0.18, color: "#192527" },
-    { x: 0.72, y: CONTROL_ROWS.lower, w: 1.52, h: 0.18, color: "#192527" },
-    { x: 0.72, y: CONTROL_ROWS.bottom, w: 1.52, h: 0.18, color: "#182326" },
-  ].forEach((pad) => {
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(pad.w, pad.h, 0.012),
-      new THREE.MeshStandardMaterial({ color: pad.color, roughness: 0.62, metalness: 0.02 }),
-    );
-    mesh.position.set(pad.x, pad.y, -0.002);
-    group.add(mesh);
-  });
-
-  return group;
+  lip.position.copy(workbenchDeckPosition(plate.x, plate.deckY - plate.height / 2 - 0.01));
+  lip.rotation.set(LAYOUT.controlDeckRotationX, yaw, 0);
+  lip.translateZ(-0.03);
+  group.add(lip);
 }
 
 function panelMesh(name, position, rotation, width, height) {
@@ -1132,7 +1148,7 @@ function createButtons(scene, buttons, defaults = {}) {
     const buttonHeight = button.height ?? height;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(buttonWidth, buttonHeight), material);
     mesh.rotation.x = button.rotationX ?? rotationX;
-    mesh.rotation.y = button.rotationY ?? 0;
+    mesh.rotation.y = button.rotationY ?? (isWorkbenchControl(button) ? workbenchControlYaw(button.x) : 0);
     positionControlFace(mesh, button);
     mesh.visible = false;
 
@@ -1158,6 +1174,7 @@ function createRobustnessSlider(scene) {
   const group = new THREE.Group();
   group.position.copy(SLIDER_CENTER);
   group.rotation.x = LAYOUT.controlDeckRotationX;
+  group.rotation.y = workbenchControlYaw(SLIDER_X);
   group.visible = false;
   scene.add(group);
 
