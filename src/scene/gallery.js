@@ -181,6 +181,10 @@ const SNAP_TURN_AXIS = new THREE.Vector3(0, 1, 0);
 const TASK_SCROLL_THRESHOLD = 0.36;
 const TASK_SCROLL_SPEED = 5.5;
 const TASK_SCROLL_MAX = 360;
+const WORKBENCH_TOUCH_RAY_LENGTH = 0.28;
+const WORKBENCH_TOUCH_TIP_OFFSET = 0.12;
+const WORKBENCH_TOUCH_DEPTH = 0.1;
+const WORKBENCH_TOUCH_MARGIN = 0.035;
 const FIGURE_INSPECTOR_W = 3.72;
 const FIGURE_INSPECTOR_H = 2.54;
 const FIGURE_INSPECTOR_Y = 1.82;
@@ -284,6 +288,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   const rankingSet = createRankingSet(stage);
   const controllers = createControllers(renderer, scene);
   const raycaster = new THREE.Raycaster();
+  const touchRaycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const snapTurnPivot = new THREE.Vector3();
   const interactive = [
@@ -299,6 +304,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   let hoverControl = null;
   let dragState = null;
+  const directTouchStates = new Map();
   let figureInspection = {
     open: false,
     kind: "map",
@@ -472,9 +478,31 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     updateInspectablePanelFrames(panels, hoverControl, figureInspection);
   }
 
+  function workbenchInteractiveObjects() {
+    return [
+      ...inWorldButtons.map((button) => button.mesh),
+      robustnessSlider.hitArea,
+      robustnessSlider.handle,
+    ];
+  }
+
+  function workbenchTouchObjects() {
+    return [
+      ...inWorldButtons
+        .filter((button) => button.deckY !== undefined)
+        .map((button) => button.mesh),
+      robustnessSlider.hitArea,
+      robustnessSlider.handle,
+    ];
+  }
+
   function currentInteractiveObjects() {
     if (figureInspection.open) {
-      return [figureInspector.surface, figureInspector.close];
+      return [
+        figureInspector.surface,
+        figureInspector.close,
+        ...workbenchInteractiveObjects(),
+      ];
     }
     return interactive;
   }
@@ -571,6 +599,58 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     beginControllerInteraction(controller);
   }
 
+  function updateWorkbenchDirectTouch() {
+    if (!currentSession) {
+      directTouchStates.clear();
+      return null;
+    }
+
+    const touchObjects = getVisibleInteractiveObjects(workbenchTouchObjects());
+    if (!touchObjects.length) {
+      directTouchStates.clear();
+      return null;
+    }
+
+    let activeControlId = null;
+    controllers.forEach((controller) => {
+      const controllerIndex = controller.userData.index ?? 0;
+      if (!controller.visible) {
+        directTouchStates.delete(controllerIndex);
+        return;
+      }
+
+      const hit = intersectControllerTouch(controller, touchRaycaster, touchObjects);
+      const target = hit?.object;
+      if (!target || target.userData.disabled) {
+        directTouchStates.delete(controllerIndex);
+        return;
+      }
+
+      const controlId = target.userData.controlId ?? null;
+      if (controlId && !activeControlId) activeControlId = controlId;
+
+      if (target.userData.kind === "slider") {
+        directTouchStates.set(controllerIndex, { controlId, kind: "slider" });
+        if (updateSliderFromWorldPoint(hit.point)) pulseController(controller);
+        return;
+      }
+
+      if (!target.userData.action) {
+        directTouchStates.set(controllerIndex, { controlId, kind: target.userData.kind ?? "touch" });
+        return;
+      }
+
+      const previous = directTouchStates.get(controllerIndex);
+      if (previous?.controlId !== controlId) {
+        pulseController(controller);
+        selectAction(target.userData.action, target.userData.payload ?? {});
+      }
+      directTouchStates.set(controllerIndex, { controlId, kind: target.userData.kind ?? "button" });
+    });
+
+    return activeControlId;
+  }
+
   function endControllerInteraction(controller) {
     if (!dragState || dragState.controller !== controller) return;
     const endedDrag = dragState;
@@ -607,12 +687,25 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   function updateSliderFromController(controller) {
     const point = controllerLocalPoint(controller, raycaster, robustnessSlider.group);
     if (!point) return;
-    const localX = clamp(point.x, SLIDER_MIN_X, SLIDER_MAX_X);
+    setSliderFromLocalX(point.x);
+  }
+
+  function updateSliderFromWorldPoint(worldPoint) {
+    if (!worldPoint) return false;
+    robustnessSlider.group.updateWorldMatrix(true, false);
+    const point = robustnessSlider.group.worldToLocal(worldPoint.clone());
+    return setSliderFromLocalX(point.x);
+  }
+
+  function setSliderFromLocalX(x) {
+    const localX = clamp(x, SLIDER_MIN_X, SLIDER_MAX_X);
     const normalized = (localX - SLIDER_MIN_X) / SLIDER_WIDTH;
     const index = clampStressTestIndex(normalized * (stressTests.length - 1));
     if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
       selectAction("setStressTest", { index });
+      return true;
     }
+    return false;
   }
 
   function updateDraggedRankCard(controller, card) {
@@ -736,6 +829,16 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     renderer.setSize(width, height);
   }
 
+  function setVrHoverControl(controlId) {
+    if (controlId === hoverControl) return;
+    hoverControl = controlId;
+    updateButtonTextures(inWorldButtons, hoverControl, currentState);
+    updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession), hoverControl);
+    updateInspectablePanelFrames(panels, hoverControl, figureInspection);
+    updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
+    updateRankingSet(rankingSet, currentState, hoverControl, dragState);
+  }
+
   renderer.domElement.addEventListener("pointermove", onPointerMove);
   renderer.domElement.addEventListener("pointerdown", onPointerDown);
   window.addEventListener("resize", onResize);
@@ -764,16 +867,9 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       exampleButton.mesh.position.z = panels.task.position.z + EXAMPLE_BUTTON_Z_OFFSET;
     }
     stage.updateMatrixWorld(true);
-    updateControllerHover(controllers, raycaster, currentInteractiveObjects(), (controlId) => {
-      if (controlId !== hoverControl) {
-        hoverControl = controlId;
-        updateButtonTextures(inWorldButtons, hoverControl, currentState);
-        updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession), hoverControl);
-        updateInspectablePanelFrames(panels, hoverControl, figureInspection);
-        updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
-        updateRankingSet(rankingSet, currentState, hoverControl, dragState);
-      }
-    });
+    const touchControl = updateWorkbenchDirectTouch();
+    if (touchControl) setVrHoverControl(touchControl);
+    else updateControllerHover(controllers, raycaster, currentInteractiveObjects(), setVrHoverControl);
     renderer.render(scene, camera);
   });
 
@@ -1778,6 +1874,47 @@ function setRayFromController(controller, raycaster) {
 function intersectController(controller, raycaster, objects) {
   setRayFromController(controller, raycaster);
   return raycaster.intersectObjects(objects, false)[0] ?? null;
+}
+
+function intersectControllerTouch(controller, raycaster, objects) {
+  setRayFromController(controller, raycaster);
+  raycaster.near = 0;
+  raycaster.far = WORKBENCH_TOUCH_RAY_LENGTH;
+  return raycaster.intersectObjects(objects, false)[0] ?? controllerProximityTouch(controller, objects);
+}
+
+function controllerProximityTouch(controller, objects) {
+  controller.updateWorldMatrix(true, false);
+  const rotation = new THREE.Matrix4().identity().extractRotation(controller.matrixWorld);
+  const touchPoint = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
+  touchPoint.addScaledVector(new THREE.Vector3(0, 0, -1).applyMatrix4(rotation), WORKBENCH_TOUCH_TIP_OFFSET);
+
+  let bestHit = null;
+  objects.forEach((object) => {
+    const width = object.geometry?.parameters?.width;
+    const height = object.geometry?.parameters?.height;
+    if (!width || !height) return;
+
+    object.updateWorldMatrix(true, false);
+    const local = object.worldToLocal(touchPoint.clone());
+    const halfW = width / 2 + WORKBENCH_TOUCH_MARGIN;
+    const halfH = height / 2 + WORKBENCH_TOUCH_MARGIN;
+    const depth = Math.abs(local.z);
+    if (Math.abs(local.x) > halfW || Math.abs(local.y) > halfH || depth > WORKBENCH_TOUCH_DEPTH) {
+      return;
+    }
+
+    if (!bestHit || depth < bestHit.depth) {
+      const planePoint = object.localToWorld(new THREE.Vector3(
+        clamp(local.x, -width / 2, width / 2),
+        clamp(local.y, -height / 2, height / 2),
+        0,
+      ));
+      bestHit = { object, point: planePoint, depth };
+    }
+  });
+
+  return bestHit;
 }
 
 function controllerPlanePoint(controller, raycaster, z) {
