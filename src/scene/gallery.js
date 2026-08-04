@@ -62,6 +62,7 @@ const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
 const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
 const EXAMPLE_BUTTON_Z_OFFSET = 0.05;
 const PANEL_BUTTON_Z_OFFSET = 0.06;
+const BUTTON_FACE_Z_OFFSET = 0.026;
 const INTRO_BUTTON_Y = LAYOUT.panelY - PANEL_H / 2 + 0.12;
 const RESPONSE_BUTTON_Y = TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.02;
 const TRANSFER_BUTTON_Y = LAYOUT.panelY - PANEL_H / 2 + 0.12;
@@ -333,6 +334,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   };
   let currentSession = null;
   let snapTurnArmed = true;
+  let figureInspectorCloseButtonArmed = true;
 
   function renderState(state) {
     currentState = state;
@@ -412,6 +414,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       session.addEventListener("end", () => {
         currentSession = null;
         dragState = null;
+        figureInspectorCloseButtonArmed = true;
         resetSnapTurn();
         setInWorldControlsVisible(inWorldButtons, false);
         robustnessSlider.group.visible = false;
@@ -473,6 +476,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     figureInspection.open = false;
     hoverControl = null;
     dragState = null;
+    figureInspectorCloseButtonArmed = false;
     figureInspector.group.visible = false;
     updateInspectablePanelFrames(panels, hoverControl, figureInspection);
   }
@@ -567,6 +571,15 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
   }
 
+  function beginControllerSqueeze(controller) {
+    if (figureInspection.open) {
+      closeVrFigureInspector();
+      pulseController(controller);
+      return;
+    }
+    beginControllerInteraction(controller);
+  }
+
   function endControllerInteraction(controller) {
     if (!dragState || dragState.controller !== controller) return;
     const endedDrag = dragState;
@@ -635,7 +648,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const dy = point.y - activeDrag.lastPoint.y;
     activeDrag.lastPoint = point;
     figureInspection.panX += (dx / FIGURE_INSPECTOR_W) * FIGURE_INSPECTOR_TEXTURE_W;
-    figureInspection.panY += (dy / FIGURE_INSPECTOR_H) * FIGURE_INSPECTOR_TEXTURE_H;
+    figureInspection.panY -= (dy / FIGURE_INSPECTOR_H) * FIGURE_INSPECTOR_TEXTURE_H;
     updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession), hoverControl);
   }
 
@@ -651,6 +664,27 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     if (Math.abs(nextZoom - figureInspection.zoom) < 0.001) return false;
     figureInspection.zoom = nextZoom;
     updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, true, hoverControl);
+    return true;
+  }
+
+  function updateFigureInspectorCloseShortcut() {
+    if (!currentSession) {
+      figureInspectorCloseButtonArmed = true;
+      return false;
+    }
+
+    const pressed = hasSecondaryFaceButtonPressed(currentSession.inputSources);
+    if (!pressed) {
+      figureInspectorCloseButtonArmed = true;
+      return false;
+    }
+
+    if (!figureInspection.open || !figureInspectorCloseButtonArmed) {
+      figureInspectorCloseButtonArmed = false;
+      return false;
+    }
+
+    closeVrFigureInspector();
     return true;
   }
 
@@ -718,7 +752,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   controllers.forEach((controller) => {
     controller.addEventListener("selectstart", () => beginControllerInteraction(controller));
     controller.addEventListener("selectend", () => endControllerInteraction(controller));
-    controller.addEventListener("squeezestart", () => beginControllerInteraction(controller));
+    controller.addEventListener("squeezestart", () => beginControllerSqueeze(controller));
     controller.addEventListener("squeezeend", () => endControllerInteraction(controller));
   });
 
@@ -726,6 +760,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     if (!currentSession) controls.update();
     else {
       updateSnapTurn();
+      updateFigureInspectorCloseShortcut();
       updateFigureInspectionZoom();
     }
     if (dragState) updateDragState(dragState);
@@ -791,6 +826,14 @@ function getTaskScrollAxis(inputSources) {
     }
   }
   return strongestAxis;
+}
+
+function hasSecondaryFaceButtonPressed(inputSources) {
+  for (const inputSource of inputSources) {
+    const buttons = inputSource.gamepad?.buttons ?? [];
+    if (buttons[5]?.pressed) return true;
+  }
+  return false;
 }
 
 function createWorld(scene) {
@@ -1002,6 +1045,7 @@ function createButtons(scene, buttons, defaults = {}) {
     mesh.position.copy(controlPosition(button));
     mesh.rotation.x = button.rotationX ?? rotationX;
     mesh.rotation.y = button.rotationY ?? 0;
+    mesh.translateZ(BUTTON_FACE_Z_OFFSET);
     mesh.visible = false;
 
     if (!hitOnly) {
@@ -1009,7 +1053,7 @@ function createButtons(scene, buttons, defaults = {}) {
         new THREE.BoxGeometry(buttonWidth + 0.028, buttonHeight + 0.028, 0.03),
         new THREE.MeshStandardMaterial({ color: "#263236", roughness: 0.48, metalness: 0.04 }),
       );
-      base.position.z = -0.023;
+      base.position.z = -0.04;
       mesh.add(base);
     }
 
