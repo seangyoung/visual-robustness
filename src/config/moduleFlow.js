@@ -7,27 +7,6 @@ export const MODULE_PHASES = {
   TAKEAWAYS: "takeaways",
 };
 
-export const confidenceOptions = [
-  {
-    id: "confident",
-    label: "Confident",
-    vrLabel: "Confident",
-    note: "Treat that confidence as a cue to test the design under more conditions.",
-  },
-  {
-    id: "unsure",
-    label: "Somewhat unsure",
-    vrLabel: "Somewhat\nUnsure",
-    note: "That uncertainty is useful evidence that the encoding may be doing too much work.",
-  },
-  {
-    id: "guessing",
-    label: "Guessing",
-    vrLabel: "Guessing",
-    note: "Guessing usually means the design needs more than color to carry the task.",
-  },
-];
-
 export const finalTakeaways = [
   "Do not rely on hue alone.",
   "Match palette strategy to the data type.",
@@ -50,7 +29,7 @@ export const introCopy = {
   flow: [
     "Review each map and chart example.",
     "Select the strongest set of design choices to make the visualizations more accessible.",
-    "Submit your design with a confidence judgment to receive qualitative feedback.",
+    "Submit your design choices to receive qualitative feedback.",
     "After completing the examples, test your skills.",
   ],
   startLabel: "Start Module",
@@ -62,24 +41,13 @@ export function modulePhaseFromParam(value) {
   return phaseValues.has(value) ? value : MODULE_PHASES.INTRO;
 }
 
-export function confidenceOptionById(id) {
-  return confidenceOptions.find((option) => option.id === id) ?? null;
-}
-
 export function allExamplesSubmitted(submittedExamples, examples) {
   return examples.every((example) => Boolean(submittedExamples?.[example.id]));
 }
 
-export function designSubmissionFeedback(example, interventions, confidenceId) {
+export function designSubmissionFeedback(example, interventions) {
   const normalized = normalizeInterventions(interventions);
-  const confidence = confidenceOptionById(confidenceId);
-  const feedback = exampleFeedbackById[example.id]?.(normalized) ?? genericFeedback(normalized);
-
-  return {
-    ...feedback,
-    confidence: confidence?.label ?? "",
-    confidenceNote: confidence?.note ?? "",
-  };
+  return exampleFeedbackById[example.id]?.(normalized) ?? genericFeedback(normalized);
 }
 
 function genericFeedback(interventions) {

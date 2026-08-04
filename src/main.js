@@ -47,7 +47,6 @@ const state = {
   exampleIndex: initialExampleIndex(),
   challengeForced: initialChallengeForced(),
   selectedChallengeId: initialTransferChallengeId(),
-  confidenceByExample: initialConfidenceByExample(),
   submittedExamples: initialSubmittedExamples(),
   exampleFeedback: {},
   transferAnswer: null,
@@ -165,14 +164,6 @@ function handleAction(action, payload = {}) {
     state.workbench.interventions = defaultInterventions();
   }
 
-  if (action === "setConfidence") {
-    const example = visualizationExampleByIndex(state.exampleIndex);
-    state.confidenceByExample = {
-      ...state.confidenceByExample,
-      [example.id]: payload.confidence ?? null,
-    };
-  }
-
   if (action === "submitDesign") {
     submitCurrentDesign();
   }
@@ -247,12 +238,10 @@ function applySceneDefaults() {
 
 function submitCurrentDesign() {
   const example = visualizationExampleByIndex(state.exampleIndex);
-  const confidenceId = state.confidenceByExample[example.id];
-  if (!confidenceId) return;
 
   state.exampleFeedback = {
     ...state.exampleFeedback,
-    [example.id]: designSubmissionFeedback(example, state.workbench.interventions, confidenceId),
+    [example.id]: designSubmissionFeedback(example, state.workbench.interventions),
   };
   state.submittedExamples = {
     ...state.submittedExamples,
@@ -274,7 +263,6 @@ function restartModule() {
   state.modulePhase = MODULE_PHASES.INTRO;
   state.sceneIndex = 0;
   state.exampleIndex = 0;
-  state.confidenceByExample = initialConfidenceByExample();
   state.submittedExamples = initialSubmittedExamples();
   state.exampleFeedback = {};
   state.transferAnswer = null;
@@ -378,10 +366,6 @@ function initialTransferChallengeId() {
     return transferChallengeIdFromParam(params.get("challenge"));
   }
   return randomTransferChallengeId();
-}
-
-function initialConfidenceByExample() {
-  return Object.fromEntries(visualizationExamples.map((example) => [example.id, null]));
 }
 
 function initialSubmittedExamples() {

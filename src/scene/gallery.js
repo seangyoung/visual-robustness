@@ -13,7 +13,6 @@ import { comparisonDesigns, moduleScenes } from "../config/lesson.js";
 import {
   MODULE_PHASES,
   allExamplesSubmitted,
-  confidenceOptions,
   introCopy,
 } from "../config/moduleFlow.js";
 import { clampStressTestIndex, stressTestByIndex, stressTests } from "../config/stressTests.js";
@@ -57,6 +56,7 @@ const LAYOUT = {
 const CONTROL_ROWS = {
   upper: 0.14,
   lower: -0.15,
+  bottom: -0.4,
 };
 const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
 const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
@@ -104,29 +104,14 @@ const BUTTONS = [
   { id: "cue", action: "toggleIntervention", payload: { key: "redundantCue" }, label: "Cue", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
   { id: "cue-alt", action: "setCueVariant", payload: { variant: "cueAlt" }, label: "Cue\n2", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
   { id: "annotation", action: "toggleIntervention", payload: { key: "annotation" }, label: "Divider", x: 1.2, width: 0.3, deckY: CONTROL_ROWS.lower },
-  ...confidenceOptions.map((option, index) => ({
-    id: `confidence-${option.id}`,
-    action: "setConfidence",
-    payload: { confidence: option.id },
-    label: option.vrLabel,
-    x: -0.66 + index * 0.66,
-    y: RESPONSE_BUTTON_Y,
-    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
-    width: 0.6,
-    height: 0.22,
-    rotationX: 0,
-    phases: [MODULE_PHASES.EXAMPLES],
-  })),
   {
     id: "submit-design",
     action: "submitDesign",
     label: "Submit\nDesign",
-    x: -0.4,
-    y: RESPONSE_BUTTON_Y - 0.21,
-    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
-    width: 0.74,
-    height: 0.22,
-    rotationX: 0,
+    x: 0.72,
+    width: 1.12,
+    height: 0.19,
+    deckY: CONTROL_ROWS.bottom,
     phases: [MODULE_PHASES.EXAMPLES],
   },
   {
@@ -976,7 +961,7 @@ function createWorkbenchControlDeck(scene) {
   scene.add(group);
 
   const deck = new THREE.Mesh(
-    new THREE.BoxGeometry(2.98, 0.56, 0.045),
+    new THREE.BoxGeometry(2.98, 0.86, 0.045),
     new THREE.MeshStandardMaterial({
       color: "#11191c",
       roughness: 0.62,
@@ -990,13 +975,14 @@ function createWorkbenchControlDeck(scene) {
     new THREE.BoxGeometry(3.06, 0.064, 0.06),
     new THREE.MeshStandardMaterial({ color: "#2b383b", roughness: 0.56 }),
   );
-  bevel.position.set(0, -0.288, -0.014);
+  bevel.position.set(0, -0.438, -0.014);
   group.add(bevel);
 
   [
     { x: -0.84, y: -0.02, w: 1.22, h: 0.45, color: "#182326" },
     { x: 0.72, y: CONTROL_ROWS.upper, w: 1.52, h: 0.22, color: "#192527" },
     { x: 0.72, y: CONTROL_ROWS.lower, w: 1.52, h: 0.22, color: "#192527" },
+    { x: 0.72, y: CONTROL_ROWS.bottom, w: 1.52, h: 0.2, color: "#182326" },
   ].forEach((pad) => {
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(pad.w, pad.h, 0.012),
@@ -1244,7 +1230,6 @@ function updateInWorldControlVisibility(
   mainButtons.forEach((button) => {
     const isNavigation = button.id === "back" || button.id === "next";
     const isExampleControl = button.id.startsWith("example-");
-    const isConfidenceControl = button.id.startsWith("confidence-");
     const isTransferChoice = button.id.startsWith("transfer-choice-");
     const isInterventionControl =
       button.id === "original" ||
@@ -1273,7 +1258,6 @@ function updateInWorldControlVisibility(
       phaseMatches &&
       (!isNavigation || (isExamplePhase && hasSceneNavigation)) &&
       (!isExampleControl || (sceneState.type === "color" && visualizationExamples.length > 1)) &&
-      (!isConfidenceControl || isExamplePhase) &&
       (!isInterventionControl || supportsInterventions) &&
       (!isTransferChoice || hasTransferChoice) &&
       (button.id !== "continue-challenge" || readyForChallenge) &&
@@ -1296,10 +1280,6 @@ function updateInWorldControlVisibility(
 }
 
 function buttonDisabled(button, state, readyForChallenge, challenge) {
-  if (button.id === "submit-design") {
-    const example = visualizationExampleByIndex(state?.exampleIndex ?? 0);
-    return !state?.confidenceByExample?.[example.id];
-  }
   if (button.id === "continue-challenge") return !readyForChallenge;
   if (button.id === "submit-transfer") {
     return !transferChoiceById(challenge, state?.transferAnswer) || Boolean(state?.transferSubmitted);
@@ -1550,17 +1530,6 @@ function buttonTextureSpec(button, state) {
       options: {
         accent: submitted && !active,
       },
-    };
-  }
-
-  if (button.id.startsWith("confidence-")) {
-    const confidence = confidenceOptions.find((option) => option.id === button.payload?.confidence);
-    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
-    const active = state.confidenceByExample?.[example.id] === confidence?.id;
-    return {
-      label: confidence?.vrLabel ?? button.label,
-      active,
-      options: {},
     };
   }
 

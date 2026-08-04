@@ -7,7 +7,6 @@ import {
 import {
   MODULE_PHASES,
   allExamplesSubmitted,
-  confidenceOptions,
   finalTakeaways,
   introCopy,
 } from "../config/moduleFlow.js";
@@ -71,7 +70,6 @@ export function createDomUi({
     originalDesign: document.getElementById("original-design"),
     interventionControls: document.getElementById("intervention-controls"),
     submissionPanel: document.getElementById("submission-panel"),
-    confidenceControls: document.getElementById("confidence-controls"),
     submitDesign: document.getElementById("submit-design"),
     continueChallenge: document.getElementById("continue-challenge"),
     completionStatus: document.getElementById("completion-status"),
@@ -317,25 +315,12 @@ function renderExampleTabs(elements, state, onAction) {
 }
 
 function renderSubmissionControls(elements, example, state, onAction) {
-  const activeConfidence = state.confidenceByExample?.[example.id] ?? null;
   const submittedCount = visualizationExamples
     .filter((item) => Boolean(state.submittedExamples?.[item.id]))
     .length;
   const readyForChallenge = allExamplesSubmitted(state.submittedExamples, visualizationExamples);
 
-  elements.confidenceControls.replaceChildren(
-    ...confidenceOptions.map((option) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "confidence-choice";
-      button.setAttribute("aria-pressed", String(activeConfidence === option.id));
-      button.textContent = option.label;
-      button.addEventListener("click", () => onAction("setConfidence", { confidence: option.id }));
-      return button;
-    }),
-  );
-
-  elements.submitDesign.disabled = !activeConfidence;
+  elements.submitDesign.disabled = false;
   elements.submitDesign.textContent = state.submittedExamples?.[example.id]
     ? "Resubmit Design"
     : "Submit Design";

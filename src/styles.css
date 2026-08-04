@@ -656,7 +656,7 @@ input[type="range"]:disabled {
 .submission-panel {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr);
   gap: 8px 12px;
   align-items: center;
   min-width: 0;
@@ -671,8 +671,6 @@ input[type="range"]:disabled {
   display: none;
 }
 
-.confidence-control,
-.confidence-controls,
 .transfer-choices {
   display: flex;
   flex-wrap: wrap;
@@ -681,7 +679,6 @@ input[type="range"]:disabled {
   min-width: 0;
 }
 
-.confidence-choice,
 .transfer-choice {
   min-height: 36px;
   padding: 0 12px;
@@ -690,7 +687,6 @@ input[type="range"]:disabled {
   background: rgba(248, 246, 238, 0.06);
 }
 
-.confidence-choice[aria-pressed="true"],
 .transfer-choice[aria-pressed="true"] {
   border-color: rgba(85, 198, 186, 0.68);
   background: rgba(35, 110, 102, 0.86);
@@ -1291,19 +1287,12 @@ body.is-immersive #xr-canvas {
     content: none;
   }
 
-  .confidence-control {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .confidence-controls,
   .transfer-choices {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr));
     width: 100%;
   }
 
-  .confidence-choice,
   .transfer-choice,
   .intro-controls > button,
   .submission-panel > button,
