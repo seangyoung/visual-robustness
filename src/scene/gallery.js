@@ -833,7 +833,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     if (controlId === hoverControl) return;
     hoverControl = controlId;
     updateButtonTextures(inWorldButtons, hoverControl, currentState);
-    updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession), hoverControl);
+    updateFigureInspectorCloseTexture(figureInspector, hoverControl);
     updateInspectablePanelFrames(panels, hoverControl, figureInspection);
     updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
     updateRankingSet(rankingSet, currentState, hoverControl, dragState);
@@ -1391,11 +1391,11 @@ function buttonDisabled(button, state, readyForChallenge, challenge) {
 }
 
 function updateRobustnessSlider(slider, value, hoverControl, dragState) {
+  if (!slider.group.visible) return;
   const index = clampStressTestIndex(value);
   const normalized = stressTests.length <= 1 ? 0 : index / (stressTests.length - 1);
   const x = SLIDER_MIN_X + normalized * SLIDER_WIDTH;
   const active = hoverControl === slider.handle.userData.controlId || dragState?.type === "slider";
-  const oldMap = slider.label.material.map;
 
   slider.handle.position.x = x;
   slider.handle.scale.setScalar(active ? 1.16 : 1);
@@ -1407,13 +1407,18 @@ function updateRobustnessSlider(slider, value, hoverControl, dragState) {
     tick.material.color.set(tickIndex === index ? "#f8f6ee" : "#9ba8a4");
     tick.mesh.scale.y = tickIndex === index ? 1.22 : 1;
   });
+  const labelKey = `${index}:${active ? 1 : 0}`;
+  if (slider.label.userData.textureKey === labelKey) return;
+  const oldMap = slider.label.material.map;
   slider.label.material.map = textureFromCanvas(createSliderLabelTexture(stressTestByIndex(index), active));
   slider.label.material.map.needsUpdate = true;
   slider.label.material.needsUpdate = true;
+  slider.label.userData.textureKey = labelKey;
   if (oldMap) oldMap.dispose();
 }
 
 function updateRankingSet(rankingSet, state, hoverControl, dragState) {
+  if (!rankingSet.group.visible) return;
   const oldBoardMap = rankingSet.board.material.map;
   rankingSet.board.material.map = textureFromCanvas(createRankingBoardTexture(state));
   rankingSet.board.material.map.needsUpdate = true;
@@ -1495,10 +1500,18 @@ function updateFigureInspector(inspector, inspection, sceneState, state, isImmer
   inspector.surfaceMaterial.needsUpdate = true;
   if (oldSurfaceMap) oldSurfaceMap.dispose();
 
+  updateFigureInspectorCloseTexture(inspector, hoverControl);
+}
+
+function updateFigureInspectorCloseTexture(inspector, hoverControl) {
+  if (!inspector.group.visible) return;
+  const closeKey = hoverControl === "figure-inspector-close" ? "hovered" : "idle";
+  if (inspector.close.userData.textureKey === closeKey) return;
   const oldCloseMap = inspector.closeMaterial.map;
   inspector.closeMaterial.map = textureFromCanvas(createCloseButtonTexture(hoverControl === "figure-inspector-close"));
   inspector.closeMaterial.map.needsUpdate = true;
   inspector.closeMaterial.needsUpdate = true;
+  inspector.close.userData.textureKey = closeKey;
   if (oldCloseMap) oldCloseMap.dispose();
 }
 
@@ -1589,15 +1602,20 @@ function createCloseButtonTexture(active) {
 function updateButtonTextures(buttons, hoverControl, state) {
   buttons.forEach((button) => {
     if (button.hitOnly) {
-      button.mesh.material.opacity = 0;
-      button.mesh.material.needsUpdate = true;
+      if (button.mesh.material.opacity !== 0) {
+        button.mesh.material.opacity = 0;
+        button.mesh.material.needsUpdate = true;
+      }
       return;
     }
+    if (!button.mesh.visible) return;
 
     const textureSpec = buttonTextureSpec(button, state);
     const isHovered = hoverControl === button.id;
     const disabled = Boolean(button.mesh.userData.disabled);
     const isActive = !disabled && (textureSpec.active || isHovered);
+    const textureKey = buttonTextureKey(textureSpec, isActive, disabled);
+    if (button.mesh.userData.textureKey === textureKey) return;
     const oldMap = button.mesh.material.map;
     button.mesh.material.map = textureFromCanvas(
       createButtonTexture(textureSpec.label, isActive, textureSpec.options),
@@ -1605,8 +1623,18 @@ function updateButtonTextures(buttons, hoverControl, state) {
     button.mesh.material.map.needsUpdate = true;
     button.mesh.material.opacity = disabled ? 0.42 : 1;
     button.mesh.material.needsUpdate = true;
+    button.mesh.userData.textureKey = textureKey;
     if (oldMap) oldMap.dispose();
   });
+}
+
+function buttonTextureKey(textureSpec, isActive, disabled) {
+  return [
+    textureSpec.label,
+    isActive ? "active" : "idle",
+    disabled ? "disabled" : "enabled",
+    JSON.stringify(textureSpec.options ?? {}),
+  ].join("|");
 }
 
 function buttonTextureSpec(button, state) {
