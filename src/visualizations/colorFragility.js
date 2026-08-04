@@ -598,21 +598,33 @@ function drawTakeawayPanel(ctx, canvas, kind, state) {
 
   if (kind === "map") {
     panelBase(ctx, canvas, "Principles", "Use during design review", state);
+    const boxX = 94;
+    const boxW = canvas.width - 188;
+    const textX = 182;
+    const textW = canvas.width - 300;
+    const lineHeight = 38;
+    let y = 210;
+
     finalTakeaways.forEach((takeaway, index) => {
-      const y = 210 + index * 126;
+      ctx.font = "800 31px Arial";
+      const lines = wrappedTextLines(ctx, takeaway, textW);
+      const boxH = Math.max(82, lines.length * lineHeight + 34);
+      const textY = y + Math.max(0, (boxH - lines.length * lineHeight) / 2) + lineHeight - 5;
+
       ctx.fillStyle = "#eef2ee";
-      roundRect(ctx, 94, y, canvas.width - 188, 82, 16);
+      roundRect(ctx, boxX, y, boxW, boxH, 16);
       ctx.fill();
       ctx.strokeStyle = "#ccd4cf";
       ctx.lineWidth = 3;
-      roundRect(ctx, 94, y, canvas.width - 188, 82, 16);
+      roundRect(ctx, boxX, y, boxW, boxH, 16);
       ctx.stroke();
       ctx.fillStyle = "#2d837b";
       ctx.font = "900 32px Arial";
-      ctx.fillText(String(index + 1), 128, y + 53);
+      ctx.fillText(String(index + 1), 128, y + boxH / 2 + 11);
       ctx.fillStyle = "#151d20";
       ctx.font = "800 31px Arial";
-      wrapText(ctx, takeaway, 182, y + 50, canvas.width - 300, 38);
+      wrapText(ctx, takeaway, textX, textY, textW, lineHeight);
+      y += boxH + 24;
     });
     return;
   }
@@ -1547,21 +1559,30 @@ function bounds(points) {
 }
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  const words = String(text).split(" ");
-  let line = "";
+  const lines = wrappedTextLines(ctx, text, maxWidth);
   let yy = y;
-  words.forEach((word, index) => {
+  lines.forEach((line) => {
+    ctx.fillText(line, x, yy);
+    yy += lineHeight;
+  });
+  return yy;
+}
+
+function wrappedTextLines(ctx, text, maxWidth) {
+  const words = String(text).split(" ");
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
     const test = line ? `${line} ${word}` : word;
     if (ctx.measureText(test).width > maxWidth && line) {
-      ctx.fillText(line, x, yy);
+      lines.push(line);
       line = word;
-      yy += lineHeight;
     } else {
       line = test;
     }
-    if (index === words.length - 1) ctx.fillText(line, x, yy);
   });
-  return yy + lineHeight;
+  if (line) lines.push(line);
+  return lines;
 }
 
 function line(ctx, x1, y1, x2, y2) {
