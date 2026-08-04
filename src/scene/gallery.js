@@ -54,11 +54,11 @@ const LAYOUT = {
   taskZ: -4.18,
 };
 const CONTROL_ROWS = {
-  upper: 0.18,
-  marker: -0.06,
-  lower: -0.3,
-  bottom: -0.54,
-  stress: -0.15,
+  upper: 0.16,
+  marker: -0.04,
+  lower: -0.24,
+  bottom: -0.43,
+  stress: -0.12,
 };
 const TASK_PANEL_CENTER_Y = LAYOUT.panelY - 0.08;
 const EXAMPLE_BUTTON_Y_OFFSET = TASK_PANEL_H / 2 - 0.18;
@@ -962,29 +962,29 @@ function createWorkbenchControlDeck(scene) {
   scene.add(group);
 
   const deck = new THREE.Mesh(
-    new THREE.BoxGeometry(2.98, 1.16, 0.045),
+    new THREE.BoxGeometry(2.98, 0.94, 0.045),
     new THREE.MeshStandardMaterial({
       color: "#11191c",
       roughness: 0.62,
       metalness: 0.06,
     }),
   );
-  deck.position.z = -0.032;
+  deck.position.set(0, -0.08, -0.032);
   group.add(deck);
 
   const bevel = new THREE.Mesh(
     new THREE.BoxGeometry(3.06, 0.064, 0.06),
     new THREE.MeshStandardMaterial({ color: "#2b383b", roughness: 0.56 }),
   );
-  bevel.position.set(0, -0.598, -0.014);
+  bevel.position.set(0, -0.552, -0.014);
   group.add(bevel);
 
   [
-    { x: -0.84, y: CONTROL_ROWS.stress, w: 1.22, h: 0.52, color: "#182326" },
-    { x: 0.72, y: CONTROL_ROWS.upper, w: 1.52, h: 0.2, color: "#192527" },
-    { x: 0.72, y: CONTROL_ROWS.marker, w: 1.52, h: 0.2, color: "#192527" },
-    { x: 0.72, y: CONTROL_ROWS.lower, w: 1.52, h: 0.2, color: "#192527" },
-    { x: 0.72, y: CONTROL_ROWS.bottom, w: 1.52, h: 0.2, color: "#182326" },
+    { x: -0.84, y: CONTROL_ROWS.stress, w: 1.22, h: 0.46, color: "#182326" },
+    { x: 0.72, y: CONTROL_ROWS.upper, w: 1.52, h: 0.18, color: "#192527" },
+    { x: 0.72, y: CONTROL_ROWS.marker, w: 1.52, h: 0.18, color: "#192527" },
+    { x: 0.72, y: CONTROL_ROWS.lower, w: 1.52, h: 0.18, color: "#192527" },
+    { x: 0.72, y: CONTROL_ROWS.bottom, w: 1.52, h: 0.18, color: "#182326" },
   ].forEach((pad) => {
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(pad.w, pad.h, 0.012),
