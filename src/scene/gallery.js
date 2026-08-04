@@ -164,7 +164,7 @@ const BUTTONS = [
     width: 0.72,
     height: 0.22,
     rotationX: 0,
-    phases: [MODULE_PHASES.TRANSFER, MODULE_PHASES.TAKEAWAYS],
+    phases: [MODULE_PHASES.TAKEAWAYS],
   },
 ];
 const CHECK_BUTTONS = [
@@ -1365,7 +1365,7 @@ function updateInWorldControlVisibility(
       (button.id !== "continue-challenge" || readyForChallenge) &&
       (button.id !== "submit-transfer" || !state?.transferSubmitted) &&
       (button.id !== "continue-takeaways" || Boolean(state?.transferSubmitted)) &&
-      (button.id !== "restart-module" || phase !== MODULE_PHASES.TRANSFER || Boolean(state?.transferSubmitted)) &&
+      (button.id !== "restart-module" || phase === MODULE_PHASES.TAKEAWAYS) &&
       isSupportedPaletteChoice &&
       isSupportedLabelChoice &&
       isSupportedCueChoice &&
@@ -1705,7 +1705,6 @@ function buttonTextureSpec(button, state) {
       active: false,
       options: {
         accent: true,
-        surface: "light",
       },
     };
   }

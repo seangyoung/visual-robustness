@@ -563,11 +563,18 @@ function drawTransferChoiceSummary(ctx, canvas, challenge, selectedChoice, corre
     roundRect(ctx, x, y, width, height, 16);
     ctx.stroke();
 
+    ctx.font = "800 30px Arial";
+    const labelLines = wrappedTextLines(ctx, choice.label, width - 128).slice(0, 2);
+    const lineHeight = 32;
+    const firstTextY = y + height / 2 + 10 - ((labelLines.length - 1) * lineHeight) / 2;
+
     ctx.fillStyle = "#151d20";
     ctx.font = "900 31px Arial";
-    ctx.fillText(`${String.fromCharCode(65 + index)}.`, x + 28, y + 58);
+    ctx.fillText(`${String.fromCharCode(65 + index)}.`, x + 28, firstTextY);
     ctx.font = "800 30px Arial";
-    wrapText(ctx, choice.label, x + 86, y + 38, width - 128, 36);
+    labelLines.forEach((line, lineIndex) => {
+      ctx.fillText(line, x + 86, firstTextY + lineIndex * lineHeight);
+    });
     y += 112;
   });
 
