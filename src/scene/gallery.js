@@ -97,7 +97,7 @@ const BUTTONS = [
   { id: "palette-original", action: "setPaletteVariant", payload: { variant: "original" }, label: "Palette\n1", x: 0.18, width: 0.3, deckY: CONTROL_ROWS.upper },
   { id: "palette", action: "setPaletteVariant", payload: { variant: "palette" }, label: "Palette\n2", x: 0.51, width: 0.3, deckY: CONTROL_ROWS.upper },
   { id: "palette-alt", action: "setPaletteVariant", payload: { variant: "paletteAlt" }, label: "Palette\n3", x: 0.84, width: 0.3, deckY: CONTROL_ROWS.upper },
-  { id: "original", action: "clearInterventions", label: "Reset\nAll", x: 1.24, width: 0.34, deckY: CONTROL_ROWS.upper },
+  { id: "original", action: "clearInterventions", label: "Reset\nall", x: 1.24, width: 0.34, deckY: CONTROL_ROWS.upper },
   { id: "label-none", action: "setLabelMode", payload: { mode: "none" }, label: "No\nLabels", x: 0.18, width: 0.3, deckY: CONTROL_ROWS.lower },
   { id: "labels", action: "setLabelMode", payload: { mode: "labels" }, label: "Selected\nLabels", x: 0.51, width: 0.32, deckY: CONTROL_ROWS.lower },
   { id: "all-labels", action: "setLabelMode", payload: { mode: "allLabels" }, label: "All\nLabels", x: 0.84, width: 0.3, deckY: CONTROL_ROWS.lower },
@@ -1633,7 +1633,7 @@ function buttonTextureSpec(button, state) {
   if (button.id === "original") {
     const active = !hasActiveInterventions(state.workbench?.interventions);
     return {
-      label: "Reset\nAll",
+      label: "Reset\nall",
       active,
       options: {},
     };
@@ -1644,7 +1644,7 @@ function buttonTextureSpec(button, state) {
     const option = paletteOptionsForExample(example).find((item) => item.id === button.payload?.variant);
     const active = paletteVariantFromInterventions(state.workbench?.interventions) === button.payload?.variant;
     return {
-      label: option?.vrLabel ?? option?.shortLabel ?? button.label,
+      label: designChoiceButtonLabel(option?.label ?? button.label),
       active,
       options: {},
     };
@@ -1655,7 +1655,7 @@ function buttonTextureSpec(button, state) {
     const option = labelOptionsForExample(example).find((item) => item.id === button.payload?.mode);
     const active = labelModeFromInterventions(state.workbench?.interventions) === button.payload?.mode;
     return {
-      label: option?.vrLabel ?? option?.shortLabel ?? button.label,
+      label: designChoiceButtonLabel(option?.label ?? button.label),
       active,
       options: {},
     };
@@ -1666,7 +1666,7 @@ function buttonTextureSpec(button, state) {
     const option = cueOptionsForExample(example).find((item) => item.id === button.payload?.variant);
     const active = cueVariantFromInterventions(state.workbench?.interventions) === button.payload?.variant;
     return {
-      label: option?.vrLabel ?? option?.shortLabel ?? button.label,
+      label: designChoiceButtonLabel(option?.label ?? button.label),
       active,
       options: {},
     };
@@ -1679,7 +1679,7 @@ function buttonTextureSpec(button, state) {
     const interventions = normalizeInterventions(state.workbench?.interventions);
     const active = Boolean(interventions[key]);
     return {
-      label: metadata?.vrLabel ?? metadata?.shortLabel ?? button.label,
+      label: designChoiceButtonLabel(metadata?.label ?? button.label),
       active,
       options: {},
     };
@@ -1690,6 +1690,10 @@ function buttonTextureSpec(button, state) {
     active: false,
     options: {},
   };
+}
+
+function designChoiceButtonLabel(label) {
+  return wrapButtonLabel(label, 14);
 }
 
 function wrapButtonLabel(label, maxChars = 18) {
