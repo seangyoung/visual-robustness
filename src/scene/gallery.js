@@ -30,6 +30,7 @@ import {
   createComparisonCardTexture,
   createPanelTexture,
 } from "../visualizations/colorFragility.js";
+import { loadMissionControlWorkbench } from "./missionControlWorkbench.js";
 
 const PANEL_W = 3.3;
 const PANEL_H = 2.28;
@@ -37,6 +38,7 @@ const SIDE_PANEL_X = 3.08;
 const TASK_PANEL_W = 2.34;
 const TASK_PANEL_H = 1.68;
 const CONTROL_BUTTON_H = 0.19;
+const USE_MODEL_WORKBENCH = true;
 const LAYOUT = {
   desktopCameraZ: 6.2,
   desktopTargetZ: -3.15,
@@ -289,6 +291,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   const controllers = createControllers(renderer, scene);
   const raycaster = new THREE.Raycaster();
   const touchRaycaster = new THREE.Raycaster();
+  const clock = new THREE.Clock();
   const pointer = new THREE.Vector2();
   const snapTurnPivot = new THREE.Vector3();
   const interactive = [
@@ -332,12 +335,30 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   let currentSession = null;
   let snapTurnArmed = true;
   let figureInspectorCloseButtonArmed = true;
+  let missionControlWorkbench = null;
+  let missionControlScreenKey = "";
+
+  if (USE_MODEL_WORKBENCH) {
+    loadMissionControlWorkbench({ onControl: handleMissionControlEvent })
+      .then((workbench) => {
+        missionControlWorkbench = workbench;
+        missionControlWorkbench.root.position.set(0, -0.32, -1.68);
+        missionControlWorkbench.root.scale.setScalar(0.92);
+        missionControlWorkbench.root.visible = false;
+        stage.add(missionControlWorkbench.root);
+        renderState(currentState);
+      })
+      .catch((error) => {
+        ui.setStatus(`Could not load VR workbench model: ${error.message}`);
+      });
+  }
 
   function renderState(state) {
     currentState = state;
     resetTaskScrollIfNeeded(state);
     const sceneState = moduleScenes[state.sceneIndex];
     const isImmersive = Boolean(currentSession);
+    const useModelWorkbench = isModelWorkbenchActive(state, sceneState, isImmersive);
     const inWorldPanelState = panelStateWithScroll(state);
     updateInWorldControlVisibility(
       mainButtons,
@@ -348,7 +369,9 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       sceneState,
       isImmersive,
       state,
+      useModelWorkbench,
     );
+    updateMissionControlWorkbench(sceneState, state, useModelWorkbench);
     applyPanelLayout(panels, sceneState, state, isImmersive);
     updatePanel(panels.map, "map", sceneState, state);
     updatePanel(panels.task, "task", sceneState, inWorldPanelState);
@@ -407,6 +430,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         moduleScenes[currentState.sceneIndex],
         true,
         currentState,
+        isModelWorkbenchActive(currentState, moduleScenes[currentState.sceneIndex], true),
       );
       session.addEventListener("end", () => {
         currentSession = null;
@@ -419,6 +443,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         figureInspector.group.visible = false;
         rankingSet.group.visible = false;
         workbenchControlDeck.visible = false;
+        if (missionControlWorkbench) missionControlWorkbench.root.visible = false;
         applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, false);
         ui.setVrMode(false);
         renderState(currentState);
@@ -479,21 +504,25 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   }
 
   function workbenchInteractiveObjects() {
-    return [
+    const objects = [
       ...inWorldButtons.map((button) => button.mesh),
       robustnessSlider.hitArea,
       robustnessSlider.handle,
     ];
+    if (isModelWorkbenchActive()) objects.push(...missionControlWorkbench.getInteractiveMeshes());
+    return objects;
   }
 
   function workbenchTouchObjects() {
-    return [
+    const objects = [
       ...inWorldButtons
         .filter((button) => button.deckY !== undefined)
         .map((button) => button.mesh),
       robustnessSlider.hitArea,
       robustnessSlider.handle,
     ];
+    if (isModelWorkbenchActive()) objects.push(...missionControlWorkbench.getInteractiveMeshes());
+    return objects;
   }
 
   function currentInteractiveObjects() {
@@ -504,7 +533,9 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         ...workbenchInteractiveObjects(),
       ];
     }
-    return interactive;
+    const objects = [...interactive];
+    if (isModelWorkbenchActive()) objects.push(...missionControlWorkbench.getInteractiveMeshes());
+    return objects;
   }
 
   function onPointerMove(event) {
@@ -561,6 +592,11 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       };
       hoverControl = target.userData.controlId;
       pulseController(controller);
+      return;
+    }
+
+    if (target.userData.kind === "mission-control") {
+      if (activateMissionControlTarget(target)) pulseController(controller);
       return;
     }
 
@@ -635,6 +671,20 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         return;
       }
 
+      if (target.userData.kind === "mission-control") {
+        const control = missionControlWorkbench?.controlFromObject(target);
+        if (!control || control.disabled) {
+          directTouchStates.delete(controllerIndex);
+          return;
+        }
+        const previous = directTouchStates.get(controllerIndex);
+        if (previous?.controlId !== controlId) {
+          if (activateMissionControlTarget(target)) pulseController(controller);
+        }
+        directTouchStates.set(controllerIndex, { controlId, kind: "mission-control" });
+        return;
+      }
+
       if (!target.userData.action) {
         directTouchStates.set(controllerIndex, { controlId, kind: target.userData.kind ?? "touch" });
         return;
@@ -706,6 +756,195 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       return true;
     }
     return false;
+  }
+
+  function isModelWorkbenchActive(
+    state = currentState,
+    sceneState = moduleScenes[state.sceneIndex],
+    isImmersive = Boolean(currentSession),
+  ) {
+    return (
+      USE_MODEL_WORKBENCH &&
+      Boolean(missionControlWorkbench) &&
+      isImmersive &&
+      (state?.modulePhase ?? MODULE_PHASES.INTRO) === MODULE_PHASES.EXAMPLES &&
+      sceneState?.type === "color"
+    );
+  }
+
+  function activateMissionControlTarget(target) {
+    if (!missionControlWorkbench) return false;
+    const control = missionControlWorkbench.controlFromObject(target);
+    if (!control || control.disabled) return false;
+    missionControlWorkbench.activateFromObject(target);
+    return true;
+  }
+
+  function handleMissionControlEvent(event) {
+    if (!isModelWorkbenchActive()) return;
+    const example = visualizationExampleByIndex(currentState.exampleIndex ?? 0);
+    if (event.id === "knob-main") {
+      const index = Math.round(THREE.MathUtils.clamp(event.value ?? 0, 0, 1) * (stressTests.length - 1));
+      selectAction("setStressTest", { index });
+      return;
+    }
+
+    const paletteMap = {
+      "toggle-01": "original",
+      "toggle-02": "palette",
+      "toggle-03": "paletteAlt",
+    };
+    if (paletteMap[event.id]) {
+      if (event.value) selectAction("setPaletteVariant", { variant: paletteMap[event.id] });
+      return;
+    }
+
+    const labelMap = {
+      "toggle-04": "none",
+      "toggle-05": "labels",
+      "toggle-06": "allLabels",
+    };
+    if (labelMap[event.id]) {
+      if (event.value) selectAction("setLabelMode", { mode: labelMap[event.id] });
+      return;
+    }
+
+    const cueMap = {
+      "toggle-07": "none",
+      "toggle-08": "redundantCue",
+      "toggle-09": "cueAlt",
+    };
+    if (cueMap[event.id]) {
+      if (event.value && cueOptionsForExample(example).some((option) => option.id === cueMap[event.id])) {
+        selectAction("setCueVariant", { variant: cueMap[event.id] });
+      }
+      return;
+    }
+
+    if (event.id === "guard-cover") {
+      const supportsAnnotation = Boolean(interventionMetadataForExample(example, "annotation"));
+      const nextValue = event.value === "open";
+      const currentValue = Boolean(currentState.workbench?.interventions?.annotation);
+      if (supportsAnnotation && nextValue !== currentValue) {
+        selectAction("toggleIntervention", { key: "annotation" });
+      }
+      return;
+    }
+
+    if (event.id === "submit") {
+      selectAction("submitDesign");
+      return;
+    }
+
+    if (event.id === "guarded-secondary") {
+      if (allExamplesSubmitted(currentState.submittedExamples, visualizationExamples)) {
+        selectAction("continueToChallenge");
+      }
+    }
+  }
+
+  function updateMissionControlWorkbench(sceneState, state, useModelWorkbench) {
+    if (!missionControlWorkbench) return;
+    missionControlWorkbench.root.visible = Boolean(useModelWorkbench);
+    if (!useModelWorkbench) return;
+
+    const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+    const interventions = normalizeInterventions(state.workbench?.interventions);
+    const paletteVariant = paletteVariantFromInterventions(interventions);
+    const labelMode = labelModeFromInterventions(interventions);
+    const cueVariant = cueVariantFromInterventions(interventions);
+    const cueOptions = cueOptionsForExample(example);
+    const readyForChallenge = allExamplesSubmitted(state.submittedExamples, visualizationExamples);
+    const supportsAnnotation = Boolean(interventionMetadataForExample(example, "annotation"));
+
+    missionControlWorkbench.setKnobNormalized(
+      stressTests.length <= 1 ? 0 : clampStressTestIndex(state.workbench.stressTestIndex) / (stressTests.length - 1),
+    );
+    setModelToggleGroup(["toggle-01", "toggle-02", "toggle-03"], paletteVariant);
+    setModelToggleGroup(["toggle-04", "toggle-05", "toggle-06"], labelMode);
+    setModelToggleGroup(["toggle-07", "toggle-08", "toggle-09"], cueVariant);
+    missionControlWorkbench.setGuardOpen(Boolean(interventions.annotation));
+
+    missionControlWorkbench.setControlDisabled("toggle-03", !paletteOptionsForExample(example).some((option) => option.id === "paletteAlt"));
+    missionControlWorkbench.setControlDisabled("toggle-06", !labelOptionsForExample(example).some((option) => option.id === "allLabels"));
+    missionControlWorkbench.setControlDisabled("toggle-09", !cueOptions.some((option) => option.id === "cueAlt"));
+    missionControlWorkbench.setControlDisabled("guard-cover", !supportsAnnotation);
+    missionControlWorkbench.setControlDisabled("guarded-secondary", !readyForChallenge);
+
+    const screenKey = [
+      sceneState.id,
+      example.id,
+      state.workbench.stressTestIndex,
+      paletteVariant,
+      labelMode,
+      cueVariant,
+      Boolean(interventions.annotation),
+      readyForChallenge,
+    ].join("|");
+    if (screenKey !== missionControlScreenKey) {
+      missionControlScreenKey = screenKey;
+      updateMissionControlScreens(example, state, readyForChallenge, supportsAnnotation);
+    }
+  }
+
+  function setModelToggleGroup(ids, activeId) {
+    ids.forEach((id) => {
+      const controlValue = {
+        "toggle-01": "original",
+        "toggle-02": "palette",
+        "toggle-03": "paletteAlt",
+        "toggle-04": "none",
+        "toggle-05": "labels",
+        "toggle-06": "allLabels",
+        "toggle-07": "none",
+        "toggle-08": "redundantCue",
+        "toggle-09": "cueAlt",
+      }[id];
+      missionControlWorkbench.setToggle(id, controlValue === activeId);
+    });
+  }
+
+  function updateMissionControlScreens(example, state, readyForChallenge, supportsAnnotation) {
+    const stressIndex = clampStressTestIndex(state.workbench.stressTestIndex);
+    const stressTest = stressTestByIndex(stressIndex);
+    missionControlWorkbench.setScreenCanvas(
+      "knob-feedback",
+      createMissionControlStatusCanvas({
+        title: "Stress Test",
+        primary: stressTest.shortLabel,
+        secondary: stressTest.frequency ?? "",
+        footer: `${stressIndex + 1} of ${stressTests.length}`,
+      }),
+    );
+    missionControlWorkbench.setScreenCanvas(
+      "group-01",
+      createMissionControlGroupCanvas({
+        title: "Palette",
+        options: paletteOptionsForExample(example),
+        activeId: paletteVariantFromInterventions(state.workbench?.interventions),
+      }),
+    );
+    missionControlWorkbench.setScreenCanvas(
+      "group-02",
+      createMissionControlGroupCanvas({
+        title: "Labels",
+        options: labelOptionsForExample(example),
+        activeId: labelModeFromInterventions(state.workbench?.interventions),
+      }),
+    );
+    missionControlWorkbench.setScreenCanvas(
+      "group-03",
+      createMissionControlGroupCanvas({
+        title: "Cues",
+        options: cueOptionsForExample(example),
+        activeId: cueVariantFromInterventions(state.workbench?.interventions),
+        footer: supportsAnnotation
+          ? `Guard: ${state.workbench?.interventions?.annotation ? "Divider on" : "Divider off"}`
+          : readyForChallenge
+            ? "Guarded button: challenge"
+            : "Submit all examples to continue",
+      }),
+    );
   }
 
   function updateDraggedRankCard(controller, card) {
@@ -851,12 +1090,14 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   });
 
   renderer.setAnimationLoop(() => {
+    const deltaSeconds = clock.getDelta();
     if (!currentSession) controls.update();
     else {
       updateSnapTurn();
       updateFigureInspectorCloseShortcut();
       updateFigureInspectionZoom();
     }
+    if (missionControlWorkbench?.root.visible) missionControlWorkbench.update(deltaSeconds);
     if (dragState) updateDragState(dragState);
     applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession));
     if (updateTaskPanelScroll()) {
@@ -1312,6 +1553,7 @@ function updateInWorldControlVisibility(
   sceneState,
   isImmersive,
   state,
+  useModelWorkbench = false,
 ) {
   const phase = state?.modulePhase ?? MODULE_PHASES.INTRO;
   const isExamplePhase = phase === MODULE_PHASES.EXAMPLES;
@@ -1331,6 +1573,7 @@ function updateInWorldControlVisibility(
     const isNavigation = button.id === "back" || button.id === "next";
     const isExampleControl = button.id.startsWith("example-");
     const isTransferChoice = button.id.startsWith("transfer-choice-");
+    const isGeneratedWorkbenchControl = button.deckY !== undefined;
     const isCueNoneChoice = button.action === "setCueVariant" && button.payload?.variant === "none";
     const isInterventionControl =
       button.id === "original" ||
@@ -1357,6 +1600,7 @@ function updateInWorldControlVisibility(
     const visible =
       isImmersive &&
       phaseMatches &&
+      (!useModelWorkbench || !isGeneratedWorkbenchControl) &&
       (!isNavigation || (isExamplePhase && hasSceneNavigation)) &&
       (!isExampleControl || (sceneState.type === "color" && visualizationExamples.length > 1)) &&
       (!isInterventionControl || supportsInterventions) &&
@@ -1376,8 +1620,8 @@ function updateInWorldControlVisibility(
     button.mesh.userData.disabled = buttonDisabled(button, state, readyForChallenge, challenge);
   });
   setInWorldControlsVisible(checkButtons, isImmersive && isExamplePhase && sceneState.type === "comparison");
-  robustnessSlider.group.visible = isImmersive && supportsSlider;
-  workbenchControlDeck.visible = isImmersive && supportsSlider;
+  robustnessSlider.group.visible = isImmersive && supportsSlider && !useModelWorkbench;
+  workbenchControlDeck.visible = isImmersive && supportsSlider && !useModelWorkbench;
   rankingSet.group.visible = isImmersive && isExamplePhase && sceneState.type === "comparison";
 }
 
@@ -1881,6 +2125,121 @@ function createRankingBoardTexture(state) {
   ctx.font = "700 25px Arial";
   ctx.fillText("Point, hold trigger or grip, drag a card, and release into a slot. Then select Check.", 96, 932);
   return canvas;
+}
+
+function createMissionControlStatusCanvas({ title, primary, secondary, footer }) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 300;
+  const ctx = canvas.getContext("2d");
+  drawMissionControlScreenBase(ctx, canvas, title);
+
+  ctx.fillStyle = "#f5fbf8";
+  ctx.font = "900 58px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(primary ?? ""), canvas.width / 2, 140);
+
+  ctx.fillStyle = "#bdeff2";
+  ctx.font = "800 30px Arial";
+  ctx.fillText(String(secondary ?? ""), canvas.width / 2, 198);
+
+  ctx.fillStyle = "#f2c75e";
+  ctx.font = "900 28px Arial";
+  ctx.fillText(String(footer ?? ""), canvas.width / 2, 248);
+  return canvas;
+}
+
+function createMissionControlGroupCanvas({ title, options, activeId, footer = "" }) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 300;
+  const ctx = canvas.getContext("2d");
+  drawMissionControlScreenBase(ctx, canvas, title);
+
+  const visibleOptions = [...(options ?? [])].slice(0, 3);
+  const boxW = 290;
+  const boxH = 108;
+  const gap = 36;
+  const startX = (canvas.width - boxW * 3 - gap * 2) / 2;
+  visibleOptions.forEach((option, index) => {
+    const active = option.id === activeId;
+    const x = startX + index * (boxW + gap);
+    const y = 112;
+    ctx.fillStyle = active ? "#f2c75e" : "#102a2e";
+    roundRect(ctx, x, y, boxW, boxH, 18);
+    ctx.fill();
+    ctx.strokeStyle = active ? "#fff1aa" : "#77d5de";
+    ctx.lineWidth = active ? 8 : 4;
+    roundRect(ctx, x, y, boxW, boxH, 18);
+    ctx.stroke();
+
+    ctx.fillStyle = active ? "#11191c" : "#f5fbf8";
+    ctx.font = "900 28px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    wrapMissionControlScreenText(
+      ctx,
+      missionControlOptionLabel(option),
+      x + boxW / 2,
+      y + boxH / 2 - 8,
+      boxW - 34,
+      31,
+    );
+  });
+
+  ctx.fillStyle = "#bdeff2";
+  ctx.font = "800 25px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(footer || " "), canvas.width / 2, 260);
+  return canvas;
+}
+
+function drawMissionControlScreenBase(ctx, canvas, title) {
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, "#0f343a");
+  gradient.addColorStop(1, "#115263");
+  ctx.fillStyle = gradient;
+  roundRect(ctx, 0, 0, canvas.width, canvas.height, 26);
+  ctx.fill();
+  ctx.strokeStyle = "#77d5de";
+  ctx.lineWidth = 8;
+  roundRect(ctx, 8, 8, canvas.width - 16, canvas.height - 16, 22);
+  ctx.stroke();
+  ctx.fillStyle = "#9ee7ef";
+  ctx.font = "900 30px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(title ?? "").toUpperCase(), canvas.width / 2, 54);
+}
+
+function missionControlOptionLabel(option) {
+  return String(option?.vrLabel ?? option?.shortLabel ?? option?.label ?? "")
+    .replace(/\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function wrapMissionControlScreenText(ctx, text, centerX, centerY, maxWidth, lineHeight) {
+  const words = String(text).split(" ");
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  });
+  if (line) lines.push(line);
+  const displayed = lines.slice(0, 2);
+  const startY = centerY - ((displayed.length - 1) * lineHeight) / 2;
+  displayed.forEach((displayedLine, index) => {
+    ctx.fillText(displayedLine, centerX, startY + index * lineHeight);
+  });
 }
 
 function textureFromCanvas(canvas) {
