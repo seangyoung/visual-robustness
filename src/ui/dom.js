@@ -408,7 +408,7 @@ function renderInterventionControls(elements, example, interventions, enabled, o
         onAction,
       })),
     createChoiceGroup({
-      label: "Labels",
+      label: example.labelGroupLabel ?? "Labels",
       options: labelOptions,
       activeId: labelModeFromInterventions(normalized),
       enabled,

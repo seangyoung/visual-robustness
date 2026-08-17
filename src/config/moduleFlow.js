@@ -102,18 +102,20 @@ const exampleFeedbackById = {
     if (interventions.redundantCue) {
       details.push("Patterning the above-average side adds a non-hue cue for direction from the average.");
     }
-    if (interventions.annotation) {
-      details.push("The average divider makes the threshold explicit in the legend and chart.");
+    if (interventions.cueAlt) {
+      details.push("Two-sided patterning gives both sides of the midpoint a non-hue cue.");
     }
     if (interventions.labels) {
-      details.push("Selected labels and counts help verify the direction without overloading the map.");
+      details.push("The average divider makes the threshold explicit in the legend and chart.");
     }
     if (interventions.allLabels) {
-      details.push("All labels add density that can compete with the above/below-average pattern.");
+      details.push("Labeled midpoint text clarifies which side is below or above the Texas average.");
     }
 
+    const hasDirectionCue = interventions.redundantCue || interventions.cueAlt;
+    const hasMidpointReference = interventions.labels || interventions.allLabels;
     return {
-      title: interventions.redundantCue && interventions.annotation && interventions.labels && !interventions.allLabels
+      title: hasDirectionCue && hasMidpointReference
         ? "This directly supports the diverging comparison."
         : "Diverging maps need a readable midpoint.",
       message:

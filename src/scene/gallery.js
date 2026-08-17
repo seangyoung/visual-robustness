@@ -924,7 +924,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     missionControlWorkbench.setScreenCanvas(
       "group-02",
       createMissionControlGroupCanvas({
-        title: "Labels",
+        title: example.labelGroupLabel ?? "Labels",
         options: labelOptionsForExample(example),
         activeId: labelModeFromInterventions(state.workbench?.interventions),
       }),

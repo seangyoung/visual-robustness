@@ -32,6 +32,8 @@ Each example prefix has map and chart layers:
 - `*-map-layer-labels.png`: direct labels and annotations
 - `*-map-layer-all-labels.png`: optional high-density all-county label overlay
 - `*-map-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay
+- `*-map-layer-reference-divider.png`: optional explicit midpoint divider overlay
+- `*-map-layer-reference-labeled.png`: optional explicitly labeled midpoint overlay
 - `*-chart-layer-color-p0.png`: original chart color fills
 - `*-chart-layer-color-p1.png`: alternate chart color fills
 - `*-chart-layer-color-p2.png`: optional second alternate chart palette color fills
@@ -40,6 +42,8 @@ Each example prefix has map and chart layers:
 - `*-chart-layer-cue-alt.png`: optional second chart marker or pattern cue overlay
 - `*-chart-layer-labels.png`: chart labels and annotations
 - `*-chart-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay
+- `*-chart-layer-reference-divider.png`: optional explicit midpoint divider overlay
+- `*-chart-layer-reference-labeled.png`: optional explicitly labeled midpoint overlay
 
 Current example prefixes:
 

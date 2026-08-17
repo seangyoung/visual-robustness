@@ -32,13 +32,14 @@ function figureLayerAssets(prefix, kind, options = {}) {
   const paletteAlt = optionalPublicHealthAsset(`${prefix}-${kind}-layer-color-p2.png`);
   if (options.paletteAlt && paletteAlt) color.paletteAlt = paletteAlt;
 
+  const labelsLayer = options.labelsLayer ?? "labels";
   const layers = {
     color: {
       ...color,
     },
     structure: publicHealthAsset(`${prefix}-${kind}-layer-structure.png`),
     redundantCue: publicHealthAsset(`${prefix}-${kind}-layer-cue.png`),
-    labels: publicHealthAsset(`${prefix}-${kind}-layer-labels.png`),
+    labels: publicHealthAsset(`${prefix}-${kind}-layer-${labelsLayer}.png`),
   };
 
   const structureNoBoundaries = optionalPublicHealthAsset(`${prefix}-${kind}-layer-structure-no-boundaries.png`);
@@ -46,7 +47,8 @@ function figureLayerAssets(prefix, kind, options = {}) {
     layers.structureNoBoundaries = structureNoBoundaries;
   }
 
-  const allLabels = optionalPublicHealthAsset(`${prefix}-${kind}-layer-all-labels.png`);
+  const allLabelsLayer = options.allLabelsLayer ?? "all-labels";
+  const allLabels = optionalPublicHealthAsset(`${prefix}-${kind}-layer-${allLabelsLayer}.png`);
   if (options.allLabels && allLabels) layers.allLabels = allLabels;
 
   const cueAlt = optionalPublicHealthAsset(`${prefix}-${kind}-layer-cue-alt.png`);
@@ -244,14 +246,15 @@ export const visualizationExamples = [
     predictionPrompt:
       "Predict which intervention will make the above/below-average direction easiest to recover under the selected stress test.",
     recommendedSummary:
-      "The recommended combination uses the more distinguishable palette, above-average patterning, a clear average divider, and selected direct labels. All-label mode is left off because it adds more density than useful information.",
+      "The recommended combination uses the more distinguishable palette, two-sided direction cues, and an explicitly labeled midpoint so direction from the Texas average does not depend on hue alone.",
     recommendedInterventions: {
       palette: true,
       paletteAlt: false,
-      redundantCue: true,
-      annotation: true,
-      labels: true,
-      allLabels: false,
+      redundantCue: false,
+      cueAlt: true,
+      annotation: false,
+      labels: false,
+      allLabels: true,
     },
     paletteOptions: [
       {
@@ -281,32 +284,62 @@ export const visualizationExamples = [
         effect: "Replaces the class colors with a second alternate diverging color set.",
       },
     ],
+    labelGroupLabel: "Average Reference",
     labelOptions: [
       {
         id: "none",
-        label: "No added labels",
-        shortLabel: "No labels",
-        vrLabel: "No\nLabels",
-        description: "No additional county labels are added to the map.",
-        effect: "Leaves interpretation dependent on the legend and county positions.",
+        label: "Default reference",
+        shortLabel: "Default",
+        vrLabel: "Default\nRef",
+        description: "The original legend and chart axes remain unchanged.",
+        effect: "Leaves the above/below-average threshold mostly implicit.",
       },
       {
         id: "labels",
-        label: "Selected labels",
-        shortLabel: "Selected labels",
-        vrLabel: "Selected\nLabels",
+        label: "Average divider",
+        shortLabel: "Divider",
+        vrLabel: "Average\nDivider",
         description:
-          "Selected high and low county labels appear on the map, while chart labels show county counts and percentages.",
-        effect: "Supports lookup for selected values, while adding visual density.",
+          "A visible divider marks the Texas average in the legend and chart.",
+        effect: "Makes the midpoint explicit without adding county-level detail.",
       },
       {
         id: "allLabels",
-        label: "All labels",
-        shortLabel: "All labels",
-        vrLabel: "All\nLabels",
+        label: "Labeled midpoint",
+        shortLabel: "Midpoint labels",
+        vrLabel: "Midpoint\nLabels",
         description:
-          "Every county is labeled on the map; chart annotations match Selected labels.",
-        effect: "Places every county name directly on the map while keeping selected chart labels.",
+          "The below- and above-average sides are directly labeled near the midpoint.",
+        effect: "Clarifies the meaning of the midpoint, while adding a small amount of text.",
+      },
+    ],
+    cueGroupLabel: "Direction Cue",
+    cueOptions: [
+      {
+        id: "none",
+        label: "No pattern",
+        shortLabel: "No pattern",
+        vrLabel: "No\nPattern",
+        description: "No non-color direction cue is added.",
+        effect: "Leaves direction from the Texas average dependent on the diverging colors.",
+      },
+      {
+        id: "redundantCue",
+        label: "Above-average pattern",
+        shortLabel: "Above pattern",
+        vrLabel: "Above\nPattern",
+        description:
+          "Above-average counties and bars receive a redundant pattern cue.",
+        effect: "Marks one side of the midpoint without patterning the entire figure.",
+      },
+      {
+        id: "cueAlt",
+        label: "Two-sided pattern",
+        shortLabel: "Two-sided",
+        vrLabel: "Two-Sided\nPattern",
+        description:
+          "Below- and above-average counties and bars receive different non-color cues.",
+        effect: "Makes direction from the midpoint readable even when hue distinctions are weak.",
       },
     ],
     interventions: {
@@ -334,7 +367,15 @@ export const visualizationExamples = [
           "Stippling and hash marks give above-average counties and bars a redundant cue that does not depend on hue.",
         effect: "Adds a second channel for direction from the midpoint.",
       },
-      annotation: {
+      cueAlt: {
+        label: "Two-sided pattern",
+        shortLabel: "Two-sided",
+        vrLabel: "Two-Sided\nPattern",
+        description:
+          "Below-average classes use light open-circle marks while above-average classes use dark stipple and hatch marks.",
+        effect: "Gives both sides of the midpoint distinguishable non-color cues.",
+      },
+      labels: {
         label: "Average divider",
         shortLabel: "Divider",
         vrLabel: "Average\nDivider",
@@ -342,27 +383,21 @@ export const visualizationExamples = [
           "A visible reference line marks the Texas average on the chart and separates below-average from above-average classes in the legend.",
         effect: "Makes the above/below threshold explicit without adding county-level detail.",
       },
-      labels: {
-        label: "Selected labels",
-        shortLabel: "Selected labels",
-        vrLabel: "Selected\nLabels",
-        description:
-          "Selected high/low labels and chart counts reduce lookup burden and make the interpretation easier to verify.",
-        effect: "Supports efficient lookup, but adds visual density.",
-      },
       allLabels: {
-        label: "All labels",
-        shortLabel: "All labels",
-        vrLabel: "All\nLabels",
+        label: "Labeled midpoint",
+        shortLabel: "Midpoint labels",
+        vrLabel: "Midpoint\nLabels",
         description:
-          "Every county is labeled on the map; chart annotations match Selected labels.",
-        effect: "Places every county name directly on the map while keeping selected chart labels.",
+          "The chart and legend directly label the below- and above-average sides of the midpoint.",
+        effect: "Clarifies midpoint meaning, but adds more text than a divider alone.",
       },
     },
     assets: layeredPublicHealthAssets("cdc-places-diabetes-diverging", {
       paletteAlt: true,
+      cueAlt: true,
       allLabels: true,
-      annotation: true,
+      labelsLayer: "reference-divider",
+      allLabelsLayer: "reference-labeled",
     }),
   },
   {

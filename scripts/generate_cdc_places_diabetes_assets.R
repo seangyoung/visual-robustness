@@ -448,11 +448,38 @@ make_chart_hatches <- function(summary_data) {
 
 difference_bar_hatches <- make_chart_hatches(difference_summary)
 
+make_chart_below_points <- function(summary_data) {
+  rows <- summary_data |>
+    filter(side == "Below average", county_count > 0)
+
+  if (nrow(rows) == 0) {
+    return(data.frame(x = numeric(), y = numeric()))
+  }
+
+  bind_rows(lapply(seq_len(nrow(rows)), function(index) {
+    row <- rows[index, ]
+    xs <- seq(-1.8, min(-1.8, row$signed_count + 1), by = -3.6)
+    data.frame(
+      x = xs,
+      y = row$y_index
+    )
+  }))
+}
+
+difference_bar_below_points <- make_chart_below_points(difference_summary)
+
 above_stipple <- tx_map |>
   filter(!is.na(diabetes_diff), diabetes_diff >= 0) |>
   st_geometry() |>
   st_union() |>
   st_sample(size = 1100, type = "regular") |>
+  st_as_sf()
+
+below_stipple <- tx_map |>
+  filter(!is.na(diabetes_diff), diabetes_diff < 0) |>
+  st_geometry() |>
+  st_union() |>
+  st_sample(size = 760, type = "regular") |>
   st_as_sf()
 
 difference_labels <- bind_rows(
@@ -753,7 +780,10 @@ map_legend_grob <- function(
   draw_cues = TRUE,
   draw_divider = FALSE,
   divider_after = NULL,
-  divider_label = NULL
+  divider_label = NULL,
+  divider_side_labels = FALSE,
+  divider_top_label = "Above Texas avg.",
+  divider_bottom_label = "Below Texas avg."
 ) {
   legend_scale <- 1.6
   x <- unit(0.055, "npc")
@@ -904,6 +934,24 @@ map_legend_grob <- function(
           y = divider_y + unit(0.003 * legend_scale, "npc"),
           just = c("right", "bottom"),
           gp = gpar(col = "#151d20", fontsize = 6.6 * legend_scale, fontface = "bold", fontfamily = "Arial")
+        )
+      ))
+    }
+    if (isTRUE(divider_side_labels)) {
+      grobs <- append(grobs, list(
+        textGrob(
+          divider_top_label,
+          x = divider_x1,
+          y = divider_y + unit(0.010 * legend_scale, "npc"),
+          just = c("right", "bottom"),
+          gp = gpar(col = "#151d20", fontsize = 6.4 * legend_scale, fontface = "bold", fontfamily = "Arial")
+        ),
+        textGrob(
+          divider_bottom_label,
+          x = divider_x1,
+          y = divider_y - unit(0.004 * legend_scale, "npc"),
+          just = c("right", "top"),
+          gp = gpar(col = "#151d20", fontsize = 6.4 * legend_scale, fontface = "bold", fontfamily = "Arial")
         )
       ))
     }
@@ -1254,6 +1302,45 @@ map_layer_legend_divider <- function(title, labels, palette) {
     draw_divider = TRUE,
     divider_after = 3,
     divider_label = "Texas avg."
+  )
+}
+
+map_layer_legend_labeled_midpoint <- function(title, labels, palette) {
+  map_legend_grob(
+    title,
+    labels,
+    palette,
+    draw_swatch_fills = FALSE,
+    draw_swatch_borders = FALSE,
+    draw_text = FALSE,
+    draw_cues = FALSE,
+    draw_divider = TRUE,
+    divider_after = 3,
+    divider_side_labels = TRUE
+  )
+}
+
+map_layer_legend_two_sided_cues <- function(title, labels, palette, above_labels, below_labels) {
+  below_shapes <- setNames(rep(21, length(below_labels)), below_labels)
+  below_fills <- setNames(rep("#f8f6ee", length(below_labels)), below_labels)
+  below_outlines <- setNames(rep("#151d20", length(below_labels)), below_labels)
+  below_sizes <- setNames(rep(0.72, length(below_labels)), below_labels)
+  below_counts <- setNames(rep(3, length(below_labels)), below_labels)
+
+  map_legend_grob(
+    title,
+    labels,
+    palette,
+    stipple_labels = above_labels,
+    symbol_shapes = below_shapes,
+    symbol_fills = below_fills,
+    symbol_outlines = below_outlines,
+    symbol_sizes = below_sizes,
+    symbol_counts = below_counts,
+    draw_swatch_fills = FALSE,
+    draw_swatch_borders = FALSE,
+    draw_text = FALSE,
+    draw_cues = TRUE
   )
 }
 
@@ -1635,6 +1722,45 @@ make_diverging_chart_cue_layer <- function() {
     chart_overlay_theme()
 }
 
+make_diverging_chart_cue_alt_layer <- function() {
+  ggplot(difference_summary) +
+    geom_rect(
+      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      fill = NA,
+      color = "#151d20",
+      linewidth = 0.18
+    ) +
+    geom_point(
+      data = difference_bar_below_points,
+      aes(x = x, y = y),
+      inherit.aes = FALSE,
+      shape = 21,
+      fill = "#f8f6ee",
+      color = "#151d20",
+      size = 1.25,
+      stroke = 0.18,
+      alpha = 0.78
+    ) +
+    geom_segment(
+      data = difference_bar_hatches,
+      aes(x = x, xend = xend, y = y, yend = yend),
+      inherit.aes = FALSE,
+      color = "#151d20",
+      linewidth = 0.34,
+      alpha = 0.68
+    ) +
+    diverging_chart_x_scale() +
+    diverging_chart_y_scale() +
+    labs(
+      title = "County Count Above and Below Texas Average",
+      subtitle = "Same diverging classes and colors as the map",
+      x = "Number of counties",
+      y = "Difference from Texas average",
+      caption = source_caption
+    ) +
+    chart_overlay_theme()
+}
+
 make_diverging_chart_label_layer <- function() {
   ggplot(difference_summary) +
     geom_text(
@@ -1672,6 +1798,49 @@ make_diverging_chart_annotation_layer <- function() {
       family = "Arial",
       fontface = "bold",
       size = 3.1,
+      label.padding = unit(0.14, "lines"),
+      linewidth = 0.28,
+      fill = "#f8f6ee",
+      color = "#151d20"
+    ) +
+    diverging_chart_x_scale() +
+    diverging_chart_y_scale() +
+    labs(
+      title = "County Count Above and Below Texas Average",
+      subtitle = "Same diverging classes and colors as the map",
+      x = "Number of counties",
+      y = "Difference from Texas average",
+      caption = source_caption
+    ) +
+    chart_overlay_theme()
+}
+
+make_diverging_chart_reference_labeled_layer <- function() {
+  label_x <- max(abs(difference_summary$signed_count)) * 0.52
+
+  ggplot(difference_summary) +
+    geom_vline(xintercept = 0, color = "#151d20", linewidth = 1.05) +
+    annotate(
+      "label",
+      x = -label_x,
+      y = length(deviation_labels) + 0.34,
+      label = "Below Texas avg.",
+      family = "Arial",
+      fontface = "bold",
+      size = 3.05,
+      label.padding = unit(0.14, "lines"),
+      linewidth = 0.28,
+      fill = "#f8f6ee",
+      color = "#151d20"
+    ) +
+    annotate(
+      "label",
+      x = label_x,
+      y = length(deviation_labels) + 0.34,
+      label = "Above Texas avg.",
+      family = "Arial",
+      fontface = "bold",
+      size = 3.05,
       label.padding = unit(0.14, "lines"),
       linewidth = 0.28,
       fill = "#f8f6ee",
@@ -1839,6 +2008,27 @@ make_diverging_map_cue_layer <- function() {
     map_theme(background = NA, text = FALSE)
 }
 
+make_diverging_map_cue_alt_layer <- function() {
+  add_map_extent_anchor(ggplot(tx_map)) +
+    geom_sf(
+      data = below_stipple,
+      inherit.aes = FALSE,
+      shape = 21,
+      fill = "#f8f6ee",
+      color = "#151d20",
+      size = 0.34,
+      stroke = 0.08,
+      alpha = 0.74
+    ) +
+    geom_sf(data = above_stipple, inherit.aes = FALSE, color = "#151d20", size = 0.18, alpha = 0.5) +
+    labs(
+      title = "Diagnosed Diabetes Relative to Texas Average",
+      subtitle = average_caption,
+      caption = source_caption
+    ) +
+    map_theme(background = NA, text = FALSE)
+}
+
 make_diverging_map_label_layer <- function() {
   add_map_extent_anchor(ggplot(tx_map)) +
     geom_sf_label(
@@ -1959,6 +2149,7 @@ save_layer_assets <- function() {
   reversed_deviation_labels <- rev(deviation_labels)
   reversed_svi_labels <- rev(svi_theme_labels)
   above_labels <- reversed_deviation_labels[grepl("above", reversed_deviation_labels)]
+  below_labels <- reversed_deviation_labels[grepl("below", reversed_deviation_labels)]
 
   save_png(
     map_color_layer("diabetes_class", fragile_palette, "Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
@@ -2028,6 +2219,18 @@ save_layer_assets <- function() {
     legend = map_layer_legend_cues("Difference", reversed_deviation_labels, diverging_palette, stipple_labels = above_labels),
     background = transparent
   )
+  save_png(
+    make_diverging_map_cue_alt_layer(),
+    "cdc-places-diabetes-diverging-map-layer-cue-alt.png",
+    legend = map_layer_legend_two_sided_cues(
+      "Difference",
+      reversed_deviation_labels,
+      diverging_palette,
+      above_labels,
+      below_labels
+    ),
+    background = transparent
+  )
   save_png(make_diverging_map_label_layer(), "cdc-places-diabetes-diverging-map-layer-labels.png", background = transparent)
   save_png(make_diverging_map_all_label_layer(), "cdc-places-diabetes-diverging-map-layer-all-labels.png", background = transparent)
   save_png(
@@ -2036,13 +2239,28 @@ save_layer_assets <- function() {
     legend = map_layer_legend_divider("Difference", reversed_deviation_labels, diverging_palette),
     background = transparent
   )
+  save_png(
+    make_diverging_map_annotation_layer(),
+    "cdc-places-diabetes-diverging-map-layer-reference-divider.png",
+    legend = map_layer_legend_divider("Difference", reversed_deviation_labels, diverging_palette),
+    background = transparent
+  )
+  save_png(
+    make_diverging_map_annotation_layer(),
+    "cdc-places-diabetes-diverging-map-layer-reference-labeled.png",
+    legend = map_layer_legend_labeled_midpoint("Difference", reversed_deviation_labels, diverging_palette),
+    background = transparent
+  )
   save_png(make_diverging_chart_color_layer(FALSE), "cdc-places-diabetes-diverging-chart-layer-color-p0.png")
   save_png(make_diverging_chart_color_layer(TRUE), "cdc-places-diabetes-diverging-chart-layer-color-p1.png")
   save_png(make_diverging_chart_color_layer("alt"), "cdc-places-diabetes-diverging-chart-layer-color-p2.png")
   save_png(make_diverging_chart_structure_layer(), "cdc-places-diabetes-diverging-chart-layer-structure.png", background = transparent)
   save_png(make_diverging_chart_cue_layer(), "cdc-places-diabetes-diverging-chart-layer-cue.png", background = transparent)
+  save_png(make_diverging_chart_cue_alt_layer(), "cdc-places-diabetes-diverging-chart-layer-cue-alt.png", background = transparent)
   save_png(make_diverging_chart_label_layer(), "cdc-places-diabetes-diverging-chart-layer-labels.png", background = transparent)
   save_png(make_diverging_chart_annotation_layer(), "cdc-places-diabetes-diverging-chart-layer-annotation.png", background = transparent)
+  save_png(make_diverging_chart_annotation_layer(), "cdc-places-diabetes-diverging-chart-layer-reference-divider.png", background = transparent)
+  save_png(make_diverging_chart_reference_labeled_layer(), "cdc-places-diabetes-diverging-chart-layer-reference-labeled.png", background = transparent)
 
   save_png(
     map_color_layer("svi_theme", svi_fragile_palette, "Highest-Ranked SVI Theme by County", "Texas counties, CDC/ATSDR SVI 2022", svi_caption),
@@ -2568,6 +2786,8 @@ writeLines(
     "- `*-map-layer-labels.png`: direct labels and annotations",
     "- `*-map-layer-all-labels.png`: optional high-density all-county label overlay",
     "- `*-map-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay",
+    "- `*-map-layer-reference-divider.png`: optional explicit midpoint divider overlay",
+    "- `*-map-layer-reference-labeled.png`: optional explicitly labeled midpoint overlay",
     "- `*-chart-layer-color-p0.png`: original chart color fills",
     "- `*-chart-layer-color-p1.png`: alternate chart color fills",
     "- `*-chart-layer-color-p2.png`: optional second alternate chart palette color fills",
@@ -2576,6 +2796,8 @@ writeLines(
     "- `*-chart-layer-cue-alt.png`: optional second chart marker or pattern cue overlay",
     "- `*-chart-layer-labels.png`: chart labels and annotations",
     "- `*-chart-layer-annotation.png`: optional threshold, reference, or explanatory annotation overlay",
+    "- `*-chart-layer-reference-divider.png`: optional explicit midpoint divider overlay",
+    "- `*-chart-layer-reference-labeled.png`: optional explicitly labeled midpoint overlay",
     "",
     "Current example prefixes:",
     "",
