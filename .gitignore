@@ -21,6 +21,7 @@ coverage/
 Thumbs.db
 .vscode/
 .idea/
+*.blend1
 
 # Local screenshots and temporary QA artifacts
 *.png
