@@ -1203,17 +1203,38 @@ add_map_extent_anchor <- function(plot, visible = FALSE) {
     )
 }
 
-map_color_layer <- function(fill_column, palette, title, subtitle, caption, map_data = tx_map) {
-  ggplot(map_data) +
+map_color_layer <- function(fill_column, palette, title, subtitle, caption, map_data = tx_map, close_seams = FALSE) {
+  fill_layer <- if (isTRUE(close_seams)) {
+    geom_sf(aes(fill = .data[[fill_column]], color = .data[[fill_column]]), linewidth = 0.32)
+  } else {
+    geom_sf(aes(fill = .data[[fill_column]]), color = NA, linewidth = 0)
+  }
+
+  plot <- ggplot(map_data) +
     geom_sf(data = map_neatline, inherit.aes = FALSE, fill = NA, color = NA, linewidth = 0) +
-    geom_sf(aes(fill = .data[[fill_column]]), color = NA, linewidth = 0) +
+    fill_layer
+
+  plot <- plot +
     scale_fill_manual(
       values = palette,
       drop = FALSE,
       na.translate = FALSE,
       na.value = "#d8d8cf",
       guide = "none"
-    ) +
+    )
+
+  if (isTRUE(close_seams)) {
+    plot <- plot +
+      scale_color_manual(
+        values = palette,
+        drop = FALSE,
+        na.translate = FALSE,
+        na.value = "#d8d8cf",
+        guide = "none"
+      )
+  }
+
+  plot +
     labs(title = title, subtitle = subtitle, caption = caption) +
     map_theme(text = FALSE)
 }
@@ -2152,17 +2173,38 @@ save_layer_assets <- function() {
   below_labels <- reversed_deviation_labels[grepl("below", reversed_deviation_labels)]
 
   save_png(
-    map_color_layer("diabetes_class", fragile_palette, "Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    map_color_layer(
+      "diabetes_class",
+      fragile_palette,
+      "Diagnosed Diabetes Prevalence by County",
+      "Texas counties, CDC PLACES 2025 release",
+      source_caption,
+      close_seams = TRUE
+    ),
     "cdc-places-diabetes-map-layer-color-p0.png",
     legend = map_layer_legend_colors("Diagnosed diabetes", reversed_class_labels, fragile_palette)
   )
   save_png(
-    map_color_layer("diabetes_class", robust_palette, "Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    map_color_layer(
+      "diabetes_class",
+      robust_palette,
+      "Diagnosed Diabetes Prevalence by County",
+      "Texas counties, CDC PLACES 2025 release",
+      source_caption,
+      close_seams = TRUE
+    ),
     "cdc-places-diabetes-map-layer-color-p1.png",
     legend = map_layer_legend_colors("Diagnosed diabetes", reversed_class_labels, robust_palette)
   )
   save_png(
-    map_color_layer("diabetes_class", fragile_palette_alt, "Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    map_color_layer(
+      "diabetes_class",
+      fragile_palette_alt,
+      "Diagnosed Diabetes Prevalence by County",
+      "Texas counties, CDC PLACES 2025 release",
+      source_caption,
+      close_seams = TRUE
+    ),
     "cdc-places-diabetes-map-layer-color-p2.png",
     legend = map_layer_legend_colors("Diagnosed diabetes", reversed_class_labels, fragile_palette_alt)
   )
