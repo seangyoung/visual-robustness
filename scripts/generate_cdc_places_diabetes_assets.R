@@ -1178,6 +1178,13 @@ map_structure_layer <- function(title, subtitle, caption) {
     map_theme(background = NA, text = TRUE)
 }
 
+map_structure_no_boundary_layer <- function(title, subtitle, caption) {
+  add_map_extent_anchor(ggplot(tx_map), visible = TRUE) +
+    geom_sf(data = tx_outline, inherit.aes = FALSE, fill = NA, color = "#1b2427", linewidth = 0.35) +
+    labs(title = title, subtitle = subtitle, caption = caption) +
+    map_theme(background = NA, text = TRUE)
+}
+
 map_boundary_cue_layer <- function(title, subtitle, caption) {
   add_map_extent_anchor(ggplot(tx_map)) +
     geom_sf(fill = NA, color = "#151d20", linewidth = 0.18) +
@@ -1205,6 +1212,18 @@ map_layer_legend_structure <- function(title, labels, palette) {
     palette,
     draw_swatch_fills = FALSE,
     draw_swatch_borders = TRUE,
+    draw_text = TRUE,
+    draw_cues = FALSE
+  )
+}
+
+map_layer_legend_text <- function(title, labels, palette) {
+  map_legend_grob(
+    title,
+    labels,
+    palette,
+    draw_swatch_fills = FALSE,
+    draw_swatch_borders = FALSE,
     draw_text = TRUE,
     draw_cues = FALSE
   )
@@ -1963,6 +1982,12 @@ save_layer_assets <- function() {
     background = transparent
   )
   save_png(
+    map_structure_no_boundary_layer("Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
+    "cdc-places-diabetes-map-layer-structure-no-boundaries.png",
+    legend = map_layer_legend_text("Diagnosed diabetes", reversed_class_labels, fragile_palette),
+    background = transparent
+  )
+  save_png(
     map_boundary_cue_layer("Diagnosed Diabetes Prevalence by County", "Texas counties, CDC PLACES 2025 release", source_caption),
     "cdc-places-diabetes-map-layer-cue.png",
     background = transparent
@@ -2537,6 +2562,7 @@ writeLines(
     "- `*-map-layer-color-p1.png`: alternate palette or luminance color fills",
     "- `*-map-layer-color-p2.png`: optional second alternate palette color fills",
     "- `*-map-layer-structure.png`: titles, axes, boundaries, legend text, and other persistent structure",
+    "- `*-map-layer-structure-no-boundaries.png`: optional title, outline, and legend text layer without internal map boundaries",
     "- `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries",
     "- `*-map-layer-cue-alt.png`: optional second marker or pattern cue overlay",
     "- `*-map-layer-labels.png`: direct labels and annotations",

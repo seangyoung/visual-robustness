@@ -932,7 +932,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     missionControlWorkbench.setScreenCanvas(
       "group-03",
       createMissionControlGroupCanvas({
-        title: "Cues",
+        title: example.cueGroupLabel ?? "Cues",
         options: cueOptionsForExample(example),
         activeId: cueVariantFromInterventions(state.workbench?.interventions),
         footer: readyForChallenge

@@ -41,6 +41,11 @@ function figureLayerAssets(prefix, kind, options = {}) {
     labels: publicHealthAsset(`${prefix}-${kind}-layer-labels.png`),
   };
 
+  const structureNoBoundaries = optionalPublicHealthAsset(`${prefix}-${kind}-layer-structure-no-boundaries.png`);
+  if (options.structureNoBoundaries && structureNoBoundaries) {
+    layers.structureNoBoundaries = structureNoBoundaries;
+  }
+
   const allLabels = optionalPublicHealthAsset(`${prefix}-${kind}-layer-all-labels.png`);
   if (options.allLabels && allLabels) layers.allLabels = allLabels;
 
@@ -75,7 +80,7 @@ export const visualizationExamples = [
     predictionPrompt:
       "Predict which intervention will preserve the ordered prevalence classes with the least added complexity.",
     recommendedSummary:
-      "The recommended combination uses an ordered luminance palette, selected direct labels, and chart annotations. Stronger boundaries are left off because they add density without clearly reducing color dependence.",
+      "The recommended combination uses an ordered luminance palette, default boundaries, selected direct labels, and chart annotations. Stronger boundaries are left off because they add density without clearly reducing color dependence.",
     recommendedInterventions: {
       palette: true,
       paletteAlt: false,
@@ -140,6 +145,35 @@ export const visualizationExamples = [
         effect: "Places every county name directly on the map while keeping selected chart labels.",
       },
     ],
+    cueGroupLabel: "Boundaries",
+    cueOptions: [
+      {
+        id: "none",
+        label: "Default boundaries",
+        shortLabel: "Default",
+        vrLabel: "Default\nEdges",
+        description: "The original county boundaries and standard chart structure remain visible.",
+        effect: "Keeps normal figure-ground separation without adding extra density.",
+      },
+      {
+        id: "redundantCue",
+        label: "Stronger boundaries",
+        shortLabel: "Stronger",
+        vrLabel: "Stronger\nEdges",
+        description:
+          "County and bar boundaries are strengthened to make adjacent areas easier to inspect.",
+        effect: "Sharpens individual counties and bars, but does not encode prevalence order.",
+      },
+      {
+        id: "cueAlt",
+        label: "No boundaries",
+        shortLabel: "No boundaries",
+        vrLabel: "No\nEdges",
+        description:
+          "County boundaries are removed from the map, leaving the color areas to carry more of the spatial pattern.",
+        effect: "Reduces visual density, but makes county-level comparison and lookup harder.",
+      },
+    ],
     interventions: {
       palette: {
         label: "Color Palette 2",
@@ -165,6 +199,14 @@ export const visualizationExamples = [
           "Stronger county and bar boundaries improve figure-ground separation and make adjacent areas easier to inspect.",
         effect: "Improves legibility, but does not by itself encode prevalence order.",
       },
+      cueAlt: {
+        label: "No boundaries",
+        shortLabel: "No boundaries",
+        vrLabel: "No\nEdges",
+        description:
+          "County boundaries are removed from the map so the prevalence fills appear as larger uninterrupted regions.",
+        effect: "Reduces visual density, but makes county-level comparison and lookup harder.",
+      },
       labels: {
         label: "Labels and annotations",
         shortLabel: "Labels",
@@ -182,7 +224,11 @@ export const visualizationExamples = [
         effect: "Places every county name directly on the map while keeping selected chart labels.",
       },
     },
-    assets: layeredPublicHealthAssets("cdc-places-diabetes", { paletteAlt: true, allLabels: true }),
+    assets: layeredPublicHealthAssets("cdc-places-diabetes", {
+      paletteAlt: true,
+      allLabels: true,
+      structureNoBoundaries: true,
+    }),
   },
   {
     id: "difference-from-average",

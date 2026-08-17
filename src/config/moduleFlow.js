@@ -74,6 +74,9 @@ const exampleFeedbackById = {
     if (interventions.redundantCue) {
       details.push("Stronger boundaries can sharpen counties, but they do not encode prevalence order.");
     }
+    if (interventions.cueAlt) {
+      details.push("Removing boundaries reduces density, but it can make county-level lookup and comparison harder.");
+    }
     if (interventions.labels) {
       details.push("Selected labels support lookup without covering the whole map.");
     }
@@ -82,7 +85,7 @@ const exampleFeedbackById = {
     }
 
     return {
-      title: interventions.palette && interventions.labels && !interventions.redundantCue && !interventions.allLabels
+      title: interventions.palette && interventions.labels && !interventions.redundantCue && !interventions.cueAlt && !interventions.allLabels
         ? "This is a strong sequential redesign."
         : "Sequential data need ordered visual support.",
       message:

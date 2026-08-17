@@ -26,6 +26,7 @@ Each example prefix has map and chart layers:
 - `*-map-layer-color-p1.png`: alternate palette or luminance color fills
 - `*-map-layer-color-p2.png`: optional second alternate palette color fills
 - `*-map-layer-structure.png`: titles, axes, boundaries, legend text, and other persistent structure
+- `*-map-layer-structure-no-boundaries.png`: optional title, outline, and legend text layer without internal map boundaries
 - `*-map-layer-cue.png`: redundant markers, patterns, hatches, or stronger boundaries
 - `*-map-layer-cue-alt.png`: optional second marker or pattern cue overlay
 - `*-map-layer-labels.png`: direct labels and annotations

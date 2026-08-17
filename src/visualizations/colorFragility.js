@@ -679,12 +679,14 @@ function publicHealthLayerStack(example, kind, state) {
   const interventions = normalizeInterventions(state.workbench?.interventions);
   const paletteVariant = paletteVariantFromInterventions(interventions);
   const colorLayer = figure.color?.[paletteVariant] ? paletteVariant : "original";
+  const cueVariant = cueVariantFromInterventions(interventions);
+  const structureLayer =
+    cueVariant === "cueAlt" && figure.structureNoBoundaries ? "structureNoBoundaries" : "structure";
   const layers = [
     { slot: `${kind}.color.${colorLayer}` },
-    { slot: `${kind}.structure` },
+    { slot: `${kind}.${structureLayer}` },
   ];
 
-  const cueVariant = cueVariantFromInterventions(interventions);
   if (cueVariant === "cueAlt" && figure.cueAlt) {
     layers.push({ slot: `${kind}.cueAlt` });
   } else if (cueVariant === "redundantCue") {

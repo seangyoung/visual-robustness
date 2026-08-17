@@ -369,7 +369,7 @@ function renderInterventionControls(elements, example, interventions, enabled, o
   const cueControls = cueOptions.length > 2
     ? [
         createChoiceGroup({
-          label: "Markers",
+          label: example.cueGroupLabel ?? "Markers",
           options: cueOptions,
           activeId: cueVariantFromInterventions(normalized),
           enabled,
