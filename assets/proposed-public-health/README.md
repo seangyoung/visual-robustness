@@ -49,6 +49,8 @@ Current example prefixes:
 
 - `cdc-places-diabetes`
 - `cdc-places-diabetes-diverging`
+- `cdc-places-diabetes-diverging-simple`
+- `cdc-places-diabetes-diverging-direction`
 - `cdc-svi-theme`
 - `transfer-*`
 

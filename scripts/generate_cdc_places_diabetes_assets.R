@@ -242,6 +242,20 @@ deviation_labels <- c(
   "4+ pts above"
 )
 
+deviation_simple_breaks <- c(-Inf, -2, 0, 2, Inf)
+deviation_simple_labels <- c(
+  "2+ pts below",
+  "0-2 pts below",
+  "0-2 pts above",
+  "2+ pts above"
+)
+
+deviation_direction_breaks <- c(-Inf, 0, Inf)
+deviation_direction_labels <- c(
+  "Below average",
+  "Above average"
+)
+
 places <- places |>
   mutate(
     diabetes_diff = diabetes - texas_average,
@@ -255,6 +269,20 @@ places <- places |>
       diabetes_diff,
       breaks = deviation_breaks,
       labels = deviation_labels,
+      include.lowest = TRUE,
+      right = FALSE
+    ),
+    diabetes_difference_simple_class = cut(
+      diabetes_diff,
+      breaks = deviation_simple_breaks,
+      labels = deviation_simple_labels,
+      include.lowest = TRUE,
+      right = FALSE
+    ),
+    diabetes_difference_direction_class = cut(
+      diabetes_diff,
+      breaks = deviation_direction_breaks,
+      labels = deviation_direction_labels,
       include.lowest = TRUE,
       right = FALSE
     )
@@ -308,26 +336,32 @@ class_summary <- places |>
   ) |>
   arrange(diabetes_class)
 
-difference_summary <- data.frame(
-  diabetes_difference_class = factor(deviation_labels, levels = deviation_labels)
-) |>
-  left_join(
-    places |>
-      count(diabetes_difference_class, name = "county_count"),
-    by = "diabetes_difference_class"
+make_difference_summary <- function(class_column, labels) {
+  class_counts <- places |>
+    transmute(diabetes_difference_class = .data[[class_column]]) |>
+    count(diabetes_difference_class, name = "county_count")
+
+  data.frame(
+    diabetes_difference_class = factor(labels, levels = labels)
   ) |>
-  mutate(
-    county_count = coalesce(county_count, 0L),
-    side = if_else(grepl("above", diabetes_difference_class), "Above average", "Below average"),
-    signed_count = if_else(side == "Above average", county_count, -county_count),
-    y_index = as.numeric(diabetes_difference_class),
-    xmin = pmin(signed_count, 0),
-    xmax = pmax(signed_count, 0),
-    ymin = y_index - 0.36,
-    ymax = y_index + 0.36,
-    label = paste0(county_count, " counties"),
-    share_label = paste0(county_count, " counties (", round((county_count / sum(county_count)) * 100), "%)")
-  )
+    left_join(class_counts, by = "diabetes_difference_class") |>
+    mutate(
+      county_count = coalesce(county_count, 0L),
+      side = if_else(grepl("above", diabetes_difference_class, ignore.case = TRUE), "Above average", "Below average"),
+      signed_count = if_else(side == "Above average", county_count, -county_count),
+      y_index = as.numeric(diabetes_difference_class),
+      xmin = pmin(signed_count, 0),
+      xmax = pmax(signed_count, 0),
+      ymin = y_index - 0.36,
+      ymax = y_index + 0.36,
+      label = paste0(county_count, " counties"),
+      share_label = paste0(county_count, " counties (", round((county_count / sum(county_count)) * 100), "%)")
+    )
+}
+
+difference_summary <- make_difference_summary("diabetes_difference_class", deviation_labels)
+difference_summary_simple <- make_difference_summary("diabetes_difference_simple_class", deviation_simple_labels)
+difference_summary_direction <- make_difference_summary("diabetes_difference_direction_class", deviation_direction_labels)
 
 svi_summary <- data.frame(
   svi_theme = factor(svi_theme_labels, levels = svi_theme_labels)
@@ -447,6 +481,8 @@ make_chart_hatches <- function(summary_data) {
 }
 
 difference_bar_hatches <- make_chart_hatches(difference_summary)
+difference_bar_hatches_simple <- make_chart_hatches(difference_summary_simple)
+difference_bar_hatches_direction <- make_chart_hatches(difference_summary_direction)
 
 make_chart_below_points <- function(summary_data) {
   rows <- summary_data |>
@@ -467,6 +503,8 @@ make_chart_below_points <- function(summary_data) {
 }
 
 difference_bar_below_points <- make_chart_below_points(difference_summary)
+difference_bar_below_points_simple <- make_chart_below_points(difference_summary_simple)
+difference_bar_below_points_direction <- make_chart_below_points(difference_summary_direction)
 
 above_stipple <- tx_map |>
   filter(!is.na(diabetes_diff), diabetes_diff >= 0) |>
@@ -689,6 +727,20 @@ names(diverging_redesign_palette) <- deviation_labels
 
 diverging_palette_alt <- c("#5e79b8", "#92a4ce", "#d0d6e8", "#e4d6e8", "#c79bc9", "#9259a5")
 names(diverging_palette_alt) <- deviation_labels
+
+make_reduced_diverging_palette <- function(palette, labels, source_indices) {
+  reduced_palette <- unname(palette[source_indices])
+  names(reduced_palette) <- labels
+  reduced_palette
+}
+
+diverging_simple_palette <- make_reduced_diverging_palette(diverging_palette, deviation_simple_labels, c(1, 3, 4, 6))
+diverging_redesign_simple_palette <- make_reduced_diverging_palette(diverging_redesign_palette, deviation_simple_labels, c(1, 3, 4, 6))
+diverging_palette_alt_simple <- make_reduced_diverging_palette(diverging_palette_alt, deviation_simple_labels, c(1, 3, 4, 6))
+
+diverging_direction_palette <- make_reduced_diverging_palette(diverging_palette, deviation_direction_labels, c(1, 6))
+diverging_redesign_direction_palette <- make_reduced_diverging_palette(diverging_redesign_palette, deviation_direction_labels, c(1, 6))
+diverging_palette_alt_direction <- make_reduced_diverging_palette(diverging_palette_alt, deviation_direction_labels, c(1, 6))
 
 svi_fragile_palette <- c("#69b887", "#c9ad4c", "#73aaa8", "#d58b63")
 names(svi_fragile_palette) <- svi_theme_labels
@@ -1571,18 +1623,18 @@ svi_chart_scale <- function() {
   )
 }
 
-diverging_chart_x_scale <- function() {
+diverging_chart_x_scale <- function(summary_data = difference_summary, multiplier = 1.42) {
   scale_x_continuous(
     labels = abs,
-    limits = max(abs(difference_summary$signed_count)) * c(-1.42, 1.42),
+    limits = max(abs(summary_data$signed_count)) * c(-multiplier, multiplier),
     expand = expansion(mult = 0)
   )
 }
 
-diverging_chart_y_scale <- function() {
+diverging_chart_y_scale <- function(labels = deviation_labels) {
   scale_y_continuous(
-    breaks = seq_along(deviation_labels),
-    labels = deviation_labels,
+    breaks = seq_along(labels),
+    labels = labels,
     expand = expansion(add = 0.45)
   )
 }
@@ -1667,16 +1719,33 @@ make_prevalence_chart_label_layer <- function() {
     chart_overlay_theme()
 }
 
-make_diverging_chart_color_layer <- function(palette = FALSE) {
-  fill_palette <- if (identical(palette, "alt") || identical(palette, "paletteAlt")) {
-    diverging_palette_alt
-  } else if (isTRUE(palette)) {
-    diverging_redesign_palette
-  } else {
-    diverging_palette
+diverging_palette_for_variant <- function(palette = FALSE, variant = "detailed") {
+  if (identical(variant, "simple")) {
+    if (identical(palette, "alt") || identical(palette, "paletteAlt")) return(diverging_palette_alt_simple)
+    if (isTRUE(palette)) return(diverging_redesign_simple_palette)
+    return(diverging_simple_palette)
   }
 
-  ggplot(difference_summary) +
+  if (identical(variant, "direction")) {
+    if (identical(palette, "alt") || identical(palette, "paletteAlt")) return(diverging_palette_alt_direction)
+    if (isTRUE(palette)) return(diverging_redesign_direction_palette)
+    return(diverging_direction_palette)
+  }
+
+  if (identical(palette, "alt") || identical(palette, "paletteAlt")) return(diverging_palette_alt)
+  if (isTRUE(palette)) return(diverging_redesign_palette)
+  diverging_palette
+}
+
+make_diverging_chart_color_layer <- function(
+  palette = FALSE,
+  summary_data = difference_summary,
+  labels = deviation_labels,
+  variant = "detailed"
+) {
+  fill_palette <- diverging_palette_for_variant(palette, variant)
+
+  ggplot(summary_data) +
     geom_rect(
       aes(
         xmin = xmin,
@@ -1687,8 +1756,8 @@ make_diverging_chart_color_layer <- function(palette = FALSE) {
       )
     ) +
     scale_fill_manual(values = fill_palette, drop = FALSE, guide = "none") +
-    diverging_chart_x_scale() +
-    diverging_chart_y_scale() +
+    diverging_chart_x_scale(summary_data) +
+    diverging_chart_y_scale(labels) +
     labs(
       title = "County Count Above and Below Texas Average",
       subtitle = "Same diverging classes and colors as the map",
@@ -1699,12 +1768,12 @@ make_diverging_chart_color_layer <- function(palette = FALSE) {
     chart_color_theme()
 }
 
-make_diverging_chart_structure_layer <- function() {
-  ggplot(difference_summary) +
+make_diverging_chart_structure_layer <- function(summary_data = difference_summary, labels = deviation_labels) {
+  ggplot(summary_data) +
     geom_vline(xintercept = 0, color = "#151d20", linewidth = 0.42) +
     geom_blank(aes(x = signed_count, y = y_index)) +
-    diverging_chart_x_scale() +
-    diverging_chart_y_scale() +
+    diverging_chart_x_scale(summary_data) +
+    diverging_chart_y_scale(labels) +
     labs(
       title = "County Count Above and Below Texas Average",
       subtitle = "Same diverging classes and colors as the map",
@@ -1715,8 +1784,12 @@ make_diverging_chart_structure_layer <- function() {
     chart_overlay_theme(text = TRUE, grid = TRUE)
 }
 
-make_diverging_chart_cue_layer <- function() {
-  ggplot(difference_summary) +
+make_diverging_chart_cue_layer <- function(
+  summary_data = difference_summary,
+  labels = deviation_labels,
+  hatches = difference_bar_hatches
+) {
+  ggplot(summary_data) +
     geom_rect(
       aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
       fill = NA,
@@ -1724,15 +1797,15 @@ make_diverging_chart_cue_layer <- function() {
       linewidth = 0.18
     ) +
     geom_segment(
-      data = difference_bar_hatches,
+      data = hatches,
       aes(x = x, xend = xend, y = y, yend = yend),
       inherit.aes = FALSE,
       color = "#151d20",
       linewidth = 0.34,
       alpha = 0.68
     ) +
-    diverging_chart_x_scale() +
-    diverging_chart_y_scale() +
+    diverging_chart_x_scale(summary_data) +
+    diverging_chart_y_scale(labels) +
     labs(
       title = "County Count Above and Below Texas Average",
       subtitle = "Same diverging classes and colors as the map",
@@ -1743,8 +1816,13 @@ make_diverging_chart_cue_layer <- function() {
     chart_overlay_theme()
 }
 
-make_diverging_chart_cue_alt_layer <- function() {
-  ggplot(difference_summary) +
+make_diverging_chart_cue_alt_layer <- function(
+  summary_data = difference_summary,
+  labels = deviation_labels,
+  hatches = difference_bar_hatches,
+  below_points = difference_bar_below_points
+) {
+  ggplot(summary_data) +
     geom_rect(
       aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
       fill = NA,
@@ -1752,7 +1830,7 @@ make_diverging_chart_cue_alt_layer <- function() {
       linewidth = 0.18
     ) +
     geom_point(
-      data = difference_bar_below_points,
+      data = below_points,
       aes(x = x, y = y),
       inherit.aes = FALSE,
       shape = 21,
@@ -1763,15 +1841,15 @@ make_diverging_chart_cue_alt_layer <- function() {
       alpha = 0.78
     ) +
     geom_segment(
-      data = difference_bar_hatches,
+      data = hatches,
       aes(x = x, xend = xend, y = y, yend = yend),
       inherit.aes = FALSE,
       color = "#151d20",
       linewidth = 0.34,
       alpha = 0.68
     ) +
-    diverging_chart_x_scale() +
-    diverging_chart_y_scale() +
+    diverging_chart_x_scale(summary_data) +
+    diverging_chart_y_scale(labels) +
     labs(
       title = "County Count Above and Below Texas Average",
       subtitle = "Same diverging classes and colors as the map",
@@ -2303,6 +2381,93 @@ save_layer_assets <- function() {
   save_png(make_diverging_chart_annotation_layer(), "cdc-places-diabetes-diverging-chart-layer-annotation.png", background = transparent)
   save_png(make_diverging_chart_annotation_layer(), "cdc-places-diabetes-diverging-chart-layer-reference-divider.png", background = transparent)
   save_png(make_diverging_chart_reference_labeled_layer(), "cdc-places-diabetes-diverging-chart-layer-reference-labeled.png", background = transparent)
+
+  save_diverging_classification_layers <- function(
+    prefix,
+    fill_column,
+    labels,
+    summary_data,
+    variant,
+    hatches,
+    below_points
+  ) {
+    reversed_labels <- rev(labels)
+    above_variant_labels <- reversed_labels[grepl("above", reversed_labels, ignore.case = TRUE)]
+    below_variant_labels <- reversed_labels[grepl("below", reversed_labels, ignore.case = TRUE)]
+    original_palette <- diverging_palette_for_variant(FALSE, variant)
+    redesign_palette <- diverging_palette_for_variant(TRUE, variant)
+    alt_palette <- diverging_palette_for_variant("alt", variant)
+
+    save_png(
+      map_color_layer(fill_column, original_palette, "Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
+      paste0(prefix, "-map-layer-color-p0.png"),
+      legend = map_layer_legend_colors("Difference", reversed_labels, original_palette)
+    )
+    save_png(
+      map_color_layer(fill_column, redesign_palette, "Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
+      paste0(prefix, "-map-layer-color-p1.png"),
+      legend = map_layer_legend_colors("Difference", reversed_labels, redesign_palette)
+    )
+    save_png(
+      map_color_layer(fill_column, alt_palette, "Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
+      paste0(prefix, "-map-layer-color-p2.png"),
+      legend = map_layer_legend_colors("Difference", reversed_labels, alt_palette)
+    )
+    save_png(
+      map_structure_layer("Diagnosed Diabetes Relative to Texas Average", average_caption, source_caption),
+      paste0(prefix, "-map-layer-structure.png"),
+      legend = map_layer_legend_structure("Difference", reversed_labels, original_palette),
+      background = transparent
+    )
+    save_png(
+      make_diverging_map_cue_layer(),
+      paste0(prefix, "-map-layer-cue.png"),
+      legend = map_layer_legend_cues("Difference", reversed_labels, original_palette, stipple_labels = above_variant_labels),
+      background = transparent
+    )
+    save_png(
+      make_diverging_map_cue_alt_layer(),
+      paste0(prefix, "-map-layer-cue-alt.png"),
+      legend = map_layer_legend_two_sided_cues(
+        "Difference",
+        reversed_labels,
+        original_palette,
+        above_variant_labels,
+        below_variant_labels
+      ),
+      background = transparent
+    )
+
+    save_png(make_diverging_chart_color_layer(FALSE, summary_data, labels, variant), paste0(prefix, "-chart-layer-color-p0.png"))
+    save_png(make_diverging_chart_color_layer(TRUE, summary_data, labels, variant), paste0(prefix, "-chart-layer-color-p1.png"))
+    save_png(make_diverging_chart_color_layer("alt", summary_data, labels, variant), paste0(prefix, "-chart-layer-color-p2.png"))
+    save_png(make_diverging_chart_structure_layer(summary_data, labels), paste0(prefix, "-chart-layer-structure.png"), background = transparent)
+    save_png(make_diverging_chart_cue_layer(summary_data, labels, hatches), paste0(prefix, "-chart-layer-cue.png"), background = transparent)
+    save_png(
+      make_diverging_chart_cue_alt_layer(summary_data, labels, hatches, below_points),
+      paste0(prefix, "-chart-layer-cue-alt.png"),
+      background = transparent
+    )
+  }
+
+  save_diverging_classification_layers(
+    "cdc-places-diabetes-diverging-simple",
+    "diabetes_difference_simple_class",
+    deviation_simple_labels,
+    difference_summary_simple,
+    "simple",
+    difference_bar_hatches_simple,
+    difference_bar_below_points_simple
+  )
+  save_diverging_classification_layers(
+    "cdc-places-diabetes-diverging-direction",
+    "diabetes_difference_direction_class",
+    deviation_direction_labels,
+    difference_summary_direction,
+    "direction",
+    difference_bar_hatches_direction,
+    difference_bar_below_points_direction
+  )
 
   save_png(
     map_color_layer("svi_theme", svi_fragile_palette, "Highest-Ranked SVI Theme by County", "Texas counties, CDC/ATSDR SVI 2022", svi_caption),
@@ -2845,6 +3010,8 @@ writeLines(
     "",
     "- `cdc-places-diabetes`",
     "- `cdc-places-diabetes-diverging`",
+    "- `cdc-places-diabetes-diverging-simple`",
+    "- `cdc-places-diabetes-diverging-direction`",
     "- `cdc-svi-theme`",
     "- `transfer-*`",
     "",

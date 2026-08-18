@@ -106,20 +106,20 @@ const exampleFeedbackById = {
       details.push("Two-sided patterning gives both sides of the midpoint a non-hue cue.");
     }
     if (interventions.labels) {
-      details.push("The average divider makes the threshold explicit in the legend and chart.");
+      details.push("Simplifying to four classes reduces color-matching burden while preserving some magnitude information.");
     }
     if (interventions.allLabels) {
-      details.push("Labeled midpoint text clarifies which side is below or above the Texas average.");
+      details.push("Direction-only classification is robust for the above/below task, but it discards magnitude detail.");
     }
 
     const hasDirectionCue = interventions.redundantCue || interventions.cueAlt;
-    const hasMidpointReference = interventions.labels || interventions.allLabels;
+    const hasClassificationChoice = interventions.labels || interventions.allLabels;
     return {
-      title: hasDirectionCue && hasMidpointReference
+      title: hasDirectionCue && hasClassificationChoice
         ? "This directly supports the diverging comparison."
-        : "Diverging maps need a readable midpoint.",
+        : "Diverging maps need a manageable classification scheme.",
       message:
-        "This example is about above and below average. The key issue is whether the viewer can recover direction from the midpoint when hue becomes unreliable.",
+        "This example is about above and below average. The key issue is balancing magnitude detail against robustness when hue becomes unreliable.",
       details,
     };
   },

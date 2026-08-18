@@ -2,6 +2,7 @@ import {
   INTERVENTION_KEYS,
   allInterventionsActive,
   cueVariantFromInterventions,
+  labelModeFromInterventions,
   normalizeInterventions,
   paletteVariantFromInterventions,
 } from "../config/interventions.js";
@@ -678,29 +679,34 @@ function publicHealthLayerStack(example, kind, state) {
 
   const interventions = normalizeInterventions(state.workbench?.interventions);
   const paletteVariant = paletteVariantFromInterventions(interventions);
-  const colorLayer = figure.color?.[paletteVariant] ? paletteVariant : "original";
+  const labelMode = labelModeFromInterventions(interventions);
+  const classificationVariant = figure.classification?.[labelMode] ? labelMode : "none";
+  const activeFigure = figure.classification?.[classificationVariant] ?? figure;
+  const slotPrefix =
+    figure.classification && classificationVariant !== "none" ? `${kind}.classification.${classificationVariant}` : kind;
+  const colorLayer = activeFigure.color?.[paletteVariant] ? paletteVariant : "original";
   const cueVariant = cueVariantFromInterventions(interventions);
   const structureLayer =
-    cueVariant === "cueAlt" && figure.structureNoBoundaries ? "structureNoBoundaries" : "structure";
+    cueVariant === "cueAlt" && activeFigure.structureNoBoundaries ? "structureNoBoundaries" : "structure";
   const layers = [
-    { slot: `${kind}.color.${colorLayer}` },
-    { slot: `${kind}.${structureLayer}` },
+    { slot: `${slotPrefix}.color.${colorLayer}` },
+    { slot: `${slotPrefix}.${structureLayer}` },
   ];
 
-  if (cueVariant === "cueAlt" && figure.cueAlt) {
-    layers.push({ slot: `${kind}.cueAlt` });
+  if (cueVariant === "cueAlt" && activeFigure.cueAlt) {
+    layers.push({ slot: `${slotPrefix}.cueAlt` });
   } else if (cueVariant === "redundantCue") {
-    layers.push({ slot: `${kind}.redundantCue` });
+    layers.push({ slot: `${slotPrefix}.redundantCue` });
   }
-  if (interventions.annotation && figure.annotation) layers.push({ slot: `${kind}.annotation` });
-  if (interventions.allLabels) {
-    if (figure.allLabels) {
-      layers.push({ slot: `${kind}.allLabels` });
-    } else if (figure.labels) {
-      layers.push({ slot: `${kind}.labels` });
+  if (interventions.annotation && activeFigure.annotation) layers.push({ slot: `${slotPrefix}.annotation` });
+  if (!figure.classification && interventions.allLabels) {
+    if (activeFigure.allLabels) {
+      layers.push({ slot: `${slotPrefix}.allLabels` });
+    } else if (activeFigure.labels) {
+      layers.push({ slot: `${slotPrefix}.labels` });
     }
-  } else if (interventions.labels && figure.labels) {
-    layers.push({ slot: `${kind}.labels` });
+  } else if (!figure.classification && interventions.labels && activeFigure.labels) {
+    layers.push({ slot: `${slotPrefix}.labels` });
   }
 
   return layers;

@@ -32,15 +32,17 @@ function figureLayerAssets(prefix, kind, options = {}) {
   const paletteAlt = optionalPublicHealthAsset(`${prefix}-${kind}-layer-color-p2.png`);
   if (options.paletteAlt && paletteAlt) color.paletteAlt = paletteAlt;
 
-  const labelsLayer = options.labelsLayer ?? "labels";
   const layers = {
     color: {
       ...color,
     },
     structure: publicHealthAsset(`${prefix}-${kind}-layer-structure.png`),
     redundantCue: publicHealthAsset(`${prefix}-${kind}-layer-cue.png`),
-    labels: publicHealthAsset(`${prefix}-${kind}-layer-${labelsLayer}.png`),
   };
+
+  const labelsLayer = options.labelsLayer ?? "labels";
+  const labels = optionalPublicHealthAsset(`${prefix}-${kind}-layer-${labelsLayer}.png`);
+  if (labels) layers.labels = labels;
 
   const structureNoBoundaries = optionalPublicHealthAsset(`${prefix}-${kind}-layer-structure-no-boundaries.png`);
   if (options.structureNoBoundaries && structureNoBoundaries) {
@@ -64,6 +66,27 @@ function layeredPublicHealthAssets(prefix, options = {}) {
   return {
     map: figureLayerAssets(prefix, "map", options),
     chart: figureLayerAssets(prefix, "chart", options),
+  };
+}
+
+function classifiedFigureLayerAssets(prefixes, kind, options = {}) {
+  const variants = Object.fromEntries(
+    Object.entries(prefixes).map(([variant, prefix]) => [
+      variant,
+      figureLayerAssets(prefix, kind, options),
+    ]),
+  );
+
+  return {
+    ...variants.none,
+    classification: variants,
+  };
+}
+
+function classifiedPublicHealthAssets(prefixes, options = {}) {
+  return {
+    map: classifiedFigureLayerAssets(prefixes, "map", options),
+    chart: classifiedFigureLayerAssets(prefixes, "chart", options),
   };
 }
 
@@ -246,15 +269,15 @@ export const visualizationExamples = [
     predictionPrompt:
       "Predict which intervention will make the above/below-average direction easiest to recover under the selected stress test.",
     recommendedSummary:
-      "The recommended combination uses the more distinguishable palette, two-sided direction cues, and an explicitly labeled midpoint so direction from the Texas average does not depend on hue alone.",
+      "The recommended combination uses the more distinguishable palette, two-sided direction cues, and a simplified classification that reduces color-matching burden without discarding magnitude entirely.",
     recommendedInterventions: {
       palette: true,
       paletteAlt: false,
       redundantCue: false,
       cueAlt: true,
       annotation: false,
-      labels: false,
-      allLabels: true,
+      labels: true,
+      allLabels: false,
     },
     paletteOptions: [
       {
@@ -284,33 +307,33 @@ export const visualizationExamples = [
         effect: "Replaces the class colors with a second alternate diverging color set.",
       },
     ],
-    labelGroupLabel: "Average Reference",
+    labelGroupLabel: "Classification Detail",
     labelOptions: [
       {
         id: "none",
-        label: "Default reference",
-        shortLabel: "Default",
-        vrLabel: "Default\nRef",
-        description: "The original legend and chart axes remain unchanged.",
-        effect: "Leaves the above/below-average threshold mostly implicit.",
+        label: "Detailed difference",
+        shortLabel: "Detailed",
+        vrLabel: "Detailed\nClasses",
+        description: "The figure keeps six classes: three below average and three above average.",
+        effect: "Preserves more magnitude detail, but increases color-matching burden.",
       },
       {
         id: "labels",
-        label: "Average divider",
-        shortLabel: "Divider",
-        vrLabel: "Average\nDivider",
+        label: "Simplified difference",
+        shortLabel: "Simplified",
+        vrLabel: "Simplified\nClasses",
         description:
-          "A visible divider marks the Texas average in the legend and chart.",
-        effect: "Makes the midpoint explicit without adding county-level detail.",
+          "The figure uses four classes: far/near below average and near/far above average.",
+        effect: "Reduces class complexity while preserving some magnitude information.",
       },
       {
         id: "allLabels",
-        label: "Labeled midpoint",
-        shortLabel: "Midpoint labels",
-        vrLabel: "Midpoint\nLabels",
+        label: "Direction only",
+        shortLabel: "Direction only",
+        vrLabel: "Direction\nOnly",
         description:
-          "The below- and above-average sides are directly labeled near the midpoint.",
-        effect: "Clarifies the meaning of the midpoint, while adding a small amount of text.",
+          "The figure collapses classes to below average versus above average.",
+        effect: "Makes the main direction task easier, but discards magnitude detail.",
       },
     ],
     cueGroupLabel: "Direction Cue",
@@ -376,28 +399,29 @@ export const visualizationExamples = [
         effect: "Gives both sides of the midpoint distinguishable non-color cues.",
       },
       labels: {
-        label: "Average divider",
-        shortLabel: "Divider",
-        vrLabel: "Average\nDivider",
+        label: "Simplified difference",
+        shortLabel: "Simplified",
+        vrLabel: "Simplified\nClasses",
         description:
-          "A visible reference line marks the Texas average on the chart and separates below-average from above-average classes in the legend.",
-        effect: "Makes the above/below threshold explicit without adding county-level detail.",
+          "The figure uses four classes: far/near below average and near/far above average.",
+        effect: "Reduces class complexity while preserving some magnitude information.",
       },
       allLabels: {
-        label: "Labeled midpoint",
-        shortLabel: "Midpoint labels",
-        vrLabel: "Midpoint\nLabels",
+        label: "Direction only",
+        shortLabel: "Direction only",
+        vrLabel: "Direction\nOnly",
         description:
-          "The chart and legend directly label the below- and above-average sides of the midpoint.",
-        effect: "Clarifies midpoint meaning, but adds more text than a divider alone.",
+          "The figure collapses classes to below average versus above average.",
+        effect: "Makes the main direction task easier, but discards magnitude detail.",
       },
     },
-    assets: layeredPublicHealthAssets("cdc-places-diabetes-diverging", {
+    assets: classifiedPublicHealthAssets({
+      none: "cdc-places-diabetes-diverging",
+      labels: "cdc-places-diabetes-diverging-simple",
+      allLabels: "cdc-places-diabetes-diverging-direction",
+    }, {
       paletteAlt: true,
       cueAlt: true,
-      allLabels: true,
-      labelsLayer: "reference-divider",
-      allLabelsLayer: "reference-labeled",
     }),
   },
   {
