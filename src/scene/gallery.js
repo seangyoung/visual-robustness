@@ -651,6 +651,13 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
 
     if (target.userData.kind === "mission-control") {
+      if (missionControlWorkbench.controlIdFromObject(target) === "knob-main") {
+        dragState = { type: "mission-control-knob", controller };
+        hoverControl = target.userData.controlId;
+        pulseController(controller);
+        updateMissionControlKnobFromWorldPoint(hit.point);
+        return;
+      }
       if (activateMissionControlTarget(target)) pulseController(controller);
       return;
     }
@@ -727,6 +734,11 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       }
 
       if (target.userData.kind === "mission-control") {
+        if (missionControlWorkbench.controlIdFromObject(target) === "knob-main") {
+          directTouchStates.set(controllerIndex, { controlId, kind: "mission-control-knob" });
+          if (updateMissionControlKnobFromWorldPoint(hit.point)) pulseController(controller);
+          return;
+        }
         const previous = directTouchStates.get(controllerIndex);
         if (previous?.controlId !== controlId) {
           if (activateMissionControlTarget(target)) pulseController(controller);
@@ -767,12 +779,18 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       return;
     }
 
+    if (endedDrag.type === "mission-control-knob") return;
+
     updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
   }
 
   function updateDragState(activeDrag) {
     if (activeDrag.type === "slider") {
       updateSliderFromController(activeDrag.controller);
+      return;
+    }
+    if (activeDrag.type === "mission-control-knob") {
+      updateMissionControlKnobFromController(activeDrag.controller);
       return;
     }
     if (activeDrag.type === "rank-card") {
@@ -801,6 +819,27 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const localX = clamp(x, SLIDER_MIN_X, SLIDER_MAX_X);
     const normalized = (localX - SLIDER_MIN_X) / SLIDER_WIDTH;
     const index = clampStressTestIndex(normalized * (stressTests.length - 1));
+    if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
+      selectAction("setStressTest", { index });
+      return true;
+    }
+    return false;
+  }
+
+  function updateMissionControlKnobFromController(controller) {
+    if (!missionControlWorkbench) return false;
+    setRayFromController(controller, raycaster);
+    const plane = missionControlWorkbench.controlPlane("knob-main");
+    if (!plane) return false;
+    const point = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(plane, point)) return false;
+    return updateMissionControlKnobFromWorldPoint(point);
+  }
+
+  function updateMissionControlKnobFromWorldPoint(worldPoint) {
+    if (!missionControlWorkbench?.setKnobFromWorldPoint("knob-main", worldPoint, { emit: false })) return false;
+    const normalized = missionControlWorkbench.getControl("knob-main")?.userData.value ?? 0;
+    const index = Math.round(THREE.MathUtils.clamp(normalized, 0, 1) * (stressTests.length - 1));
     if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
       selectAction("setStressTest", { index });
       return true;

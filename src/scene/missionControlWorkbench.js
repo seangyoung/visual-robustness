@@ -110,6 +110,11 @@ export class MissionControlWorkbench {
     return this.activate(control.userData.control_id);
   }
 
+  controlIdFromObject(object) {
+    const control = this.resolveControl(object);
+    return control?.userData.control_id ?? null;
+  }
+
   activate(id) {
     const control = this.getControl(id);
     if (!control || this.disabledControls.has(id)) return false;
@@ -219,6 +224,29 @@ export class MissionControlWorkbench {
     if (emit) this.emit(control, value, { degrees });
   }
 
+  setKnobFromWorldPoint(id = "knob-main", worldPoint, { emit = true } = {}) {
+    const control = this.getControl(id);
+    if (!control || control.userData.interaction !== "rotary" || !worldPoint) return false;
+    const local = restLocalPointFromWorldPoint(control, worldPoint);
+    const radius = Math.hypot(local.x, local.y);
+    if (radius < 0.025) return false;
+    const min = Number(control.userData.min_degrees);
+    const max = Number(control.userData.max_degrees);
+    const degrees = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(Math.atan2(local.x, local.y)), min, max);
+    this.setKnobNormalized(id, (degrees - min) / (max - min), { emit });
+    return true;
+  }
+
+  controlPlane(id) {
+    const control = this.getControl(id);
+    if (!control) return null;
+    const parentWorldQuaternion = control.parent.getWorldQuaternion(new THREE.Quaternion());
+    const restWorldQuaternion = parentWorldQuaternion.multiply(control.userData.restQuaternion);
+    const normal = localAxis(control).applyQuaternion(restWorldQuaternion).normalize();
+    const origin = control.parent.localToWorld(control.userData.restPosition.clone());
+    return new THREE.Plane().setFromNormalAndCoplanarPoint(normal, origin);
+  }
+
   nudgeKnob(id = "knob-main", direction = 1, { emit = true } = {}) {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary") return;
@@ -320,6 +348,13 @@ export class MissionControlWorkbench {
 
 function localAxis(control) {
   return (AXES[control.userData.axis] ?? AXES.Z).clone();
+}
+
+function restLocalPointFromWorldPoint(control, worldPoint) {
+  control.parent.updateWorldMatrix(true, false);
+  const parentLocal = control.parent.worldToLocal(worldPoint.clone());
+  const offset = parentLocal.sub(control.userData.restPosition);
+  return offset.applyQuaternion(control.userData.restQuaternion.clone().invert());
 }
 
 function defaultControlValue(data) {

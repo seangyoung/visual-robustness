@@ -251,6 +251,16 @@ def create_control_station(root, index, angle_degrees):
     )
 
 
+def create_knob_station(root):
+    return empty(
+        "Control_Station_Knob",
+        root,
+        (-1.08, -0.035, 0.84),
+        (0, 0, 0),
+        {"role": "control_station", "station_index": "knob"},
+    )
+
+
 def create_screen(name, screen_id, parent, x, y, width, mats):
     frame = rounded_box(
         f"{name}_Frame",
@@ -498,9 +508,10 @@ def create_asset():
     )
 
     stations = [create_control_station(root, index, angle) for index, angle in enumerate(ARC_ANGLES)]
+    knob_station = create_knob_station(root)
     add_pedestal("Pedestal_Left", stations[0], mats)
     add_pedestal("Pedestal_Right", stations[4], mats)
-    create_knob(stations[0], mats)
+    create_knob(knob_station, mats)
 
     radio_number = 1
     for group_index, station in enumerate(stations[1:4], start=1):
