@@ -55,7 +55,11 @@ export class MissionControlWorkbench {
 
       if (object.userData?.role === "screen") {
         const id = object.userData.screen_id;
-        if (object.material) object.material = object.material.clone();
+        if (object.material) {
+          object.material = object.material.clone();
+          object.material.side = THREE.DoubleSide;
+          object.material.toneMapped = false;
+        }
         this.screens.set(id, object);
       }
     });
@@ -231,11 +235,15 @@ export class MissionControlWorkbench {
     if (!screen) throw new Error(`Unknown workbench screen: ${id}`);
     const oldMap = screen.material.map;
     texture.colorSpace = colorSpace;
+    texture.flipY = false;
     texture.needsUpdate = true;
     screen.material.map = texture;
     screen.material.emissiveMap = texture;
+    screen.material.side = THREE.DoubleSide;
+    screen.material.toneMapped = false;
     screen.material.color.set("white");
     screen.material.emissive.set("white");
+    screen.material.emissiveIntensity = 1.35;
     screen.material.needsUpdate = true;
     if (oldMap && oldMap !== texture) oldMap.dispose();
   }
@@ -250,6 +258,8 @@ export class MissionControlWorkbench {
     const oldMap = screen.material.map;
     screen.material.map = null;
     screen.material.emissiveMap = null;
+    screen.material.side = THREE.DoubleSide;
+    screen.material.toneMapped = false;
     screen.material.color.set(color);
     screen.material.emissive.set(color);
     screen.material.emissiveIntensity = emissiveIntensity;

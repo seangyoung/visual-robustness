@@ -23,11 +23,11 @@ BLEND_PATH = OUTPUT_DIR / "mission-control-workbench.blend"
 GLB_PATH = PUBLIC_MODEL_DIR / "mission-control-workbench.glb"
 PREVIEW_PATH = OUTPUT_DIR / "mission-control-workbench-preview.png"
 
-DECK_TILT = math.radians(10)
-ARC_ANGLES = (-34, -17, 0, 17, 34)
+DECK_TILT = math.radians(6)
+ARC_ANGLES = (-26, -13, 0, 13, 26)
 ARC_RADIUS = 2.18
-ARC_START = -41
-ARC_END = 41
+ARC_START = -34
+ARC_END = 34
 SHELL_INNER_RADIUS = 1.82
 SHELL_OUTER_RADIUS = 2.52
 
@@ -112,6 +112,31 @@ def torus(name, major_radius, minor_radius, mat, parent=None, location=(0, 0, 0)
     bpy.ops.mesh.primitive_torus_add(major_radius=major_radius, minor_radius=minor_radius, major_segments=64, minor_segments=10)
     obj = bpy.context.object
     obj.name = name
+    obj.data.materials.append(mat)
+    obj.parent = parent
+    obj.location = location
+    obj.rotation_euler = rotation
+    return obj
+
+
+def textured_plane(name, width, height, mat, parent=None, location=(0, 0, 0), rotation=(0, 0, 0)):
+    mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    mesh.from_pydata(
+        [
+            (-width / 2, -height / 2, 0),
+            (width / 2, -height / 2, 0),
+            (width / 2, height / 2, 0),
+            (-width / 2, height / 2, 0),
+        ],
+        [],
+        [(0, 1, 2, 3)],
+    )
+    mesh.update()
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    for loop_index, uv in zip(mesh.polygons[0].loop_indices, [(0, 0), (1, 0), (1, 1), (0, 1)]):
+        uv_layer.data[loop_index].uv = uv
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
     obj.data.materials.append(mat)
     obj.parent = parent
     obj.location = location
@@ -243,14 +268,14 @@ def create_screen(name, screen_id, parent, x, y, width, mats):
         roughness=0.22,
         emission=(0.015, 0.22, 0.28),
     )
-    screen = rounded_box(
+    screen = textured_plane(
         name,
-        (width, 0.145, 0.012),
+        width,
+        0.145,
         screen_mat,
         parent,
-        (x, y - 0.006, 0.139),
+        (x, y - 0.006, 0.145),
         (DECK_TILT, 0, 0),
-        bevel=0.008,
     )
     screen["role"] = "screen"
     screen["screen_id"] = screen_id
@@ -265,7 +290,7 @@ def create_knob(module, mats):
     pivot = empty(
         "Control_Knob_Main",
         module,
-        (0, -0.105, 0.115),
+        (0, -0.105, 0.102),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -278,11 +303,11 @@ def create_knob(module, mats):
             "screen_id": "knob-feedback",
         },
     )
-    torus("Knob_Main_Radial_Ring", 0.155, 0.012, mats["cyan"], pivot, (0, 0, 0.012))
-    cylinder("Knob_Main_Base", 0.145, 0.035, mats["black"], pivot, (0, 0, 0.025))
-    knob = cylinder("Knob_Main_Grip", 0.112, 0.075, mats["metal"], pivot, (0, 0, 0.075), bevel=0.012)
+    torus("Knob_Main_Radial_Ring", 0.148, 0.010, mats["cyan"], pivot, (0, 0, 0.010))
+    cylinder("Knob_Main_Base", 0.136, 0.026, mats["black"], pivot, (0, 0, 0.014))
+    knob = cylinder("Knob_Main_Grip", 0.106, 0.052, mats["metal"], pivot, (0, 0, 0.050), bevel=0.012)
     knob["hit_target"] = True
-    rounded_box("Knob_Main_Indicator", (0.012, 0.075, 0.008), mats["cyan"], pivot, (0, 0.035, 0.118), bevel=0.003)
+    rounded_box("Knob_Main_Indicator", (0.011, 0.068, 0.007), mats["cyan"], pivot, (0, 0.031, 0.079), bevel=0.003)
     return pivot
 
 
@@ -290,7 +315,7 @@ def create_radio_button(parent, index, group_index, option_index, x, mats):
     pivot = empty(
         f"Control_Radio_{index:02d}",
         parent,
-        (x, -0.105, 0.148),
+        (x, -0.105, 0.102),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -303,14 +328,14 @@ def create_radio_button(parent, index, group_index, option_index, x, mats):
             "default_selected": option_index == 1,
         },
     )
-    cylinder(f"Radio_{index:02d}_Bezel", 0.067, 0.025, mats["black"], pivot, (0, 0, 0.008), bevel=0.009)
+    cylinder(f"Radio_{index:02d}_Bezel", 0.064, 0.022, mats["black"], pivot, (0, 0, 0.007), bevel=0.009)
     cap = cylinder(
         f"Radio_{index:02d}_Cap",
-        0.050,
-        0.045,
+        0.047,
+        0.034,
         mats["switch"],
         pivot,
-        (0, 0, 0.037),
+        (0, 0, 0.029),
         bevel=0.010,
     )
     cap["hit_target"] = True
@@ -320,7 +345,7 @@ def create_radio_button(parent, index, group_index, option_index, x, mats):
         0.005,
         mats["cyan"] if option_index == 1 else mats["metal"],
         pivot,
-        (0, 0, 0.063),
+        (0, 0, 0.049),
         vertices=32,
         bevel=0.002,
     )
@@ -331,7 +356,7 @@ def create_submit_button(module, mats):
     pivot = empty(
         "Control_Button_Submit",
         module,
-        (0, 0.16, 0.145),
+        (0, 0.16, 0.104),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -342,10 +367,10 @@ def create_submit_button(module, mats):
             "event": "submit",
         },
     )
-    cylinder("Button_Submit_Bezel", 0.145, 0.032, mats["black"], pivot, (0, 0, 0.01), bevel=0.012)
-    cap = cylinder("Button_Submit_Cap", 0.116, 0.065, mats["amber"], pivot, (0, 0, 0.052), bevel=0.014)
+    cylinder("Button_Submit_Bezel", 0.136, 0.025, mats["black"], pivot, (0, 0, 0.008), bevel=0.012)
+    cap = cylinder("Button_Submit_Cap", 0.108, 0.046, mats["amber"], pivot, (0, 0, 0.038), bevel=0.014)
     cap["hit_target"] = True
-    add_text_mesh("Button_Submit_Label", "Submit", mats["label"], pivot, (0, 0, 0.089), size=0.047)
+    add_text_mesh("Button_Submit_Label", "Submit", mats["label"], pivot, (0, 0, 0.066), size=0.043)
     return pivot
 
 
@@ -353,7 +378,7 @@ def create_guarded_button(module, mats):
     button = empty(
         "Control_Button_Guarded",
         module,
-        (0, -0.15, 0.145),
+        (0, -0.15, 0.104),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -365,14 +390,14 @@ def create_guarded_button(module, mats):
             "requires_state": "open",
         },
     )
-    cylinder("Button_Guarded_Bezel", 0.092, 0.026, mats["black"], button, (0, 0, 0.008), bevel=0.01)
-    cap = cylinder("Button_Guarded_Cap", 0.062, 0.052, mats["amber"], button, (0, 0, 0.042), bevel=0.011)
+    cylinder("Button_Guarded_Bezel", 0.088, 0.022, mats["black"], button, (0, 0, 0.007), bevel=0.01)
+    cap = cylinder("Button_Guarded_Cap", 0.058, 0.038, mats["amber"], button, (0, 0, 0.032), bevel=0.011)
     cap["hit_target"] = True
 
     guard = empty(
         "Control_Guard_Cover",
         module,
-        (0, -0.045, 0.165),
+        (0, -0.045, 0.132),
         (DECK_TILT + math.radians(-76), 0, 0),
         {
             "role": "interactive_control",
@@ -397,8 +422,8 @@ def create_guarded_button(module, mats):
     rounded_box("Guard_Cover_Left_Rail", (0.025, 0.215, 0.065), mats["guard_frame"], guard, (-0.103, -0.105, 0.028), bevel=0.008)
     rounded_box("Guard_Cover_Right_Rail", (0.025, 0.215, 0.065), mats["guard_frame"], guard, (0.103, -0.105, 0.028), bevel=0.008)
     cylinder("Guard_Cover_Hinge_Barrel", 0.023, 0.26, mats["metal"], guard, (0, 0, 0), (0, math.radians(90), 0), bevel=0.005)
-    rounded_box("Guard_Hinge_Mount_Left", (0.055, 0.055, 0.050), mats["black"], module, (-0.105, -0.045, 0.150), (DECK_TILT, 0, 0), bevel=0.010)
-    rounded_box("Guard_Hinge_Mount_Right", (0.055, 0.055, 0.050), mats["black"], module, (0.105, -0.045, 0.150), (DECK_TILT, 0, 0), bevel=0.010)
+    rounded_box("Guard_Hinge_Mount_Left", (0.055, 0.055, 0.038), mats["black"], module, (-0.105, -0.045, 0.118), (DECK_TILT, 0, 0), bevel=0.010)
+    rounded_box("Guard_Hinge_Mount_Right", (0.055, 0.055, 0.038), mats["black"], module, (0.105, -0.045, 0.118), (DECK_TILT, 0, 0), bevel=0.010)
     return button, guard
 
 
