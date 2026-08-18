@@ -251,6 +251,61 @@ function transferChoiceHitArea(choiceIndex) {
   };
 }
 
+function missionControlOptionGroups(example, interventions) {
+  return [
+    {
+      title: "Color",
+      screenId: "group-01",
+      radioGroupId: "radio-group-01",
+      radioIds: ["radio-01", "radio-02", "radio-03"],
+      options: paletteOptionsForExample(example).slice(0, 3),
+      activeId: paletteVariantFromInterventions(interventions),
+      action: "setPaletteVariant",
+      payloadKey: "variant",
+    },
+    {
+      title: example.cueGroupLabel ?? "Cues",
+      screenId: "group-02",
+      radioGroupId: "radio-group-02",
+      radioIds: ["radio-04", "radio-05", "radio-06"],
+      options: cueOptionsForExample(example).slice(0, 3),
+      activeId: cueVariantFromInterventions(interventions),
+      action: "setCueVariant",
+      payloadKey: "variant",
+    },
+    {
+      title: example.labelGroupLabel ?? "Labels",
+      screenId: "group-03",
+      radioGroupId: "radio-group-03",
+      radioIds: ["radio-07", "radio-08", "radio-09"],
+      options: labelOptionsForExample(example).slice(0, 3),
+      activeId: labelModeFromInterventions(interventions),
+      action: "setLabelMode",
+      payloadKey: "mode",
+    },
+  ];
+}
+
+function missionControlOptionControlForId(example, interventions, controlId) {
+  for (const group of missionControlOptionGroups(example, interventions)) {
+    const optionIndex = group.radioIds.indexOf(controlId);
+    if (optionIndex < 0) continue;
+    const option = group.options[optionIndex];
+    if (!option) return null;
+    return {
+      action: group.action,
+      payloadKey: group.payloadKey,
+      option,
+    };
+  }
+  return null;
+}
+
+function missionControlRadioIdForActiveOption(group) {
+  const activeIndex = group.options.findIndex((option) => option.id === group.activeId);
+  return group.radioIds[Math.max(0, activeIndex)];
+}
+
 export function createGalleryApp({ canvas, ui, onAction }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -775,54 +830,20 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   function handleMissionControlEvent(event) {
     if (!isModelWorkbenchActive()) return;
     const example = visualizationExampleByIndex(currentState.exampleIndex ?? 0);
+    const interventions = normalizeInterventions(currentState.workbench?.interventions);
     if (event.id === "knob-main") {
       const index = Math.round(THREE.MathUtils.clamp(event.value ?? 0, 0, 1) * (stressTests.length - 1));
       selectAction("setStressTest", { index });
       return;
     }
 
-    const paletteMap = {
-      "radio-01": "original",
-      "radio-02": "palette",
-      "radio-03": "paletteAlt",
-    };
-    if (paletteMap[event.id]) {
-      selectAction("setPaletteVariant", { variant: paletteMap[event.id] });
+    const optionControl = missionControlOptionControlForId(example, interventions, event.id);
+    if (optionControl) {
+      selectAction(optionControl.action, { [optionControl.payloadKey]: optionControl.option.id });
       return;
     }
 
-    const labelMap = {
-      "radio-04": "none",
-      "radio-05": "labels",
-      "radio-06": "allLabels",
-    };
-    if (labelMap[event.id]) {
-      selectAction("setLabelMode", { mode: labelMap[event.id] });
-      return;
-    }
-
-    const cueMap = {
-      "radio-07": "none",
-      "radio-08": "redundantCue",
-      "radio-09": "cueAlt",
-    };
-    if (cueMap[event.id]) {
-      if (cueOptionsForExample(example).some((option) => option.id === cueMap[event.id])) {
-        selectAction("setCueVariant", { variant: cueMap[event.id] });
-      }
-      return;
-    }
-
-    if (event.id === "guard-cover") {
-      const readyForChallenge = allExamplesSubmitted(currentState.submittedExamples, visualizationExamples);
-      const supportsAnnotation = Boolean(interventionMetadataForExample(example, "annotation"));
-      if (!readyForChallenge && supportsAnnotation) {
-        const nextValue = event.value === "open";
-        const currentValue = Boolean(currentState.workbench?.interventions?.annotation);
-        if (nextValue !== currentValue) selectAction("toggleIntervention", { key: "annotation" });
-      }
-      return;
-    }
+    if (event.id === "guard-cover") return;
 
     if (event.id === "submit") {
       selectAction("submitDesign");
@@ -843,67 +864,49 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
     const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
     const interventions = normalizeInterventions(state.workbench?.interventions);
-    const paletteVariant = paletteVariantFromInterventions(interventions);
-    const labelMode = labelModeFromInterventions(interventions);
-    const cueVariant = cueVariantFromInterventions(interventions);
+    const optionGroups = missionControlOptionGroups(example, interventions);
     const readyForChallenge = allExamplesSubmitted(state.submittedExamples, visualizationExamples);
-    const supportsAnnotation = Boolean(interventionMetadataForExample(example, "annotation"));
 
     missionControlWorkbench.setKnobNormalized(
       "knob-main",
       stressTests.length <= 1 ? 0 : clampStressTestIndex(state.workbench.stressTestIndex) / (stressTests.length - 1),
       { emit: false },
     );
-    missionControlWorkbench.setRadioSelected("radio-group-01", radioIdForPaletteVariant(paletteVariant), { emit: false });
-    missionControlWorkbench.setRadioSelected("radio-group-02", radioIdForLabelMode(labelMode), { emit: false });
-    missionControlWorkbench.setRadioSelected("radio-group-03", radioIdForCueVariant(cueVariant), { emit: false });
+    optionGroups.forEach((group) => {
+      missionControlWorkbench.setRadioSelected(
+        group.radioGroupId,
+        missionControlRadioIdForActiveOption(group),
+        { emit: false },
+      );
+      group.radioIds.forEach((radioId, index) => {
+        missionControlWorkbench.setControlDisabled(radioId, !Boolean(group.options[index]));
+      });
+    });
 
-    const guardOpen = readyForChallenge || (supportsAnnotation && Boolean(interventions.annotation)) || !supportsAnnotation;
-    missionControlWorkbench.setGuardOpen("guard-cover", guardOpen, { emit: false });
-
-    missionControlWorkbench.setControlDisabled("radio-03", !paletteOptionsForExample(example).some((option) => option.id === "paletteAlt"));
-    missionControlWorkbench.setControlDisabled("radio-06", !labelOptionsForExample(example).some((option) => option.id === "allLabels"));
-    missionControlWorkbench.setControlDisabled("radio-09", !cueOptionsForExample(example).some((option) => option.id === "cueAlt"));
+    missionControlWorkbench.setGuardOpen("guard-cover", readyForChallenge, { emit: false });
+    missionControlWorkbench.setControlDisabled("guard-cover", !readyForChallenge);
     missionControlWorkbench.setControlDisabled("guarded-secondary", !readyForChallenge);
 
     const screenKey = [
       sceneState.id,
       example.id,
       state.workbench.stressTestIndex,
-      paletteVariant,
-      labelMode,
-      cueVariant,
-      Boolean(interventions.annotation),
       readyForChallenge,
-      supportsAnnotation,
+      ...optionGroups.flatMap((group) => [
+        group.activeId,
+        group.options.map((option) => option.id).join(","),
+      ]),
     ].join("|");
     if (screenKey !== missionControlScreenKey) {
       missionControlScreenKey = screenKey;
-      updateMissionControlScreens(example, state, readyForChallenge, supportsAnnotation);
+      updateMissionControlScreens(example, state, readyForChallenge);
     }
   }
 
-  function radioIdForPaletteVariant(variant) {
-    if (variant === "paletteAlt") return "radio-03";
-    if (variant === "palette") return "radio-02";
-    return "radio-01";
-  }
-
-  function radioIdForLabelMode(mode) {
-    if (mode === "allLabels") return "radio-06";
-    if (mode === "labels") return "radio-05";
-    return "radio-04";
-  }
-
-  function radioIdForCueVariant(variant) {
-    if (variant === "cueAlt") return "radio-09";
-    if (variant === "redundantCue") return "radio-08";
-    return "radio-07";
-  }
-
-  function updateMissionControlScreens(example, state, readyForChallenge, supportsAnnotation) {
+  function updateMissionControlScreens(example, state, readyForChallenge) {
     const stressIndex = clampStressTestIndex(state.workbench.stressTestIndex);
     const stressTest = stressTestByIndex(stressIndex);
+    const optionGroups = missionControlOptionGroups(example, normalizeInterventions(state.workbench?.interventions));
     missionControlWorkbench.setScreenCanvas(
       "knob-feedback",
       createMissionControlStatusCanvas({
@@ -913,35 +916,19 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         footer: `${stressIndex + 1} of ${stressTests.length}`,
       }),
     );
-    missionControlWorkbench.setScreenCanvas(
-      "group-01",
-      createMissionControlGroupCanvas({
-        title: "Palette",
-        options: paletteOptionsForExample(example),
-        activeId: paletteVariantFromInterventions(state.workbench?.interventions),
-      }),
-    );
-    missionControlWorkbench.setScreenCanvas(
-      "group-02",
-      createMissionControlGroupCanvas({
-        title: example.labelGroupLabel ?? "Labels",
-        options: labelOptionsForExample(example),
-        activeId: labelModeFromInterventions(state.workbench?.interventions),
-      }),
-    );
-    missionControlWorkbench.setScreenCanvas(
-      "group-03",
-      createMissionControlGroupCanvas({
-        title: example.cueGroupLabel ?? "Cues",
-        options: cueOptionsForExample(example),
-        activeId: cueVariantFromInterventions(state.workbench?.interventions),
-        footer: readyForChallenge
-          ? "Guarded button: challenge"
-          : supportsAnnotation
-            ? `Guard: ${state.workbench?.interventions?.annotation ? "Divider on" : "Divider off"}`
-            : "Submit each example",
-      }),
-    );
+    optionGroups.forEach((group, index) => {
+      missionControlWorkbench.setScreenCanvas(
+        group.screenId,
+        createMissionControlGroupCanvas({
+          title: group.title,
+          options: group.options,
+          activeId: group.activeId,
+          footer: index === optionGroups.length - 1
+            ? readyForChallenge ? "Challenge unlocked" : "Submit each example"
+            : "",
+        }),
+      );
+    });
   }
 
   function updateDraggedRankCard(controller, card) {
