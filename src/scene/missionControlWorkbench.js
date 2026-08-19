@@ -228,11 +228,12 @@ export class MissionControlWorkbench {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary" || !worldPoint) return false;
     const local = restLocalPointFromWorldPoint(control, worldPoint);
-    const radius = Math.hypot(local.x, local.y);
+    const { u, v } = controlPlaneCoordinates(control, local);
+    const radius = Math.hypot(u, v);
     if (radius < 0.025) return false;
     const min = Number(control.userData.min_degrees);
     const max = Number(control.userData.max_degrees);
-    const degrees = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(Math.atan2(local.x, local.y)), min, max);
+    const degrees = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(Math.atan2(u, v)), min, max);
     this.setKnobNormalized(id, (degrees - min) / (max - min), { emit });
     return true;
   }
@@ -355,6 +356,13 @@ function restLocalPointFromWorldPoint(control, worldPoint) {
   const parentLocal = control.parent.worldToLocal(worldPoint.clone());
   const offset = parentLocal.sub(control.userData.restPosition);
   return offset.applyQuaternion(control.userData.restQuaternion.clone().invert());
+}
+
+function controlPlaneCoordinates(control, local) {
+  const axis = control.userData.axis;
+  if (axis === "X") return { u: local.z, v: local.y };
+  if (axis === "Y") return { u: local.x, v: -local.z };
+  return { u: local.x, v: local.y };
 }
 
 function defaultControlValue(data) {

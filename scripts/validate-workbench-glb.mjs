@@ -16,24 +16,25 @@ const gltf = JSON.parse(bytes.toString("utf8", 20, 20 + jsonChunkLength).trim())
 const nodes = new Map((gltf.nodes ?? []).map((node) => [node.name, node]));
 
 const requiredControls = [
-  ["Control_Knob_Main", "knob-main", "rotary"],
+  ["Control_Knob_Main", "knob-main", "rotary", "Y"],
   ...Array.from({ length: 9 }, (_, index) => [
     `Control_Radio_${String(index + 1).padStart(2, "0")}`,
     `radio-${String(index + 1).padStart(2, "0")}`,
     "radio_button",
+    "Y",
   ]),
-  ["Control_Button_Submit", "submit", "momentary_button"],
-  ["Control_Guard_Cover", "guard-cover", "hinged_cover"],
-  ["Control_Button_Guarded", "guarded-secondary", "momentary_button"],
+  ["Control_Button_Submit", "submit", "momentary_button", "Y"],
+  ["Control_Guard_Cover", "guard-cover", "hinged_cover", "X"],
+  ["Control_Button_Guarded", "guarded-secondary", "momentary_button", "Y"],
 ];
 
-for (const [nodeName, controlId, interaction] of requiredControls) {
+for (const [nodeName, controlId, interaction, axis] of requiredControls) {
   const node = nodes.get(nodeName);
   assert(node, `Missing control node ${nodeName}`);
   assert.equal(node.extras?.role, "interactive_control", `${nodeName} has the wrong role`);
   assert.equal(node.extras?.control_id, controlId, `${nodeName} has the wrong control_id`);
   assert.equal(node.extras?.interaction, interaction, `${nodeName} has the wrong interaction type`);
-  assert(node.extras?.axis, `${nodeName} is missing its local motion axis`);
+  assert.equal(node.extras?.axis, axis, `${nodeName} has the wrong local motion axis`);
 }
 
 for (const shellName of ["Workbench_Continuous_Body", "Workbench_Continuous_Deck", "Workbench_Front_Trim"]) {
