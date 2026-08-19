@@ -257,7 +257,7 @@ def create_knob_station(root):
         "Control_Station_Knob",
         root,
         (-0.88, -0.02, 0.84),
-        (0, 0, math.radians(10)),
+        (0, 0, math.radians(24)),
         {"role": "control_station", "station_index": "knob"},
     )
 

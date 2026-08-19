@@ -237,7 +237,7 @@ export class MissionControlWorkbench {
     if (radius < 0.025) return false;
     const min = Number(control.userData.min_degrees);
     const max = Number(control.userData.max_degrees);
-    const degrees = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(Math.atan2(u, v)), min, max);
+    const degrees = THREE.MathUtils.clamp(-THREE.MathUtils.radToDeg(Math.atan2(u, v)), min, max);
     let normalized = (degrees - min) / (max - min);
     if (steps > 1) normalized = Math.round(normalized * (steps - 1)) / (steps - 1);
     this.setKnobNormalized(id, normalized, { emit, animate });
