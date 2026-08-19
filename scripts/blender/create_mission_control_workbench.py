@@ -256,7 +256,7 @@ def create_knob_station(root):
     return empty(
         "Control_Station_Knob",
         root,
-        (-1.00, -0.10, 0.84),
+        (-1.00, -0.14, 0.84),
         (0, 0, math.radians(24)),
         {"role": "control_station", "station_index": "knob"},
     )
@@ -369,7 +369,7 @@ def create_submit_button(module, mats):
     pivot = empty(
         "Control_Button_Submit",
         module,
-        (0, -0.15, 0.104),
+        (0, -0.15, 0.092),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
