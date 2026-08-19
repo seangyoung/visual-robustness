@@ -400,7 +400,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     loadMissionControlWorkbench({ onControl: handleMissionControlEvent })
       .then((workbench) => {
         missionControlWorkbench = workbench;
-        missionControlWorkbench.root.position.set(0, -0.36, -1.38);
+        missionControlWorkbench.root.position.set(0, -0.36, -1.30);
         missionControlWorkbench.root.scale.setScalar(0.94);
         missionControlWorkbench.root.visible = false;
         stage.add(missionControlWorkbench.root);

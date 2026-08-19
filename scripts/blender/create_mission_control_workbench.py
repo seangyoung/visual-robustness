@@ -256,7 +256,7 @@ def create_knob_station(root):
     return empty(
         "Control_Station_Knob",
         root,
-        (-0.88, -0.02, 0.84),
+        (-1.00, -0.10, 0.84),
         (0, 0, math.radians(24)),
         {"role": "control_station", "station_index": "knob"},
     )
@@ -369,7 +369,7 @@ def create_submit_button(module, mats):
     pivot = empty(
         "Control_Button_Submit",
         module,
-        (0, 0.16, 0.104),
+        (0, -0.15, 0.104),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -391,7 +391,7 @@ def create_guarded_button(module, mats):
     button = empty(
         "Control_Button_Guarded",
         module,
-        (0, -0.15, 0.104),
+        (0, 0.16, 0.104),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -410,7 +410,7 @@ def create_guarded_button(module, mats):
     guard = empty(
         "Control_Guard_Cover",
         module,
-        (0, -0.045, 0.132),
+        (0, 0.265, 0.132),
         (DECK_TILT + math.radians(-76), 0, 0),
         {
             "role": "interactive_control",
@@ -435,8 +435,8 @@ def create_guarded_button(module, mats):
     rounded_box("Guard_Cover_Left_Rail", (0.025, 0.215, 0.065), mats["guard_frame"], guard, (-0.103, -0.105, 0.028), bevel=0.008)
     rounded_box("Guard_Cover_Right_Rail", (0.025, 0.215, 0.065), mats["guard_frame"], guard, (0.103, -0.105, 0.028), bevel=0.008)
     cylinder("Guard_Cover_Hinge_Barrel", 0.023, 0.26, mats["metal"], guard, (0, 0, 0), (0, math.radians(90), 0), bevel=0.005)
-    rounded_box("Guard_Hinge_Mount_Left", (0.055, 0.055, 0.038), mats["black"], module, (-0.105, -0.045, 0.118), (DECK_TILT, 0, 0), bevel=0.010)
-    rounded_box("Guard_Hinge_Mount_Right", (0.055, 0.055, 0.038), mats["black"], module, (0.105, -0.045, 0.118), (DECK_TILT, 0, 0), bevel=0.010)
+    rounded_box("Guard_Hinge_Mount_Left", (0.055, 0.055, 0.038), mats["black"], module, (-0.105, 0.265, 0.118), (DECK_TILT, 0, 0), bevel=0.010)
+    rounded_box("Guard_Hinge_Mount_Right", (0.055, 0.055, 0.038), mats["black"], module, (0.105, 0.265, 0.118), (DECK_TILT, 0, 0), bevel=0.010)
     return button, guard
 
 
