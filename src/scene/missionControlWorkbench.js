@@ -38,6 +38,13 @@ export class MissionControlWorkbench {
         object.userData.restPosition = object.position.clone();
         object.userData.restQuaternion = object.quaternion.clone();
         object.userData.value = defaultControlValue(object.userData);
+        object.userData.pressOffset = 0;
+        object.userData.pressParts = [];
+        object.traverse((child) => {
+          if (child === object || !child.userData?.press_part) return;
+          child.userData.pressRestPosition = child.position.clone();
+          object.userData.pressParts.push(child);
+        });
         this.controls.set(id, object);
         if (object.userData.interaction === "radio_button") {
           object.traverse((child) => {
@@ -166,11 +173,10 @@ export class MissionControlWorkbench {
 
     for (const control of group) {
       const selected = control.userData.control_id === selectedId;
-      const axis = localAxis(control).applyQuaternion(control.userData.restQuaternion);
       const travel = Number(control.userData.travel_meters ?? 0.012);
-      const target = control.userData.restPosition.clone().addScaledVector(axis, selected ? -travel : 0);
-      if (animate) this.tweenPosition(control, target, selected ? 0.07 : 0.10);
-      else control.position.copy(target);
+      const targetOffset = selected ? -travel : 0;
+      if (animate) this.tweenPressOffset(control, targetOffset, selected ? 0.07 : 0.10);
+      else this.setPressOffset(control, targetOffset);
       const indicator = control.userData.indicatorMesh;
       if (indicator?.material) {
         indicator.material.color.set(selected ? "#3fd8ed" : "#69747a");
@@ -201,11 +207,9 @@ export class MissionControlWorkbench {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "momentary_button" || !this.canActivate(control)) return false;
 
-    const axis = localAxis(control).applyQuaternion(control.userData.restQuaternion);
     const travel = Number(control.userData.travel_meters ?? 0.012);
-    const pressed = control.userData.restPosition.clone().addScaledVector(axis, -travel);
-    this.tweenPosition(control, pressed, 0.055, () => {
-      this.tweenPosition(control, control.userData.restPosition, 0.11);
+    this.tweenPressOffset(control, -travel, 0.055, () => {
+      this.tweenPressOffset(control, 0, 0.11);
     });
     control.userData.value = "pressed";
     if (emit) this.emit(control, "pressed");
@@ -346,6 +350,32 @@ export class MissionControlWorkbench {
   localRotationQuaternion(control, degrees) {
     const offset = new THREE.Quaternion().setFromAxisAngle(localAxis(control), THREE.MathUtils.degToRad(degrees));
     return control.userData.restQuaternion.clone().multiply(offset);
+  }
+
+  setPressOffset(control, offset) {
+    const pressParts = control.userData.pressParts ?? [];
+    if (!pressParts.length) {
+      const axis = localAxis(control).applyQuaternion(control.userData.restQuaternion);
+      control.position.copy(control.userData.restPosition).addScaledVector(axis, offset);
+    } else {
+      const axis = localAxis(control);
+      for (const part of pressParts) {
+        const restPosition = part.userData.pressRestPosition ?? part.position;
+        part.position.copy(restPosition).addScaledVector(axis, offset);
+      }
+    }
+    control.userData.pressOffset = offset;
+  }
+
+  tweenPressOffset(control, targetOffset, duration, complete) {
+    const startOffset = Number(control.userData.pressOffset ?? 0);
+    this.replaceTween(control, {
+      owner: control,
+      elapsed: 0,
+      duration,
+      apply: (t) => this.setPressOffset(control, THREE.MathUtils.lerp(startOffset, targetOffset, t)),
+      complete,
+    });
   }
 
   tweenPosition(control, target, duration, complete) {

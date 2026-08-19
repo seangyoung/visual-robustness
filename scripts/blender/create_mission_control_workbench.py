@@ -31,6 +31,10 @@ ARC_START = -34
 ARC_END = 34
 SHELL_INNER_RADIUS = 1.82
 SHELL_OUTER_RADIUS = 2.52
+KNOB_CONTROL_Z = 0.094
+RADIO_CONTROL_Z = 0.088
+SUBMIT_CONTROL_Z = 0.074
+GUARDED_CONTROL_Z = 0.086
 
 
 def reset_scene():
@@ -256,7 +260,7 @@ def create_knob_station(root):
     return empty(
         "Control_Station_Knob",
         root,
-        (-1.00, -0.14, 0.84),
+        (-0.92, -0.22, 0.84),
         (0, 0, math.radians(24)),
         {"role": "control_station", "station_index": "knob"},
     )
@@ -301,7 +305,7 @@ def create_knob(module, mats):
     pivot = empty(
         "Control_Knob_Main",
         module,
-        (0, -0.105, 0.102),
+        (0, -0.105, KNOB_CONTROL_Z),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -328,7 +332,7 @@ def create_radio_button(parent, index, group_index, option_index, x, mats):
     pivot = empty(
         f"Control_Radio_{index:02d}",
         parent,
-        (x, -0.105, 0.102),
+        (x, -0.105, RADIO_CONTROL_Z),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -352,7 +356,8 @@ def create_radio_button(parent, index, group_index, option_index, x, mats):
         bevel=0.010,
     )
     cap["hit_target"] = True
-    cylinder(
+    cap["press_part"] = True
+    indicator = cylinder(
         f"Radio_{index:02d}_Indicator",
         0.018,
         0.005,
@@ -362,6 +367,7 @@ def create_radio_button(parent, index, group_index, option_index, x, mats):
         vertices=32,
         bevel=0.002,
     )
+    indicator["press_part"] = True
     return pivot
 
 
@@ -369,7 +375,7 @@ def create_submit_button(module, mats):
     pivot = empty(
         "Control_Button_Submit",
         module,
-        (0, -0.15, 0.092),
+        (0, -0.15, SUBMIT_CONTROL_Z),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -383,7 +389,9 @@ def create_submit_button(module, mats):
     cylinder("Button_Submit_Bezel", 0.136, 0.025, mats["black"], pivot, (0, 0, 0.008), bevel=0.012)
     cap = cylinder("Button_Submit_Cap", 0.108, 0.046, mats["amber"], pivot, (0, 0, 0.038), bevel=0.014)
     cap["hit_target"] = True
-    add_text_mesh("Button_Submit_Label", "Submit", mats["label"], pivot, (0, 0, 0.066), size=0.043)
+    cap["press_part"] = True
+    label = add_text_mesh("Button_Submit_Label", "Submit", mats["label"], pivot, (0, 0, 0.066), size=0.043)
+    label["press_part"] = True
     return pivot
 
 
@@ -391,7 +399,7 @@ def create_guarded_button(module, mats):
     button = empty(
         "Control_Button_Guarded",
         module,
-        (0, 0.16, 0.104),
+        (0, 0.16, GUARDED_CONTROL_Z),
         (DECK_TILT, 0, 0),
         {
             "role": "interactive_control",
@@ -406,6 +414,7 @@ def create_guarded_button(module, mats):
     cylinder("Button_Guarded_Bezel", 0.088, 0.022, mats["black"], button, (0, 0, 0.007), bevel=0.01)
     cap = cylinder("Button_Guarded_Cap", 0.058, 0.038, mats["amber"], button, (0, 0, 0.032), bevel=0.011)
     cap["hit_target"] = True
+    cap["press_part"] = True
 
     guard = empty(
         "Control_Guard_Cover",
