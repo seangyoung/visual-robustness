@@ -24,6 +24,7 @@ GLB_PATH = PUBLIC_MODEL_DIR / "mission-control-workbench.glb"
 PREVIEW_PATH = OUTPUT_DIR / "mission-control-workbench-preview.png"
 
 DECK_TILT = math.radians(6)
+SCREEN_TILT = DECK_TILT + math.radians(30)
 ARC_ANGLES = (-26, -13, 0, 13, 26)
 ARC_RADIUS = 2.18
 ARC_START = -34
@@ -255,20 +256,20 @@ def create_knob_station(root):
     return empty(
         "Control_Station_Knob",
         root,
-        (-1.08, -0.035, 0.84),
+        (-0.96, -0.02, 0.84),
         (0, 0, 0),
         {"role": "control_station", "station_index": "knob"},
     )
 
 
-def create_screen(name, screen_id, parent, x, y, width, mats):
+def create_screen(name, screen_id, parent, x, y, width, mats, height=0.145):
     frame = rounded_box(
         f"{name}_Frame",
-        (width + 0.045, 0.185, 0.035),
+        (width + 0.045, height + 0.04, 0.03),
         mats["black"],
         parent,
-        (x, y, 0.115),
-        (DECK_TILT, 0, 0),
+        (x, y, 0.124),
+        (SCREEN_TILT, 0, 0),
         bevel=0.018,
     )
     screen_mat = material(
@@ -281,11 +282,11 @@ def create_screen(name, screen_id, parent, x, y, width, mats):
     screen = textured_plane(
         name,
         width,
-        0.145,
+        height,
         screen_mat,
         parent,
-        (x, y - 0.006, 0.145),
-        (DECK_TILT, 0, 0),
+        (x, y - 0.004, 0.149),
+        (SCREEN_TILT, 0, 0),
     )
     screen["role"] = "screen"
     screen["screen_id"] = screen_id
@@ -296,7 +297,7 @@ def create_screen(name, screen_id, parent, x, y, width, mats):
 
 
 def create_knob(module, mats):
-    create_screen("Screen_Knob", "knob-feedback", module, 0, 0.205, 0.30, mats)
+    create_screen("Screen_Knob", "knob-feedback", module, 0.015, 0.135, 0.40, mats, height=0.117)
     pivot = empty(
         "Control_Knob_Main",
         module,
@@ -530,7 +531,7 @@ def create_asset():
             station,
             0,
             0.20,
-            0.35,
+            0.50,
             mats,
         )
         screen["control_group"] = group_index

@@ -196,6 +196,9 @@ const FIGURE_INSPECTOR_TEXTURE_H = 1228;
 const FIGURE_INSPECTOR_MIN_ZOOM = 1;
 const FIGURE_INSPECTOR_MAX_ZOOM = 5.2;
 const FIGURE_INSPECTOR_ZOOM_SPEED = 0.035;
+const MISSION_CONTROL_SCREEN_W = 1024;
+const MISSION_CONTROL_SCREEN_H = 300;
+const MISSION_CONTROL_SCREEN_SCALE = 2;
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -2151,40 +2154,34 @@ function createRankingBoardTexture(state) {
 }
 
 function createMissionControlStatusCanvas({ title, primary, secondary, footer }) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 300;
-  const ctx = canvas.getContext("2d");
-  drawMissionControlScreenBase(ctx, canvas, title);
+  const { canvas, ctx, screen } = missionControlScreenCanvas();
+  drawMissionControlScreenBase(ctx, screen, title);
 
   ctx.fillStyle = "#f5fbf8";
   ctx.font = "900 58px Arial";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(String(primary ?? ""), canvas.width / 2, 140);
+  ctx.fillText(String(primary ?? ""), screen.width / 2, 140);
 
   ctx.fillStyle = "#bdeff2";
   ctx.font = "800 30px Arial";
-  ctx.fillText(String(secondary ?? ""), canvas.width / 2, 198);
+  ctx.fillText(String(secondary ?? ""), screen.width / 2, 198);
 
   ctx.fillStyle = "#f2c75e";
   ctx.font = "900 28px Arial";
-  ctx.fillText(String(footer ?? ""), canvas.width / 2, 248);
+  ctx.fillText(String(footer ?? ""), screen.width / 2, 248);
   return canvas;
 }
 
 function createMissionControlGroupCanvas({ title, options, activeId, footer = "" }) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 300;
-  const ctx = canvas.getContext("2d");
-  drawMissionControlScreenBase(ctx, canvas, title);
+  const { canvas, ctx, screen } = missionControlScreenCanvas();
+  drawMissionControlScreenBase(ctx, screen, title);
 
   const visibleOptions = [...(options ?? [])].slice(0, 3);
   const boxW = 290;
   const boxH = 108;
   const gap = 36;
-  const startX = (canvas.width - boxW * 3 - gap * 2) / 2;
+  const startX = (screen.width - boxW * 3 - gap * 2) / 2;
   visibleOptions.forEach((option, index) => {
     const active = option.id === activeId;
     const x = startX + index * (boxW + gap);
@@ -2215,8 +2212,24 @@ function createMissionControlGroupCanvas({ title, options, activeId, footer = ""
   ctx.font = "800 25px Arial";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(String(footer || " "), canvas.width / 2, 260);
+  ctx.fillText(String(footer || " "), screen.width / 2, 260);
   return canvas;
+}
+
+function missionControlScreenCanvas() {
+  const canvas = document.createElement("canvas");
+  canvas.width = MISSION_CONTROL_SCREEN_W * MISSION_CONTROL_SCREEN_SCALE;
+  canvas.height = MISSION_CONTROL_SCREEN_H * MISSION_CONTROL_SCREEN_SCALE;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(MISSION_CONTROL_SCREEN_SCALE, MISSION_CONTROL_SCREEN_SCALE);
+  return {
+    canvas,
+    ctx,
+    screen: {
+      width: MISSION_CONTROL_SCREEN_W,
+      height: MISSION_CONTROL_SCREEN_H,
+    },
+  };
 }
 
 function drawMissionControlScreenBase(ctx, canvas, title) {

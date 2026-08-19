@@ -265,6 +265,10 @@ export class MissionControlWorkbench {
     const oldMap = screen.material.map;
     texture.colorSpace = colorSpace;
     texture.flipY = false;
+    texture.anisotropy = 16;
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
     screen.material.map = texture;
     screen.material.emissiveMap = texture;
