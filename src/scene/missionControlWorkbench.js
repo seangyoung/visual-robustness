@@ -212,19 +212,23 @@ export class MissionControlWorkbench {
     return true;
   }
 
-  setKnobNormalized(id = "knob-main", normalized, { emit = true } = {}) {
+  setKnobNormalized(id = "knob-main", normalized, { emit = true, animate = true } = {}) {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary") return;
     const value = THREE.MathUtils.clamp(normalized, 0, 1);
     const min = Number(control.userData.min_degrees);
     const max = Number(control.userData.max_degrees);
     const degrees = THREE.MathUtils.lerp(min, max, value);
-    this.tweenLocalRotation(control, degrees, 0.08);
+    if (animate) this.tweenLocalRotation(control, degrees, 0.08);
+    else {
+      this.activeTweens = this.activeTweens.filter((item) => item.owner !== control);
+      this.setLocalRotation(control, degrees);
+    }
     control.userData.value = value;
     if (emit) this.emit(control, value, { degrees });
   }
 
-  setKnobFromWorldPoint(id = "knob-main", worldPoint, { emit = true } = {}) {
+  setKnobFromWorldPoint(id = "knob-main", worldPoint, { emit = true, animate = true, steps = 0 } = {}) {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary" || !worldPoint) return false;
     const local = restLocalPointFromWorldPoint(control, worldPoint);
@@ -234,7 +238,9 @@ export class MissionControlWorkbench {
     const min = Number(control.userData.min_degrees);
     const max = Number(control.userData.max_degrees);
     const degrees = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(Math.atan2(u, v)), min, max);
-    this.setKnobNormalized(id, (degrees - min) / (max - min), { emit });
+    let normalized = (degrees - min) / (max - min);
+    if (steps > 1) normalized = Math.round(normalized * (steps - 1)) / (steps - 1);
+    this.setKnobNormalized(id, normalized, { emit, animate });
     return true;
   }
 
@@ -324,14 +330,22 @@ export class MissionControlWorkbench {
 
   tweenLocalRotation(control, degrees, duration) {
     const start = control.quaternion.clone();
-    const offset = new THREE.Quaternion().setFromAxisAngle(localAxis(control), THREE.MathUtils.degToRad(degrees));
-    const target = control.userData.restQuaternion.clone().multiply(offset);
+    const target = this.localRotationQuaternion(control, degrees);
     this.replaceTween(control, {
       owner: control,
       elapsed: 0,
       duration,
       apply: (t) => control.quaternion.slerpQuaternions(start, target, t),
     });
+  }
+
+  setLocalRotation(control, degrees) {
+    control.quaternion.copy(this.localRotationQuaternion(control, degrees));
+  }
+
+  localRotationQuaternion(control, degrees) {
+    const offset = new THREE.Quaternion().setFromAxisAngle(localAxis(control), THREE.MathUtils.degToRad(degrees));
+    return control.userData.restQuaternion.clone().multiply(offset);
   }
 
   tweenPosition(control, target, duration, complete) {

@@ -256,8 +256,8 @@ def create_knob_station(root):
     return empty(
         "Control_Station_Knob",
         root,
-        (-0.96, -0.02, 0.84),
-        (0, 0, 0),
+        (-0.88, -0.02, 0.84),
+        (0, 0, math.radians(10)),
         {"role": "control_station", "station_index": "knob"},
     )
 
@@ -297,7 +297,7 @@ def create_screen(name, screen_id, parent, x, y, width, mats, height=0.145):
 
 
 def create_knob(module, mats):
-    create_screen("Screen_Knob", "knob-feedback", module, 0.015, 0.135, 0.40, mats, height=0.117)
+    create_screen("Screen_Knob", "knob-feedback", module, 0.015, 0.125, 0.40, mats, height=0.117)
     pivot = empty(
         "Control_Knob_Main",
         module,
@@ -318,6 +318,8 @@ def create_knob(module, mats):
     cylinder("Knob_Main_Base", 0.136, 0.026, mats["black"], pivot, (0, 0, 0.014))
     knob = cylinder("Knob_Main_Grip", 0.106, 0.052, mats["metal"], pivot, (0, 0, 0.050), bevel=0.012)
     knob["hit_target"] = True
+    hit_target = rounded_box("Knob_Main_Touch_Target", (0.36, 0.012, 0.36), mats["hit"], pivot, (0, 0.065, 0), bevel=0.01)
+    hit_target["hit_target"] = True
     rounded_box("Knob_Main_Indicator", (0.011, 0.068, 0.007), mats["cyan"], pivot, (0, 0.031, 0.079), bevel=0.003)
     return pivot
 
@@ -457,6 +459,7 @@ def create_asset():
         "cyan": material("MAT_Cyan_Accent", (0.015, 0.20, 0.24), metallic=0.15, roughness=0.24, emission=(0.02, 0.45, 0.55)),
         "amber": material("MAT_Amber_Accent", (0.95, 0.42, 0.045), metallic=0.12, roughness=0.24, emission=(0.60, 0.13, 0.01)),
         "label": material("MAT_Submit_Label", (0.025, 0.018, 0.01), metallic=0.0, roughness=0.5),
+        "hit": material("MAT_Invisible_Hit_Target", (0.0, 0.0, 0.0), alpha=0.0),
         "guard_glass": material("MAT_Guard_Clear_Amber", (0.42, 0.18, 0.035), metallic=0.02, roughness=0.12, alpha=0.46),
         "guard_frame": material("MAT_Guard_Frame", (0.23, 0.08, 0.018), metallic=0.45, roughness=0.25),
     }

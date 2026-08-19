@@ -840,7 +840,11 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   }
 
   function updateMissionControlKnobFromWorldPoint(worldPoint) {
-    if (!missionControlWorkbench?.setKnobFromWorldPoint("knob-main", worldPoint, { emit: false })) return false;
+    if (!missionControlWorkbench?.setKnobFromWorldPoint("knob-main", worldPoint, {
+      emit: false,
+      animate: false,
+      steps: stressTests.length,
+    })) return false;
     const normalized = missionControlWorkbench.getControl("knob-main")?.userData.value ?? 0;
     const index = Math.round(THREE.MathUtils.clamp(normalized, 0, 1) * (stressTests.length - 1));
     if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
