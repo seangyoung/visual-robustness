@@ -15,7 +15,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "validate:vr": "node scripts/validate-workbench-glb.mjs && node --check src/scene/gallery.js && node --check src/scene/missionControlWorkbench.js && node --check src/main.js"
   },
   "dependencies": {
     "vite": "^8.1.1",

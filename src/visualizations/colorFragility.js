@@ -39,6 +39,7 @@ const publicHealthAssetSources = Object.fromEntries(
 
 const publicHealthImages = new Map();
 const simulatedImageCache = new Map();
+let publicHealthAssetRevision = 0;
 
 const watershedOutline = [
   [92, 190],
@@ -143,13 +144,25 @@ function recommendedVisible(state) {
   return Boolean(state.workbench?.revealRedesign) || allInterventionsActive(state.workbench?.interventions);
 }
 
-export function createPanelTexture(kind, scene, state) {
-  const canvas = document.createElement("canvas");
+export function createPanelTexture(kind, scene, state, targetCanvas = null) {
+  const canvas = targetCanvas ?? document.createElement("canvas");
   const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
   const wideIntro = phase === MODULE_PHASES.INTRO && kind === "intro";
-  canvas.width = wideIntro ? 1800 : 1400;
-  canvas.height = wideIntro ? 720 : 980;
+  const width = wideIntro ? 1800 : 1400;
+  const height = wideIntro ? 720 : 980;
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
   const ctx = canvas.getContext("2d");
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.filter = "none";
+  ctx.setLineDash([]);
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (phase === MODULE_PHASES.INTRO) {
     drawIntroPanel(ctx, canvas, kind, state);
@@ -181,6 +194,10 @@ export async function preloadVisualizationAssets() {
   );
 }
 
+export function visualizationAssetRevision() {
+  return publicHealthAssetRevision;
+}
+
 function loadPublicHealthImage(key, url) {
   if (publicHealthImages.has(key)) return Promise.resolve(publicHealthImages.get(key));
 
@@ -189,6 +206,7 @@ function loadPublicHealthImage(key, url) {
     image.decoding = "async";
     image.onload = () => {
       publicHealthImages.set(key, image);
+      publicHealthAssetRevision += 1;
       resolve(image);
     };
     image.onerror = () => reject(new Error(`Could not load visualization asset: ${url}`));
@@ -920,7 +938,7 @@ function drawReflectionPanel(ctx, canvas, kind, scene, state) {
 
 function drawTaskPanel(ctx, canvas, scene, state, copy) {
   const bg = state.settings.highContrast ? "#0f1618" : "#131b1e";
-  const scroll = Math.max(0, Number(state.vrTaskScroll) || 0);
+  const requestedScroll = Math.max(0, Number(state.vrTaskScroll) || 0);
   const hasSubtitle = Boolean(copy.subtitle);
   const dividerY = hasSubtitle ? 430 : 388;
   const contentTop = hasSubtitle ? 486 : 446;
@@ -947,6 +965,15 @@ function drawTaskPanel(ctx, canvas, scene, state, copy) {
   ctx.lineWidth = 4;
   line(ctx, 88, dividerY, 1210, dividerY);
 
+  ctx.font = "500 38px Arial";
+  const leadText = copy.lead || scene.task;
+  const leadLines = wrappedTextLines(ctx, leadText, 1120);
+  const leadTop = contentTop + 84;
+  const visibleHeight = Math.max(1, contentBottom - leadTop + 24);
+  const contentHeight = leadLines.length * 52;
+  const maxScroll = Math.max(0, contentHeight - visibleHeight);
+  const scroll = Math.min(requestedScroll, maxScroll);
+
   ctx.save();
   ctx.beginPath();
   ctx.rect(64, contentTop - 42, canvas.width - 128, contentBottom - contentTop + 58);
@@ -957,12 +984,22 @@ function drawTaskPanel(ctx, canvas, scene, state, copy) {
   ctx.fillText("Observe", 88, contentTop);
   ctx.fillStyle = "#e9efe9";
   ctx.font = "500 38px Arial";
-  wrapText(ctx, copy.lead || scene.task, 88, contentTop + 84, 1120, 52);
+  leadLines.forEach((lineText, index) => {
+    ctx.fillText(lineText, 88, leadTop + index * 52);
+  });
   ctx.restore();
 
-  if (scroll > 0) {
-    ctx.fillStyle = "rgba(85,198,186,0.84)";
-    roundRect(ctx, canvas.width - 62, contentTop - 8, 12, 88, 6);
+  if (maxScroll > 0) {
+    const trackY = contentTop - 8;
+    const trackHeight = Math.max(96, contentBottom - trackY);
+    const thumbHeight = Math.max(58, trackHeight * (visibleHeight / (visibleHeight + maxScroll)));
+    const thumbTravel = trackHeight - thumbHeight;
+    const thumbY = trackY + (scroll / maxScroll) * thumbTravel;
+    ctx.fillStyle = "rgba(248,246,238,0.18)";
+    roundRect(ctx, canvas.width - 64, trackY, 14, trackHeight, 7);
+    ctx.fill();
+    ctx.fillStyle = "rgba(85,198,186,0.92)";
+    roundRect(ctx, canvas.width - 64, thumbY, 14, thumbHeight, 7);
     ctx.fill();
   }
 }

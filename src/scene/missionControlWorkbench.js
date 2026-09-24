@@ -102,6 +102,16 @@ export class MissionControlWorkbench {
     return meshes;
   }
 
+  getDirectTouchMeshes() {
+    const meshes = [];
+    this.root.traverse((object) => {
+      if (object.isMesh && object.userData?.hit_target && this.resolveControl(object)) {
+        meshes.push(object);
+      }
+    });
+    return meshes;
+  }
+
   resolveControl(object) {
     let current = object;
     while (current && current !== this.root.parent) {
@@ -175,8 +185,11 @@ export class MissionControlWorkbench {
       const selected = control.userData.control_id === selectedId;
       const travel = Number(control.userData.travel_meters ?? 0.012);
       const targetOffset = selected ? -travel : 0;
-      if (animate) this.tweenPressOffset(control, targetOffset, selected ? 0.07 : 0.10);
-      else this.setPressOffset(control, targetOffset);
+      const changed = control.userData.value !== selected;
+      if (changed || Math.abs(Number(control.userData.pressOffset ?? 0) - targetOffset) > 0.0005) {
+        if (animate) this.tweenPressOffset(control, targetOffset, selected ? 0.07 : 0.10);
+        else this.setPressOffset(control, targetOffset);
+      }
       const indicator = control.userData.indicatorMesh;
       if (indicator?.material) {
         indicator.material.color.set(selected ? "#3fd8ed" : "#69747a");
@@ -194,12 +207,14 @@ export class MissionControlWorkbench {
   setGuardOpen(id = "guard-cover", open, { emit = true } = {}) {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "hinged_cover") return;
+    const nextValue = open ? "open" : "closed";
+    if (control.userData.value === nextValue) return;
     const openDegrees = Number(control.userData.open_degrees);
     const closedDegrees = Number(control.userData.closed_degrees);
     const targetDegrees = open ? openDegrees : closedDegrees;
     const defaultDegrees = control.userData.default_state === "open" ? openDegrees : closedDegrees;
     this.tweenLocalRotation(control, targetDegrees - defaultDegrees, 0.2);
-    control.userData.value = open ? "open" : "closed";
+    control.userData.value = nextValue;
     if (emit) this.emit(control, control.userData.value);
   }
 
@@ -220,6 +235,7 @@ export class MissionControlWorkbench {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary") return;
     const value = THREE.MathUtils.clamp(normalized, 0, 1);
+    if (Math.abs(Number(control.userData.value ?? -1) - value) < 0.0005) return;
     const min = Number(control.userData.min_degrees);
     const max = Number(control.userData.max_degrees);
     const degrees = THREE.MathUtils.lerp(min, max, value);
@@ -258,6 +274,14 @@ export class MissionControlWorkbench {
     return new THREE.Plane().setFromNormalAndCoplanarPoint(normal, origin);
   }
 
+  controlWorldAxis(id) {
+    const control = this.getControl(id);
+    if (!control) return null;
+    const parentWorldQuaternion = control.parent.getWorldQuaternion(new THREE.Quaternion());
+    const restWorldQuaternion = parentWorldQuaternion.multiply(control.userData.restQuaternion);
+    return localAxis(control).applyQuaternion(restWorldQuaternion).normalize();
+  }
+
   nudgeKnob(id = "knob-main", direction = 1, { emit = true } = {}) {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary") return;
@@ -292,7 +316,27 @@ export class MissionControlWorkbench {
   }
 
   setScreenCanvas(id, canvas) {
-    this.setScreenTexture(id, new THREE.CanvasTexture(canvas));
+    const screen = this.getScreen(id);
+    if (!screen) throw new Error(`Unknown workbench screen: ${id}`);
+
+    let targetCanvas = screen.userData.dynamicCanvas;
+    let texture = screen.userData.dynamicTexture;
+    if (!targetCanvas) {
+      targetCanvas = document.createElement("canvas");
+      texture = new THREE.CanvasTexture(targetCanvas);
+      screen.userData.dynamicCanvas = targetCanvas;
+      screen.userData.dynamicTexture = texture;
+      this.setScreenTexture(id, texture);
+    }
+
+    if (targetCanvas.width !== canvas.width || targetCanvas.height !== canvas.height) {
+      targetCanvas.width = canvas.width;
+      targetCanvas.height = canvas.height;
+    }
+    const ctx = targetCanvas.getContext("2d");
+    ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+    ctx.drawImage(canvas, 0, 0);
+    texture.needsUpdate = true;
   }
 
   setScreenColor(id, color, emissiveIntensity = 1.5) {

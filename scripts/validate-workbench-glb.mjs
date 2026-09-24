@@ -81,5 +81,25 @@ const guardedButton = nodes.get("Control_Button_Guarded");
 assert.equal(guardedButton.extras?.requires_control, "guard-cover");
 assert.equal(guardedButton.extras?.requires_state, "open");
 
+const requiredDirectTouchTargets = [
+  ...Array.from({ length: 9 }, (_, index) => `Radio_${String(index + 1).padStart(2, "0")}_Cap`),
+  "Button_Guarded_Cap",
+  "Button_Submit_Cap",
+  "Guard_Cover_Clear_Shell",
+  "Knob_Main_Grip",
+  "Knob_Main_Touch_Target",
+];
+for (const nodeName of requiredDirectTouchTargets) {
+  assert.equal(nodes.get(nodeName)?.extras?.hit_target, true, `${nodeName} must be a direct-touch target`);
+}
+assert.equal(
+  [...nodes.values()].filter((node) => node.extras?.hit_target).length,
+  requiredDirectTouchTargets.length,
+  "Only explicit control surfaces may be direct-touch targets",
+);
+
 console.log(`Validated ${fileURLToPath(modelUrl)}`);
-console.log(`${requiredControls.length} articulated controls, 3 exclusive radio groups, ${requiredScreens.length} addressable screens`);
+console.log(
+  `${requiredControls.length} articulated controls, 3 exclusive radio groups, ` +
+  `${requiredScreens.length} addressable screens, ${requiredDirectTouchTargets.length} direct-touch targets`,
+);

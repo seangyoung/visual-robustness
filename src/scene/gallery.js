@@ -29,12 +29,14 @@ import {
   createButtonTexture,
   createComparisonCardTexture,
   createPanelTexture,
+  visualizationAssetRevision,
 } from "../visualizations/colorFragility.js";
 import { loadMissionControlWorkbench } from "./missionControlWorkbench.js";
 
 const PANEL_W = 3.3;
 const PANEL_H = 2.28;
 const SIDE_PANEL_X = 3.08;
+const SIDE_PANEL_YAW = 0.23;
 const TASK_PANEL_W = 2.34;
 const TASK_PANEL_H = 1.68;
 const CONTROL_BUTTON_H = 0.19;
@@ -140,7 +142,7 @@ const BUTTONS = [
     width: 1.08,
     height: 0.28,
     rotationX: 0,
-    rotationY: -0.15,
+    rotationY: -SIDE_PANEL_YAW,
     phases: [MODULE_PHASES.TRANSFER],
   },
   {
@@ -153,7 +155,7 @@ const BUTTONS = [
     width: 0.68,
     height: 0.2,
     rotationX: 0,
-    rotationY: -0.15,
+    rotationY: -SIDE_PANEL_YAW,
     phases: [MODULE_PHASES.TRANSFER],
   },
   {
@@ -183,10 +185,12 @@ const SNAP_TURN_AXIS = new THREE.Vector3(0, 1, 0);
 const TASK_SCROLL_THRESHOLD = 0.36;
 const TASK_SCROLL_SPEED = 5.5;
 const TASK_SCROLL_MAX = 360;
-const WORKBENCH_TOUCH_RAY_LENGTH = 0.28;
-const WORKBENCH_TOUCH_TIP_OFFSET = 0.12;
-const WORKBENCH_TOUCH_DEPTH = 0.1;
-const WORKBENCH_TOUCH_MARGIN = 0.035;
+const WORKBENCH_TOUCH_TIP_OFFSET = 0.09;
+const WORKBENCH_TOUCH_RADIUS = 0.012;
+const WORKBENCH_TOUCH_RELEASE_MARGIN = 0.02;
+const WORKBENCH_TOUCH_PRESS_DEPTH = 0.006;
+const WORKBENCH_VIEWER_DISTANCE = 1.3;
+const WORKBENCH_VIEWER_VERTICAL_OFFSET = 1.56;
 const FIGURE_INSPECTOR_W = 3.72;
 const FIGURE_INSPECTOR_H = 2.54;
 const FIGURE_INSPECTOR_Y = 1.82;
@@ -199,6 +203,7 @@ const FIGURE_INSPECTOR_ZOOM_SPEED = 0.035;
 const MISSION_CONTROL_SCREEN_W = 1024;
 const MISSION_CONTROL_SCREEN_H = 300;
 const MISSION_CONTROL_SCREEN_SCALE = 2;
+const VR_DEBUG = new URLSearchParams(window.location.search).get("vrDebug") === "1";
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -248,7 +253,7 @@ function transferChoiceHitArea(choiceIndex) {
     width: 2.86,
     height: 0.22,
     rotationX: 0,
-    rotationY: -0.15,
+    rotationY: -SIDE_PANEL_YAW,
     phases: [MODULE_PHASES.TRANSFER],
     hitOnly: true,
   };
@@ -314,6 +319,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType("local-floor");
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
@@ -348,7 +354,6 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   const rankingSet = createRankingSet(stage);
   const controllers = createControllers(renderer, scene);
   const raycaster = new THREE.Raycaster();
-  const touchRaycaster = new THREE.Raycaster();
   const clock = new THREE.Clock();
   const pointer = new THREE.Vector2();
   const snapTurnPivot = new THREE.Vector3();
@@ -395,6 +400,11 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   let figureInspectorCloseButtonArmed = true;
   let missionControlWorkbench = null;
   let missionControlScreenKey = "";
+  let missionControlWasActive = false;
+  let missionControlNeedsAnchor = false;
+  let currentReferenceSpace = null;
+  let debugElapsed = 0;
+  let debugFrames = 0;
 
   if (USE_MODEL_WORKBENCH) {
     loadMissionControlWorkbench({ onControl: handleMissionControlEvent })
@@ -418,6 +428,9 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const isImmersive = Boolean(currentSession);
     const useModelWorkbench = isModelWorkbenchActive(state, sceneState, isImmersive);
     const inWorldPanelState = panelStateWithScroll(state);
+    if (useModelWorkbench && !missionControlWasActive) missionControlNeedsAnchor = true;
+    missionControlWasActive = useModelWorkbench;
+    world.legacyWorkbench.visible = !useModelWorkbench;
     updateInWorldControlVisibility(
       mainButtons,
       checkButtons,
@@ -476,7 +489,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         return;
       }
       const session = await navigator.xr.requestSession("immersive-vr", {
-        optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
+        requiredFeatures: ["local-floor"],
+        optionalFeatures: ["bounded-floor"],
       });
       currentSession = session;
       updateInWorldControlVisibility(
@@ -491,9 +505,14 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         isModelWorkbenchActive(currentState, moduleScenes[currentState.sceneIndex], true),
       );
       session.addEventListener("end", () => {
+        currentReferenceSpace?.removeEventListener?.("reset", handleReferenceSpaceReset);
+        currentReferenceSpace = null;
         currentSession = null;
         dragState = null;
+        directTouchStates.clear();
         figureInspectorCloseButtonArmed = true;
+        missionControlWasActive = false;
+        missionControlNeedsAnchor = false;
         resetSnapTurn();
         setInWorldControlsVisible(inWorldButtons, false);
         robustnessSlider.group.visible = false;
@@ -507,10 +526,19 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         renderState(currentState);
       });
       await renderer.xr.setSession(session);
+      currentReferenceSpace = renderer.xr.getReferenceSpace();
+      currentReferenceSpace?.addEventListener?.("reset", handleReferenceSpaceReset);
       ui.setVrMode(true);
+      renderState(currentState);
     } catch (error) {
       ui.setStatus(`Could not start VR: ${error.message}`);
     }
+  }
+
+  function handleReferenceSpaceReset() {
+    missionControlWasActive = false;
+    missionControlNeedsAnchor = true;
+    renderState(currentState);
   }
 
   function setVrButtonState() {
@@ -579,7 +607,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       robustnessSlider.hitArea,
       robustnessSlider.handle,
     ];
-    if (isModelWorkbenchActive()) objects.push(...missionControlWorkbench.getInteractiveMeshes());
+    if (isModelWorkbenchActive()) objects.push(...missionControlWorkbench.getDirectTouchMeshes());
     return objects;
   }
 
@@ -625,6 +653,19 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   }
 
   function beginControllerInteraction(controller) {
+    const directState = directTouchStates.get(controller.userData.index ?? 0);
+    if (directState?.kind === "mission-control-knob") {
+      beginMissionControlKnobDrag(controller, directState.controlId);
+      return;
+    }
+    if (directState?.kind === "mission-control") {
+      if (!directState.activated && activateMissionControlTarget(directState.target)) {
+        directState.activated = true;
+        pulseController(controller);
+      }
+      return;
+    }
+
     const hit = intersectController(controller, raycaster, getVisibleInteractiveObjects(currentInteractiveObjects()));
     const target = hit?.object;
     if (!target) return;
@@ -655,10 +696,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
     if (target.userData.kind === "mission-control") {
       if (missionControlWorkbench.controlIdFromObject(target) === "knob-main") {
-        dragState = { type: "mission-control-knob", controller };
-        hoverControl = target.userData.controlId;
-        pulseController(controller);
-        updateMissionControlKnobFromWorldPoint(hit.point);
+        beginMissionControlKnobDrag(controller, target.userData.controlId);
         return;
       }
       if (activateMissionControlTarget(target)) pulseController(controller);
@@ -720,7 +758,16 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         return;
       }
 
-      const hit = intersectControllerTouch(controller, touchRaycaster, touchObjects);
+      const previous = directTouchStates.get(controllerIndex);
+      let hit = intersectControllerContact(controller, touchObjects, WORKBENCH_TOUCH_RADIUS);
+      if (!hit && previous?.controlId) {
+        hit = intersectControllerContact(
+          controller,
+          touchObjects,
+          WORKBENCH_TOUCH_RADIUS + WORKBENCH_TOUCH_RELEASE_MARGIN,
+          previous.controlId,
+        );
+      }
       const target = hit?.object;
       if (!target || target.userData.disabled) {
         directTouchStates.delete(controllerIndex);
@@ -732,21 +779,51 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
       if (target.userData.kind === "slider") {
         directTouchStates.set(controllerIndex, { controlId, kind: "slider" });
-        if (updateSliderFromWorldPoint(hit.point)) pulseController(controller);
+        if (updateSliderFromWorldPoint(hit.touchPoint)) pulseController(controller, 0.18, 24);
         return;
       }
 
       if (target.userData.kind === "mission-control") {
-        if (missionControlWorkbench.controlIdFromObject(target) === "knob-main") {
+        const missionControlId = missionControlWorkbench.controlIdFromObject(target);
+        if (missionControlId === "knob-main") {
           directTouchStates.set(controllerIndex, { controlId, kind: "mission-control-knob" });
-          if (updateMissionControlKnobFromWorldPoint(hit.point)) pulseController(controller);
           return;
         }
-        const previous = directTouchStates.get(controllerIndex);
-        if (previous?.controlId !== controlId) {
-          if (activateMissionControlTarget(target)) pulseController(controller);
+
+        const control = missionControlWorkbench.getControl(missionControlId);
+        const axis = missionControlWorkbench.controlWorldAxis(missionControlId);
+        const projection = axis ? hit.touchPoint.dot(axis) : 0;
+        if (control?.userData.interaction === "hinged_cover") {
+          if (previous?.controlId !== controlId && activateMissionControlTarget(target)) {
+            pulseController(controller);
+          }
+          directTouchStates.set(controllerIndex, {
+            controlId,
+            kind: "mission-control",
+            target,
+            activated: true,
+            entryProjection: projection,
+          });
+          return;
         }
-        directTouchStates.set(controllerIndex, { controlId, kind: "mission-control" });
+
+        const state = previous?.controlId === controlId
+          ? previous
+          : {
+              controlId,
+              kind: "mission-control",
+              target,
+              activated: false,
+              entryProjection: projection,
+            };
+        const pressDepth = state.entryProjection - projection;
+        if (!state.activated && pressDepth >= WORKBENCH_TOUCH_PRESS_DEPTH) {
+          if (activateMissionControlTarget(target)) {
+            state.activated = true;
+            pulseController(controller);
+          }
+        }
+        directTouchStates.set(controllerIndex, state);
         return;
       }
 
@@ -755,7 +832,6 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         return;
       }
 
-      const previous = directTouchStates.get(controllerIndex);
       if (previous?.controlId !== controlId) {
         pulseController(controller);
         selectAction(target.userData.action, target.userData.payload ?? {});
@@ -793,7 +869,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       return;
     }
     if (activeDrag.type === "mission-control-knob") {
-      updateMissionControlKnobFromController(activeDrag.controller);
+      updateMissionControlKnobFromController(activeDrag);
       return;
     }
     if (activeDrag.type === "rank-card") {
@@ -829,26 +905,81 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     return false;
   }
 
-  function updateMissionControlKnobFromController(controller) {
-    if (!missionControlWorkbench) return false;
-    setRayFromController(controller, raycaster);
-    const plane = missionControlWorkbench.controlPlane("knob-main");
-    if (!plane) return false;
-    const point = new THREE.Vector3();
-    if (!raycaster.ray.intersectPlane(plane, point)) return false;
-    return updateMissionControlKnobFromWorldPoint(point);
+  function anchorMissionControlWorkbenchToViewer() {
+    if (!currentSession || !missionControlWorkbench) return;
+    const xrCamera = renderer.xr.getCamera(camera);
+    xrCamera.updateWorldMatrix(true, false);
+    const headPosition = xrCamera.getWorldPosition(new THREE.Vector3());
+    const headQuaternion = xrCamera.getWorldQuaternion(new THREE.Quaternion());
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuaternion);
+    forward.y = 0;
+    if (forward.lengthSq() < 0.0001) forward.set(0, 0, -1);
+    forward.normalize();
+
+    const worldPosition = headPosition.clone().addScaledVector(forward, WORKBENCH_VIEWER_DISTANCE);
+    worldPosition.y = headPosition.y - WORKBENCH_VIEWER_VERTICAL_OFFSET;
+    stage.updateWorldMatrix(true, false);
+    missionControlWorkbench.root.position.copy(stage.worldToLocal(worldPosition));
+
+    const yaw = Math.atan2(-forward.x, -forward.z);
+    const desiredWorldQuaternion = new THREE.Quaternion().setFromAxisAngle(SNAP_TURN_AXIS, yaw);
+    const stageWorldQuaternion = stage.getWorldQuaternion(new THREE.Quaternion());
+    missionControlWorkbench.root.quaternion.copy(
+      stageWorldQuaternion.invert().multiply(desiredWorldQuaternion),
+    );
+    missionControlWorkbench.root.updateWorldMatrix(true, true);
   }
 
-  function updateMissionControlKnobFromWorldPoint(worldPoint) {
-    if (!missionControlWorkbench?.setKnobFromWorldPoint("knob-main", worldPoint, {
-      emit: false,
-      animate: false,
-      steps: stressTests.length,
-    })) return false;
-    const normalized = missionControlWorkbench.getControl("knob-main")?.userData.value ?? 0;
+  function beginMissionControlKnobDrag(controller, controlId = "mission-control:knob-main") {
+    if (!missionControlWorkbench) return false;
+    const axis = missionControlWorkbench.controlWorldAxis("knob-main");
+    const reference = controllerOrientationReference(controller, axis);
+    const control = missionControlWorkbench.getControl("knob-main");
+    if (!axis || !reference || !control) return false;
+    const minDegrees = Number(control.userData.min_degrees);
+    const maxDegrees = Number(control.userData.max_degrees);
+    dragState = {
+      type: "mission-control-knob",
+      controller,
+      axis,
+      basisIndex: reference.basisIndex,
+      startVector: reference.vector,
+      startDegrees: THREE.MathUtils.lerp(minDegrees, maxDegrees, Number(control.userData.value ?? 0)),
+      minDegrees,
+      maxDegrees,
+      lastIndex: clampStressTestIndex(currentState.workbench.stressTestIndex),
+    };
+    hoverControl = controlId;
+    pulseController(controller, 0.22, 35);
+    return true;
+  }
+
+  function updateMissionControlKnobFromController(activeDrag) {
+    if (!missionControlWorkbench) return false;
+    const currentVector = controllerOrientationVector(
+      activeDrag.controller,
+      activeDrag.axis,
+      activeDrag.basisIndex,
+    );
+    if (!currentVector) return false;
+    const cross = activeDrag.startVector.clone().cross(currentVector);
+    const deltaRadians = Math.atan2(
+      activeDrag.axis.dot(cross),
+      THREE.MathUtils.clamp(activeDrag.startVector.dot(currentVector), -1, 1),
+    );
+    const degrees = THREE.MathUtils.clamp(
+      activeDrag.startDegrees + THREE.MathUtils.radToDeg(deltaRadians),
+      activeDrag.minDegrees,
+      activeDrag.maxDegrees,
+    );
+    const normalized = (degrees - activeDrag.minDegrees) / (activeDrag.maxDegrees - activeDrag.minDegrees);
     const index = Math.round(THREE.MathUtils.clamp(normalized, 0, 1) * (stressTests.length - 1));
+    const snapped = stressTests.length <= 1 ? 0 : index / (stressTests.length - 1);
+    missionControlWorkbench.setKnobNormalized("knob-main", snapped, { emit: false, animate: false });
     if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
       selectAction("setStressTest", { index });
+      pulseController(activeDrag.controller, 0.2, 28);
+      activeDrag.lastIndex = index;
       return true;
     }
     return false;
@@ -1108,6 +1239,32 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     updateRankingSet(rankingSet, currentState, hoverControl, dragState);
   }
 
+  function updateVrDebug(deltaSeconds) {
+    if (!VR_DEBUG || !currentSession) return;
+    debugElapsed += deltaSeconds;
+    debugFrames += 1;
+    if (debugElapsed < 1) return;
+
+    const xrCamera = renderer.xr.getCamera(camera);
+    const headPosition = xrCamera.getWorldPosition(new THREE.Vector3());
+    const workbenchPosition = missionControlWorkbench?.root.visible
+      ? missionControlWorkbench.root.getWorldPosition(new THREE.Vector3())
+      : null;
+    console.info("[VR diagnostics]", {
+      fps: Math.round(debugFrames / debugElapsed),
+      frameMs: Number(((debugElapsed / debugFrames) * 1000).toFixed(1)),
+      drawCalls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      workbenchDistance: workbenchPosition
+        ? Number(headPosition.distanceTo(workbenchPosition).toFixed(2))
+        : null,
+      hoveredControl: hoverControl,
+      dragType: dragState?.type ?? null,
+    });
+    debugElapsed = 0;
+    debugFrames = 0;
+  }
+
   renderer.domElement.addEventListener("pointermove", onPointerMove);
   renderer.domElement.addEventListener("pointerdown", onPointerDown);
   window.addEventListener("resize", onResize);
@@ -1128,6 +1285,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       updateFigureInspectionZoom();
     }
     if (missionControlWorkbench?.root.visible) missionControlWorkbench.update(deltaSeconds);
+    if (missionControlNeedsAnchor && isModelWorkbenchActive()) {
+      anchorMissionControlWorkbenchToViewer();
+      missionControlNeedsAnchor = false;
+    }
     if (dragState) updateDragState(dragState);
     applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession));
     if (updateTaskPanelScroll()) {
@@ -1142,6 +1303,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     if (touchControl) setVrHoverControl(touchControl);
     else updateControllerHover(controllers, raycaster, currentInteractiveObjects(), setVrHoverControl);
     renderer.render(scene, camera);
+    updateVrDebug(deltaSeconds);
   });
 
   setVrButtonState();
@@ -1264,29 +1426,32 @@ function createWorld(scene) {
   accent.rotation.x = -Math.PI / 2;
   room.add(accent);
 
+  const legacyWorkbench = new THREE.Group();
+  room.add(legacyWorkbench);
+
   const workbenchTop = new THREE.Mesh(
     new THREE.BoxGeometry(3.8, 0.08, 1.02),
     new THREE.MeshStandardMaterial({ color: "#182124", roughness: 0.68, metalness: 0.08 }),
   );
   workbenchTop.position.set(0, LAYOUT.workbenchY, LAYOUT.workbenchZ);
-  room.add(workbenchTop);
+  legacyWorkbench.add(workbenchTop);
 
   const workbenchEdge = new THREE.Mesh(
     new THREE.BoxGeometry(3.92, 0.07, 1.14),
     new THREE.MeshStandardMaterial({ color: "#2b383b", roughness: 0.56 }),
   );
   workbenchEdge.position.set(0, LAYOUT.workbenchY - 0.06, LAYOUT.workbenchZ);
-  room.add(workbenchEdge);
+  legacyWorkbench.add(workbenchEdge);
 
-  return { room, accent };
+  return { room, accent, legacyWorkbench };
 }
 
 function createPanels(scene) {
   const group = new THREE.Group();
   scene.add(group);
-  const map = panelMesh("map", [-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, 0.15, 0], PANEL_W, PANEL_H);
+  const map = panelMesh("map", [-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, SIDE_PANEL_YAW, 0], PANEL_W, PANEL_H);
   const task = panelMesh("task", [0, TASK_PANEL_CENTER_Y, LAYOUT.taskZ], [0, 0, 0], TASK_PANEL_W, TASK_PANEL_H);
-  const chart = panelMesh("chart", [SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, -0.15, 0], PANEL_W, PANEL_H);
+  const chart = panelMesh("chart", [SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ], [0, -SIDE_PANEL_YAW, 0], PANEL_W, PANEL_H);
   map.userData.kind = "figure-panel";
   map.userData.controlId = "inspect-map";
   map.userData.figureKind = "map";
@@ -1312,13 +1477,13 @@ function applyPanelLayout(panels, sceneState, state, isImmersive) {
 
   panels.map.visible = !(isImmersive && sceneState.type === "comparison");
   panels.map.position.set(-SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ);
-  panels.map.rotation.set(0, 0.15, 0);
+  panels.map.rotation.set(0, SIDE_PANEL_YAW, 0);
   panels.task.visible = true;
   panels.task.position.set(0, TASK_PANEL_CENTER_Y, LAYOUT.taskZ);
   panels.task.rotation.set(0, 0, 0);
   panels.chart.visible = true;
   panels.chart.position.set(SIDE_PANEL_X, LAYOUT.panelY, LAYOUT.panelZ);
-  panels.chart.rotation.set(0, -0.15, 0);
+  panels.chart.rotation.set(0, -SIDE_PANEL_YAW, 0);
 }
 
 function createWorkbenchControlDeck(scene) {
@@ -1743,22 +1908,59 @@ function createControllers(renderer, scene) {
     );
     ray.name = "controller-ray";
     controller.add(ray);
+    controller.addEventListener("connected", (event) => {
+      controller.inputSource = event.data;
+    });
+    controller.addEventListener("disconnected", () => {
+      controller.inputSource = null;
+    });
     scene.add(controller);
 
     const grip = renderer.xr.getControllerGrip(index);
     grip.add(factory.createControllerModel(grip));
     scene.add(grip);
+    controller.userData.grip = grip;
     controllers.push(controller);
   }
   return controllers;
 }
 
 function updatePanel(mesh, kind, sceneState, state) {
-  const oldMap = mesh.material.map;
-  mesh.material.map = textureFromCanvas(createPanelTexture(kind, sceneState, state));
-  mesh.material.map.needsUpdate = true;
+  const renderKey = panelTextureKey(kind, sceneState, state);
+  if (mesh.userData.renderKey === renderKey) return;
+
+  const canvas = createPanelTexture(kind, sceneState, state, mesh.userData.textureCanvas);
+  mesh.userData.textureCanvas = canvas;
+  if (!mesh.material.map) {
+    mesh.material.map = textureFromCanvas(canvas);
+  } else {
+    mesh.material.map.needsUpdate = true;
+  }
   mesh.material.needsUpdate = true;
-  if (oldMap) oldMap.dispose();
+  mesh.userData.renderKey = renderKey;
+}
+
+function panelTextureKey(kind, sceneState, state) {
+  const example = visualizationExampleByIndex(state.exampleIndex ?? 0);
+  return JSON.stringify({
+    assets: visualizationAssetRevision(),
+    kind,
+    scene: sceneState?.id,
+    phase: state.modulePhase,
+    example: example.id,
+    stress: state.workbench?.stressTestIndex,
+    interventions: state.workbench?.interventions,
+    feedback: kind === "task" ? state.exampleFeedback?.[example.id] : null,
+    submittedExamples: kind === "task" ? state.submittedExamples : null,
+    transferChallenge: state.selectedChallengeId,
+    transferAnswer: state.transferAnswer,
+    transferSubmitted: state.transferSubmitted,
+    transferFeedback: kind === "task" ? state.transferFeedback : null,
+    settings: state.settings,
+    ranking: sceneState?.type === "comparison" ? state.ranking : null,
+    rankingCheck: sceneState?.type === "comparison" ? state.rankingCheck : null,
+    scroll: kind === "task" ? state.vrTaskScroll : null,
+  });
 }
 
 function updateFigureInspector(inspector, inspection, sceneState, state, isImmersive, hoverControl) {
@@ -1768,11 +1970,22 @@ function updateFigureInspector(inspector, inspection, sceneState, state, isImmer
   }
 
   inspector.group.visible = true;
-  const oldSurfaceMap = inspector.surfaceMaterial.map;
-  inspector.surfaceMaterial.map = textureFromCanvas(createFigureInspectionTexture(inspection.kind, sceneState, state, inspection));
-  inspector.surfaceMaterial.map.needsUpdate = true;
+  const canvas = createFigureInspectionTexture(
+    inspection.kind,
+    sceneState,
+    state,
+    inspection,
+    inspector.textureCanvas,
+    inspector.sourceCanvas,
+  );
+  inspector.textureCanvas = canvas.output;
+  inspector.sourceCanvas = canvas.source;
+  if (!inspector.surfaceMaterial.map) {
+    inspector.surfaceMaterial.map = textureFromCanvas(canvas.output);
+  } else {
+    inspector.surfaceMaterial.map.needsUpdate = true;
+  }
   inspector.surfaceMaterial.needsUpdate = true;
-  if (oldSurfaceMap) oldSurfaceMap.dispose();
 
   updateFigureInspectorCloseTexture(inspector, hoverControl);
 }
@@ -1812,18 +2025,28 @@ function isFigureInspectable(kind, sceneState, state) {
   return false;
 }
 
-function createFigureInspectionTexture(kind, sceneState, state, inspection) {
-  const source = createPanelTexture(kind, sceneState, state);
-  const canvas = document.createElement("canvas");
-  canvas.width = FIGURE_INSPECTOR_TEXTURE_W;
-  canvas.height = FIGURE_INSPECTOR_TEXTURE_H;
+function createFigureInspectionTexture(
+  kind,
+  sceneState,
+  state,
+  inspection,
+  targetCanvas = null,
+  sourceCanvas = null,
+) {
+  const source = createPanelTexture(kind, sceneState, state, sourceCanvas);
+  const canvas = targetCanvas ?? document.createElement("canvas");
+  if (canvas.width !== FIGURE_INSPECTOR_TEXTURE_W || canvas.height !== FIGURE_INSPECTOR_TEXTURE_H) {
+    canvas.width = FIGURE_INSPECTOR_TEXTURE_W;
+    canvas.height = FIGURE_INSPECTOR_TEXTURE_H;
+  }
   const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawInspectionSource(ctx, source, canvas.width, canvas.height, inspection);
   ctx.strokeStyle = "#d3d8d2";
   ctx.lineWidth = 10;
   ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
-  return canvas;
+  return { output: canvas, source };
 }
 
 function drawInspectionSource(ctx, source, viewWidth, viewHeight, inspection) {
@@ -2302,45 +2525,89 @@ function intersectController(controller, raycaster, objects) {
   return raycaster.intersectObjects(objects, false)[0] ?? null;
 }
 
-function intersectControllerTouch(controller, raycaster, objects) {
-  setRayFromController(controller, raycaster);
-  raycaster.near = 0;
-  raycaster.far = WORKBENCH_TOUCH_RAY_LENGTH;
-  return raycaster.intersectObjects(objects, false)[0] ?? controllerProximityTouch(controller, objects);
-}
-
-function controllerProximityTouch(controller, objects) {
-  controller.updateWorldMatrix(true, false);
-  const rotation = new THREE.Matrix4().identity().extractRotation(controller.matrixWorld);
-  const touchPoint = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
-  touchPoint.addScaledVector(new THREE.Vector3(0, 0, -1).applyMatrix4(rotation), WORKBENCH_TOUCH_TIP_OFFSET);
+function intersectControllerContact(controller, objects, radius, preferredControlId = null) {
+  const touchPoint = controllerTouchPoint(controller);
+  if (!touchPoint) return null;
 
   let bestHit = null;
   objects.forEach((object) => {
-    const width = object.geometry?.parameters?.width;
-    const height = object.geometry?.parameters?.height;
-    if (!width || !height) return;
+    if (preferredControlId && object.userData.controlId !== preferredControlId) return;
+    const geometry = object.geometry;
+    if (!geometry) return;
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    if (!geometry.boundingBox) return;
 
     object.updateWorldMatrix(true, false);
-    const local = object.worldToLocal(touchPoint.clone());
-    const halfW = width / 2 + WORKBENCH_TOUCH_MARGIN;
-    const halfH = height / 2 + WORKBENCH_TOUCH_MARGIN;
-    const depth = Math.abs(local.z);
-    if (Math.abs(local.x) > halfW || Math.abs(local.y) > halfH || depth > WORKBENCH_TOUCH_DEPTH) {
-      return;
-    }
+    const localPoint = object.worldToLocal(touchPoint.clone());
+    const worldScale = object.getWorldScale(new THREE.Vector3());
+    const expansion = new THREE.Vector3(
+      radius / Math.max(Math.abs(worldScale.x), 0.0001),
+      radius / Math.max(Math.abs(worldScale.y), 0.0001),
+      radius / Math.max(Math.abs(worldScale.z), 0.0001),
+    );
+    const expandedBounds = geometry.boundingBox.clone();
+    expandedBounds.min.sub(expansion);
+    expandedBounds.max.add(expansion);
+    if (!expandedBounds.containsPoint(localPoint)) return;
 
-    if (!bestHit || depth < bestHit.depth) {
-      const planePoint = object.localToWorld(new THREE.Vector3(
-        clamp(local.x, -width / 2, width / 2),
-        clamp(local.y, -height / 2, height / 2),
-        0,
-      ));
-      bestHit = { object, point: planePoint, depth };
+    const closestLocal = geometry.boundingBox.clampPoint(localPoint, new THREE.Vector3());
+    const closestWorld = object.localToWorld(closestLocal.clone());
+    const distance = closestWorld.distanceTo(touchPoint);
+    if (!bestHit || distance < bestHit.distance) {
+      bestHit = { object, point: closestWorld, touchPoint: touchPoint.clone(), distance };
     }
   });
 
   return bestHit;
+}
+
+function controllerTouchPoint(controller) {
+  const grip = controller.userData.grip;
+  const originSource = grip?.visible ? grip : controller;
+  originSource.updateWorldMatrix(true, false);
+  controller.updateWorldMatrix(true, false);
+  const origin = originSource.getWorldPosition(new THREE.Vector3());
+  const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
+    controller.getWorldQuaternion(new THREE.Quaternion()),
+  );
+  return origin.addScaledVector(direction, WORKBENCH_TOUCH_TIP_OFFSET);
+}
+
+function controllerOrientationReference(controller, normal) {
+  if (!normal) return null;
+  let best = null;
+  for (let basisIndex = 0; basisIndex < 3; basisIndex += 1) {
+    const vector = controllerOrientationVector(controller, normal, basisIndex);
+    if (!vector) continue;
+    const source = controller.userData.grip?.visible ? controller.userData.grip : controller;
+    const quaternion = source.getWorldQuaternion(new THREE.Quaternion());
+    const raw = [
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, 0, -1),
+    ][basisIndex].applyQuaternion(quaternion);
+    const projectedLength = raw.addScaledVector(normal, -raw.dot(normal)).lengthSq();
+    if (!best || projectedLength > best.projectedLength) {
+      best = { basisIndex, vector, projectedLength };
+    }
+  }
+  return best;
+}
+
+function controllerOrientationVector(controller, normal, basisIndex) {
+  const source = controller.userData.grip?.visible ? controller.userData.grip : controller;
+  source.updateWorldMatrix(true, false);
+  const quaternion = source.getWorldQuaternion(new THREE.Quaternion());
+  const localAxes = [
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, 0, -1),
+  ];
+  const vector = localAxes[basisIndex]?.clone().applyQuaternion(quaternion);
+  if (!vector) return null;
+  vector.addScaledVector(normal, -vector.dot(normal));
+  if (vector.lengthSq() < 0.001) return null;
+  return vector.normalize();
 }
 
 function controllerPlanePoint(controller, raycaster, z) {
@@ -2407,10 +2674,10 @@ function rankingAfterDrop(ranking, droppedId, droppedX) {
   return next;
 }
 
-function pulseController(controller) {
+function pulseController(controller, intensity = 0.35, duration = 60) {
   const gamepad = controller.inputSource?.gamepad;
   const actuator = gamepad?.hapticActuators?.[0];
-  if (actuator?.pulse) actuator.pulse(0.35, 60);
+  if (actuator?.pulse) actuator.pulse(intensity, duration);
 }
 
 function clamp(value, min, max) {
