@@ -190,12 +190,13 @@ const WORKBENCH_TOUCH_TIP_OFFSET = 0.09;
 const WORKBENCH_TOUCH_RADIUS = 0.012;
 const WORKBENCH_TOUCH_RELEASE_MARGIN = 0.02;
 const WORKBENCH_TOUCH_PRESS_DEPTH = 0.006;
+const WORKBENCH_KNOB_RESET_PRESS_DEPTH = 0.012;
 const URL_PARAMS = new URLSearchParams(window.location.search);
-const WORKBENCH_VIEWER_DISTANCE = boundedUrlNumber(URL_PARAMS.get("benchDistance"), 1.15, 0.95, 1.45);
+const WORKBENCH_VIEWER_DISTANCE = boundedUrlNumber(URL_PARAMS.get("benchDistance"), 1.05, 0.9, 1.45);
 const WORKBENCH_VIEWER_VERTICAL_OFFSET = boundedUrlNumber(
   URL_PARAMS.get("benchHeight"),
-  1.56,
-  1.35,
+  1.48,
+  1.3,
   1.75,
 );
 const FIGURE_INSPECTOR_W = 3.72;
@@ -799,7 +800,24 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       if (target.userData.kind === "mission-control") {
         const missionControlId = missionControlWorkbench.controlIdFromObject(target);
         if (missionControlId === "knob-main") {
-          directTouchStates.set(controllerIndex, { controlId, kind: "mission-control-knob" });
+          const axis = missionControlWorkbench.controlWorldAxis(missionControlId);
+          const projection = axis ? hit.touchPoint.dot(axis) : 0;
+          const state = previous?.controlId === controlId
+            ? previous
+            : {
+                controlId,
+                kind: "mission-control-knob",
+                resetActivated: false,
+                entryProjection: projection,
+              };
+          const pressDepth = state.entryProjection - projection;
+          if (!state.resetActivated && pressDepth >= WORKBENCH_KNOB_RESET_PRESS_DEPTH) {
+            if (missionControlWorkbench.pressRotary(missionControlId)) {
+              state.resetActivated = true;
+              pulseController(controller, 0.5, 85);
+            }
+          }
+          directTouchStates.set(controllerIndex, state);
           return;
         }
 
@@ -1022,6 +1040,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const example = visualizationExampleByIndex(currentState.exampleIndex ?? 0);
     const interventions = normalizeInterventions(currentState.workbench?.interventions);
     if (event.id === "knob-main") {
+      if (event.gesture === "push" || event.event === "reset") {
+        selectAction("setStressTest", { index: 0 });
+        return;
+      }
       const index = Math.round(THREE.MathUtils.clamp(event.value ?? 0, 0, 1) * (stressTests.length - 1));
       selectAction("setStressTest", { index });
       return;
@@ -1103,7 +1125,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         title: "Stress Test",
         primary: stressTest.shortLabel,
         secondary: stressTest.frequency ?? "",
-        footer: `${stressIndex + 1} of ${stressTests.length}`,
+        footer: `${stressIndex + 1} of ${stressTests.length}  ·  Push knob to reset`,
       }),
     );
     optionGroups.forEach((group, index) => {

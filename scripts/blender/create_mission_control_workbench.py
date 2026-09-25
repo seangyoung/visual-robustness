@@ -315,6 +315,8 @@ def create_knob(module, mats):
             "min_degrees": -135.0,
             "max_degrees": 135.0,
             "step_degrees": 15.0,
+            "push_travel_meters": 0.012,
+            "push_event": "reset",
             "screen_id": "knob-feedback",
         },
     )
@@ -322,9 +324,11 @@ def create_knob(module, mats):
     cylinder("Knob_Main_Base", 0.136, 0.026, mats["black"], pivot, (0, 0, 0.014))
     knob = cylinder("Knob_Main_Grip", 0.106, 0.052, mats["metal"], pivot, (0, 0, 0.050), bevel=0.012)
     knob["hit_target"] = True
+    knob["press_part"] = True
     hit_target = rounded_box("Knob_Main_Touch_Target", (0.36, 0.012, 0.36), mats["hit"], pivot, (0, 0.065, 0), bevel=0.01)
     hit_target["hit_target"] = True
-    rounded_box("Knob_Main_Indicator", (0.011, 0.068, 0.007), mats["cyan"], pivot, (0, 0.031, 0.079), bevel=0.003)
+    indicator = rounded_box("Knob_Main_Indicator", (0.011, 0.068, 0.007), mats["cyan"], pivot, (0, 0.031, 0.079), bevel=0.003)
+    indicator["press_part"] = True
     return pivot
 
 

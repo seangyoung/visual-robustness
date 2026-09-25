@@ -27,7 +27,7 @@ Each screen is an independent mesh with its own material. Use
 
 ## Interactive controls
 
-- `knob-main`: rotary control, -135 to +135 degrees in 15-degree steps.
+- `knob-main`: push-rotary control, -135 to +135 degrees in 15-degree steps; pressing it resets the stress test.
 - `radio-01` through `radio-09`: three mutually exclusive groups of three push buttons.
 - `submit`: momentary button with 18 mm travel.
 - `guard-cover`: hinged amber safety cover with open and closed states.

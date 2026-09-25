@@ -42,6 +42,15 @@ for (const [nodeName, controlId, interaction, axis] of requiredControls) {
   assert.equal(node.extras?.axis, axis, `${nodeName} has the wrong local motion axis`);
 }
 
+const knobControl = nodes.get("Control_Knob_Main");
+assert.equal(knobControl.extras?.push_event, "reset", "The stress knob push action must reset the test");
+assert(
+  Number(knobControl.extras?.push_travel_meters) >= 0.01,
+  "The stress knob must define visible push travel",
+);
+assert.equal(nodes.get("Knob_Main_Grip")?.extras?.press_part, true, "The stress knob grip must depress");
+assert.equal(nodes.get("Knob_Main_Indicator")?.extras?.press_part, true, "The stress knob indicator must depress");
+
 for (const shellName of ["Workbench_Continuous_Body", "Workbench_Continuous_Deck", "Workbench_Front_Trim"]) {
   assert(nodes.has(shellName), `Missing continuous shell node ${shellName}`);
 }

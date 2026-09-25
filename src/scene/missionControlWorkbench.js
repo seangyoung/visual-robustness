@@ -6,7 +6,7 @@ const AXES = {
   Y: new THREE.Vector3(0, 1, 0),
   Z: new THREE.Vector3(0, 0, 1),
 };
-const DEFAULT_MODEL_URL = `${import.meta.env.BASE_URL}assets/models/mission-control-workbench.glb`;
+const DEFAULT_MODEL_URL = `${import.meta.env?.BASE_URL ?? "/"}assets/models/mission-control-workbench.glb`;
 
 /**
  * Load and control the named, articulated Mission Control workbench GLB.
@@ -231,6 +231,23 @@ export class MissionControlWorkbench {
     return true;
   }
 
+  pressRotary(id = "knob-main", { emit = true } = {}) {
+    const control = this.getControl(id);
+    if (!control || control.userData.interaction !== "rotary" || this.disabledControls.has(id)) return false;
+
+    const travel = Number(control.userData.push_travel_meters ?? 0.012);
+    this.tweenPressOffset(control, -travel, 0.06, () => {
+      this.tweenPressOffset(control, 0, 0.12);
+    });
+    if (emit) {
+      this.emit(control, "pressed", {
+        gesture: "push",
+        event: control.userData.push_event ?? "reset",
+      });
+    }
+    return true;
+  }
+
   setKnobNormalized(id = "knob-main", normalized, { emit = true, animate = true } = {}) {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary") return;
@@ -241,7 +258,9 @@ export class MissionControlWorkbench {
     const degrees = THREE.MathUtils.lerp(min, max, value);
     if (animate) this.tweenLocalRotation(control, degrees, 0.08);
     else {
-      this.activeTweens = this.activeTweens.filter((item) => item.owner !== control);
+      this.activeTweens = this.activeTweens.filter(
+        (item) => item.owner !== control || item.channel !== "rotation",
+      );
       this.setLocalRotation(control, degrees);
     }
     control.userData.value = value;
@@ -381,6 +400,7 @@ export class MissionControlWorkbench {
     const target = this.localRotationQuaternion(control, degrees);
     this.replaceTween(control, {
       owner: control,
+      channel: "rotation",
       elapsed: 0,
       duration,
       apply: (t) => control.quaternion.slerpQuaternions(start, target, t),
@@ -415,6 +435,7 @@ export class MissionControlWorkbench {
     const startOffset = Number(control.userData.pressOffset ?? 0);
     this.replaceTween(control, {
       owner: control,
+      channel: "press",
       elapsed: 0,
       duration,
       apply: (t) => this.setPressOffset(control, THREE.MathUtils.lerp(startOffset, targetOffset, t)),
@@ -426,6 +447,7 @@ export class MissionControlWorkbench {
     const start = control.position.clone();
     this.replaceTween(control, {
       owner: control,
+      channel: "position",
       elapsed: 0,
       duration,
       apply: (t) => control.position.lerpVectors(start, target, t),
@@ -434,7 +456,10 @@ export class MissionControlWorkbench {
   }
 
   replaceTween(control, tween) {
-    this.activeTweens = this.activeTweens.filter((item) => item.owner !== control);
+    const channel = tween.channel ?? "default";
+    this.activeTweens = this.activeTweens.filter(
+      (item) => item.owner !== control || (item.channel ?? "default") !== channel,
+    );
     this.activeTweens.push(tween);
   }
 }
