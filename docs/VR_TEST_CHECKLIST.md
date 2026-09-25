@@ -3,11 +3,17 @@
 Use the deployed HTTPS build on a Meta Quest. Add `?vrDebug=1` to the URL when
 remote browser-console frame diagnostics are useful.
 
+The default workbench distance is `1.15` meters from its origin to the headset.
+For placement comparisons, use `?benchDistance=1.10` or another value from
+`0.95` through `1.45`. Use `benchHeight` to override the vertical offset below
+the headset, for example `?benchDistance=1.10&benchHeight=1.52`.
+
 ## Session setup
 
 - Start once while seated and once while standing.
 - Start facing slightly left or right of the room center.
 - Confirm the workbench appears centered, within comfortable reach, and below the displays.
+- Confirm every control can be touched from a relaxed seated posture without leaning forward.
 - Use the Quest system recenter action and confirm the complete scene remains aligned.
 
 ## Workbench input
@@ -24,6 +30,7 @@ remote browser-console frame diagnostics are useful.
 
 - Complete and resubmit all three examples.
 - Confirm every example maps its three option groups to the correct three radio groups.
+- Confirm each group display reads as three labels aligned with the three physical buttons below it.
 - Confirm the guarded Challenge control unlocks only after all examples are submitted.
 - Complete a transfer challenge and restart from the takeaway screen.
 

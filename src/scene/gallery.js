@@ -190,8 +190,14 @@ const WORKBENCH_TOUCH_TIP_OFFSET = 0.09;
 const WORKBENCH_TOUCH_RADIUS = 0.012;
 const WORKBENCH_TOUCH_RELEASE_MARGIN = 0.02;
 const WORKBENCH_TOUCH_PRESS_DEPTH = 0.006;
-const WORKBENCH_VIEWER_DISTANCE = 1.3;
-const WORKBENCH_VIEWER_VERTICAL_OFFSET = 1.56;
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const WORKBENCH_VIEWER_DISTANCE = boundedUrlNumber(URL_PARAMS.get("benchDistance"), 1.15, 0.95, 1.45);
+const WORKBENCH_VIEWER_VERTICAL_OFFSET = boundedUrlNumber(
+  URL_PARAMS.get("benchHeight"),
+  1.56,
+  1.35,
+  1.75,
+);
 const FIGURE_INSPECTOR_W = 3.72;
 const FIGURE_INSPECTOR_H = 2.54;
 const FIGURE_INSPECTOR_Y = 1.82;
@@ -204,7 +210,7 @@ const FIGURE_INSPECTOR_ZOOM_SPEED = 0.035;
 const MISSION_CONTROL_SCREEN_W = 1024;
 const MISSION_CONTROL_SCREEN_H = 300;
 const MISSION_CONTROL_SCREEN_SCALE = 2;
-const VR_DEBUG = new URLSearchParams(window.location.search).get("vrDebug") === "1";
+const VR_DEBUG = URL_PARAMS.get("vrDebug") === "1";
 const RANK_CARD_W = 0.82;
 const RANK_CARD_H = 1.22;
 const RANK_CARD_Z = -3.54;
@@ -221,6 +227,12 @@ function workbenchDeckPosition(x, deckY = 0) {
     LAYOUT.controlDeckY + Math.cos(LAYOUT.controlDeckRotationX) * deckY,
     LAYOUT.controlDeckZ + Math.sin(LAYOUT.controlDeckRotationX) * deckY,
   );
+}
+
+function boundedUrlNumber(rawValue, fallback, minimum, maximum) {
+  if (rawValue === null || rawValue.trim() === "") return fallback;
+  const value = Number(rawValue);
+  return Number.isFinite(value) ? THREE.MathUtils.clamp(value, minimum, maximum) : fallback;
 }
 
 function controlPosition(control) {
@@ -411,7 +423,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     loadMissionControlWorkbench({ onControl: handleMissionControlEvent })
       .then((workbench) => {
         missionControlWorkbench = workbench;
-        missionControlWorkbench.root.position.set(0, -0.36, -1.30);
+        missionControlWorkbench.root.position.set(0, -0.36, -WORKBENCH_VIEWER_DISTANCE);
         missionControlWorkbench.root.scale.setScalar(0.94);
         missionControlWorkbench.root.visible = false;
         stage.add(missionControlWorkbench.root);
@@ -1259,6 +1271,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       workbenchDistance: workbenchPosition
         ? Number(headPosition.distanceTo(workbenchPosition).toFixed(2))
         : null,
+      configuredWorkbenchDistance: WORKBENCH_VIEWER_DISTANCE,
+      configuredWorkbenchHeight: WORKBENCH_VIEWER_VERTICAL_OFFSET,
       hoveredControl: hoverControl,
       dragType: dragState?.type ?? null,
     });
@@ -2406,34 +2420,36 @@ function createMissionControlGroupCanvas({ title, options, activeId, footer = ""
   drawMissionControlScreenBase(ctx, screen, title);
 
   const visibleOptions = [...(options ?? [])].slice(0, 3);
-  const boxW = 290;
-  const boxH = 108;
-  const gap = 36;
-  const startX = (screen.width - boxW * 3 - gap * 2) / 2;
+  const columnWidth = screen.width / 3;
   visibleOptions.forEach((option, index) => {
     const active = option.id === activeId;
-    const x = startX + index * (boxW + gap);
-    const y = 112;
-    ctx.fillStyle = active ? "#f2c75e" : "#102a2e";
-    roundRect(ctx, x, y, boxW, boxH, 18);
-    ctx.fill();
-    ctx.strokeStyle = active ? "#fff1aa" : "#77d5de";
-    ctx.lineWidth = active ? 8 : 4;
-    roundRect(ctx, x, y, boxW, boxH, 18);
-    ctx.stroke();
+    const centerX = columnWidth * (index + 0.5);
 
-    ctx.fillStyle = active ? "#11191c" : "#f5fbf8";
-    ctx.font = "900 28px Arial";
+    if (index > 0) {
+      ctx.strokeStyle = "rgba(158, 231, 239, 0.28)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(columnWidth * index, 104);
+      ctx.lineTo(columnWidth * index, 226);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = active ? "#f2c75e" : "#f5fbf8";
+    ctx.font = active ? "900 31px Arial" : "800 29px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     wrapMissionControlScreenText(
       ctx,
       missionControlOptionLabel(option),
-      x + boxW / 2,
-      y + boxH / 2 - 8,
-      boxW - 34,
-      31,
+      centerX,
+      162,
+      columnWidth - 52,
+      34,
     );
+
+    ctx.fillStyle = active ? "#f2c75e" : "rgba(158, 231, 239, 0.32)";
+    roundRect(ctx, centerX - (active ? 78 : 34), 220, active ? 156 : 68, active ? 9 : 4, 4);
+    ctx.fill();
   });
 
   ctx.fillStyle = "#bdeff2";

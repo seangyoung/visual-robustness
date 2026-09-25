@@ -14,6 +14,11 @@ assert.equal(jsonChunkType, "JSON", "The first GLB chunk must be JSON");
 
 const gltf = JSON.parse(bytes.toString("utf8", 20, 20 + jsonChunkLength).trim());
 const nodes = new Map((gltf.nodes ?? []).map((node) => [node.name, node]));
+const nodeIndexByName = new Map((gltf.nodes ?? []).map((node, index) => [node.name, index]));
+const parentIndexByChild = new Map();
+(gltf.nodes ?? []).forEach((node, parentIndex) => {
+  (node.children ?? []).forEach((childIndex) => parentIndexByChild.set(childIndex, parentIndex));
+});
 
 const requiredControls = [
   ["Control_Knob_Main", "knob-main", "rotary", "Y"],
@@ -55,6 +60,35 @@ for (let groupIndex = 1; groupIndex <= 3; groupIndex += 1) {
     group.filter((node) => node.extras?.default_selected).length,
     1,
     `${groupId} must have exactly one default selection`,
+  );
+
+  const screen = nodes.get(`Screen_Group_${String(groupIndex).padStart(2, "0")}`);
+  const firstControlName = `Control_Radio_${String((groupIndex - 1) * 3 + 1).padStart(2, "0")}`;
+  const groupParentIndex = parentIndexByChild.get(nodeIndexByName.get(firstControlName));
+  assert(
+    group.every((node) => parentIndexByChild.get(nodeIndexByName.get(node.name)) === groupParentIndex),
+    `${groupId} controls must share one station parent`,
+  );
+  assert.equal(
+    parentIndexByChild.get(nodeIndexByName.get(screen.name)),
+    groupParentIndex,
+    `${groupId} screen must share the controls' station parent`,
+  );
+
+  const xPositions = group.map((node) => node.translation?.[0] ?? 0).sort((a, b) => a - b);
+  const spacingLeft = xPositions[1] - xPositions[0];
+  const spacingRight = xPositions[2] - xPositions[1];
+  assert(Math.abs(spacingLeft - spacingRight) < 0.001, `${groupId} controls must be evenly spaced`);
+  const groupCenterX = xPositions.reduce((sum, value) => sum + value, 0) / xPositions.length;
+  assert(
+    Math.abs((screen.translation?.[0] ?? 0) - groupCenterX) < 0.001,
+    `${groupId} screen must be centered over its controls`,
+  );
+
+  const controlHeights = group.map((node) => node.translation?.[1] ?? 0);
+  assert(
+    Math.max(...controlHeights) - Math.min(...controlHeights) < 0.001,
+    `${groupId} control pivots must share one deck height`,
   );
 }
 
