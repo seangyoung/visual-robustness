@@ -70,8 +70,8 @@ const EXAMPLE_BUTTON_Z_OFFSET = 0.05;
 const PANEL_BUTTON_Z_OFFSET = 0.06;
 const BUTTON_FACE_Z_OFFSET = 0.026;
 const INTRO_BUTTON_Y = LAYOUT.panelY - PANEL_H / 2 + 0.12;
-const RESPONSE_BUTTON_Y = TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.02;
 const TRANSFER_BUTTON_Y = LAYOUT.panelY - PANEL_H / 2 + 0.12;
+const TASK_ACTION_Y = TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.16;
 const BUTTONS = [
   {
     id: "start-module",
@@ -148,27 +148,37 @@ const BUTTONS = [
   {
     id: "continue-takeaways",
     action: "continueToTakeaways",
-    label: "Continue",
-    x: SIDE_PANEL_X + 0.46,
-    y: TRANSFER_BUTTON_Y,
-    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
-    width: 0.68,
-    height: 0.2,
+    label: "View\nTakeaways",
+    x: 0.47,
+    y: TASK_ACTION_Y,
+    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.82,
+    height: 0.24,
     rotationX: 0,
-    rotationY: -SIDE_PANEL_YAW,
+    phases: [MODULE_PHASES.TRANSFER],
+  },
+  {
+    id: "restart-after-challenge",
+    action: "restartModule",
+    label: "Restart\nModule",
+    x: -0.47,
+    y: TASK_ACTION_Y,
+    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.82,
+    height: 0.24,
+    rotationX: 0,
     phases: [MODULE_PHASES.TRANSFER],
   },
   {
     id: "restart-module",
     action: "restartModule",
     label: "Restart\nModule",
-    x: SIDE_PANEL_X,
-    y: TRANSFER_BUTTON_Y,
-    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
+    x: 0,
+    y: TASK_ACTION_Y,
+    z: LAYOUT.taskZ + PANEL_BUTTON_Z_OFFSET,
     width: 1.08,
     height: 0.28,
     rotationX: 0,
-    rotationY: -SIDE_PANEL_YAW,
     phases: [MODULE_PHASES.TAKEAWAYS],
   },
 ];
@@ -1841,6 +1851,7 @@ function updateInWorldControlVisibility(
       (button.id !== "continue-challenge" || readyForChallenge) &&
       (button.id !== "submit-transfer" || !state?.transferSubmitted) &&
       (button.id !== "continue-takeaways" || Boolean(state?.transferSubmitted)) &&
+      (button.id !== "restart-after-challenge" || Boolean(state?.transferSubmitted)) &&
       (button.id !== "restart-module" || phase === MODULE_PHASES.TAKEAWAYS) &&
       isSupportedPaletteChoice &&
       isSupportedLabelChoice &&
@@ -2245,7 +2256,7 @@ function buttonTextureSpec(button, state) {
 
   if (button.id === "continue-takeaways") {
     return {
-      label: "Continue",
+      label: "View\nTakeaways",
       active: false,
       options: {
         accent: true,
@@ -2253,7 +2264,7 @@ function buttonTextureSpec(button, state) {
     };
   }
 
-  if (button.id === "restart-module") {
+  if (button.id === "restart-after-challenge" || button.id === "restart-module") {
     return {
       label: "Restart\nModule",
       active: false,

@@ -77,6 +77,7 @@ export function createDomUi({
     transferChoices: document.getElementById("transfer-choices"),
     submitTransfer: document.getElementById("submit-transfer"),
     continueTakeaways: document.getElementById("continue-takeaways"),
+    restartAfterChallenge: document.getElementById("restart-after-challenge"),
     takeawayControls: document.getElementById("takeaway-controls"),
     restartModule: document.getElementById("restart-module"),
     rankingPanel: document.getElementById("ranking-panel"),
@@ -110,6 +111,7 @@ export function createDomUi({
   elements.continueChallenge.addEventListener("click", () => onAction("continueToChallenge"));
   elements.submitTransfer.addEventListener("click", () => onAction("submitTransferAnswer"));
   elements.continueTakeaways.addEventListener("click", () => onAction("continueToTakeaways"));
+  elements.restartAfterChallenge.addEventListener("click", () => onAction("restartModule"));
   elements.restartModule.addEventListener("click", () => onAction("restartModule"));
   elements.checkRanking.addEventListener("click", () => onAction("checkRanking"));
   elements.figureInspectorClose.addEventListener("click", () => closeBrowserFigureInspector(elements, browserInspection));
@@ -354,6 +356,8 @@ function renderTransferControls(elements, state, onAction) {
   elements.submitTransfer.textContent = state.transferSubmitted ? "Answer Submitted" : "Submit Answer";
   elements.continueTakeaways.hidden = !state.transferSubmitted;
   elements.continueTakeaways.disabled = !state.transferSubmitted;
+  elements.restartAfterChallenge.hidden = !state.transferSubmitted;
+  elements.restartAfterChallenge.disabled = !state.transferSubmitted;
 }
 
 function renderTakeawayControls(elements) {

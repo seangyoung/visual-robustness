@@ -715,6 +715,10 @@ input[type="range"]:disabled {
   align-items: center;
 }
 
+.transfer-controls {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
 .intro-controls {
   grid-template-columns: minmax(0, 1fr) auto;
 }

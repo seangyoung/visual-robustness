@@ -33,7 +33,8 @@ the headset, for example `?benchDistance=0.98&benchHeight=1.44`.
 - Confirm every example maps its three option groups to the correct three radio groups.
 - Confirm each group display reads as three labels aligned with the three physical buttons below it.
 - Confirm the guarded Challenge control unlocks only after all examples are submitted.
-- Complete a transfer challenge and restart from the takeaway screen.
+- Submit a transfer answer and confirm Restart Module and View Takeaways appear together on the center panel.
+- Restart directly from the submitted challenge, then complete it again and restart from the takeaway screen.
 
 ## Figures and comfort
 
