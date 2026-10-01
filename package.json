@@ -1,9 +1,20 @@
 {
   "name": "visual-robustness-webxr",
   "version": "0.1.0",
+  "description": "A browser and WebXR learning module for perceptual accessibility in data visualization.",
   "private": true,
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
+  "keywords": [
+    "accessibility",
+    "data-visualization",
+    "education",
+    "three.js",
+    "webxr"
+  ],
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "homepage": "https://seangyoung.github.io/visual-robustness/",
   "repository": {
     "type": "git",

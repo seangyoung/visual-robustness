@@ -25,8 +25,8 @@ apply to third-party materials, which retain their own licenses.
 
 Suggested attribution:
 
-> Perception Workbench: Perceptual Accessibility in Data Visualization by the
-> Perception Workbench contributors, licensed under CC BY 4.0. Source:
+> Visual Robustness: Perceptual Accessibility in Data Visualization by the Visual
+> Robustness contributors, licensed under CC BY 4.0. Source:
 > https://github.com/seangyoung/visual-robustness
 
 When adapting or redistributing this content, include attribution, a link to the
