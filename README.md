@@ -73,9 +73,15 @@ The deployed app is entirely client-side. It has no application server,
 database, login, analytics, or app-side student-data collection.
 
 The site includes a web app manifest, standard and maskable icons, and an Apple
-touch icon. Supporting browsers can install or save it as a standalone app from
-their site menu. Installation does not add offline caching; the app still needs a
-network connection to load from GitHub Pages.
+touch icon. Supporting desktop and mobile browsers can install or save it as a
+standalone app from their site menu. Installation does not add offline caching;
+the app still needs a network connection to load from GitHub Pages.
+
+The hosted manifest and icons also prepare the project for Meta Quest PWA
+packaging. Appearing as a separate application in the Quest App Library requires
+building and signing a Meta-compatible package with the Meta Quest Bubblewrap
+workflow, then sideloading it or distributing it through the Meta Horizon Store.
+That packaging step is separate from the hosted web prototype.
 
 ## Local Setup
 
