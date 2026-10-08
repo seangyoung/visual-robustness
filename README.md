@@ -72,6 +72,11 @@ reach, comfort, readability, or physical interaction quality.
 The deployed app is entirely client-side. It has no application server,
 database, login, analytics, or app-side student-data collection.
 
+The site includes a web app manifest, standard and maskable icons, and an Apple
+touch icon. Supporting browsers can install or save it as a standalone app from
+their site menu. Installation does not add offline caching; the app still needs a
+network connection to load from GitHub Pages.
+
 ## Local Setup
 
 Prerequisites:
