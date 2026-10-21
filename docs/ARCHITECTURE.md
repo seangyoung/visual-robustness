@@ -95,6 +95,8 @@ changing controls.
 - renderer, camera, lighting, and XR session setup;
 - in-world panels and figure surfaces;
 - controller rays, direct-touch hit testing, haptics, and snap turn;
+- optional WebXR hand tracking for fingertip presses, pinch selection, rotary
+  manipulation, and one- or two-hand figure inspection;
 - Stress Test knob manipulation and reset;
 - figure inspection in VR; and
 - phase-specific visibility and placement.

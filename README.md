@@ -52,9 +52,12 @@ Both modes use the same lesson state and visualization assets.
 - Stationary gallery with no required locomotion.
 - A modeled workbench with three physical radio-control groups.
 - A rotary Stress Test control with discrete detents and push-to-reset.
+- Optional controller-free hand tracking: fingertip button presses, pinch-and-turn
+  knob control, and deliberate pinch selection for figures and panel actions.
 - Direct controller touch for workbench controls, with controller-ray selection
   as a fallback.
-- Figure inspection with controller pan/zoom and the B button to close.
+- Figure inspection with one-hand pinch-drag panning and two-hand pinch zoom, plus
+  the existing controller pan/zoom and B-button close shortcut.
 - Snap-turn rotation for seated or standing use.
 
 See [docs/VR_TEST_CHECKLIST.md](./docs/VR_TEST_CHECKLIST.md) for the current

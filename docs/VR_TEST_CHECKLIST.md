@@ -11,6 +11,8 @@ the headset, for example `?benchDistance=0.98&benchHeight=1.44`.
 ## Session setup
 
 - Start once while seated and once while standing.
+- Start once with controllers and once with Quest hand tracking enabled.
+- Switch between controllers and hands during a session; confirm both input paths recover cleanly.
 - Start facing slightly left or right of the room center.
 - Confirm the workbench appears centered, within comfortable reach, and below the displays.
 - Confirm every control can be touched from a relaxed seated posture without leaning forward.
@@ -27,6 +29,20 @@ the headset, for example `?benchDistance=0.98&benchHeight=1.44`.
 - Push the stress knob straight into the workbench and confirm it depresses, pulses, and returns to baseline.
 - Point and use the trigger from a distance to verify the ray fallback still works.
 
+## Hand tracking
+
+- Press every workbench radio button with the index fingertip; each should activate once per press.
+- Brush the workbench, button rims, and adjacent controls; none should activate accidentally.
+- Push the Stress Test knob with one fingertip and confirm it resets to baseline.
+- Pinch the Stress Test knob, rotate the hand in both directions, and confirm each detent is reachable.
+- Confirm a pinch begun away from the knob does not rotate or reset it.
+- Aim at each map and chart, make a deliberate index-thumb pinch, and confirm the intended figure opens.
+- In figure inspection, pinch-drag with one hand to pan in the same direction as the hand movement.
+- Pinch with both hands, move them apart and together to zoom, and move them together to pan.
+- Pinch the figure-inspector close control and confirm the enlarged figure closes.
+- When center-panel text overflows, pinch-drag the panel vertically and confirm the text scrolls.
+- Repeat the complete learning flow without picking up either controller.
+
 ## Learning flow
 
 - Complete and resubmit all three examples.
@@ -38,7 +54,7 @@ the headset, for example `?benchDistance=0.98&benchHeight=1.44`.
 
 ## Figures and comfort
 
-- Open both map and chart inspection views, pan, zoom, and close with the B button.
+- Open both map and chart inspection views, pan, zoom, and close with the B button or hand pinch.
 - Confirm workbench controls remain usable while inspection is open.
 - Scroll any overflowing center-panel text and confirm the scrollbar is visible before scrolling.
 - Use snap turn in both directions and confirm no turn occurs while manipulating a control.

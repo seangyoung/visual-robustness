@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+import { XRHandModelFactory } from "three/addons/webxr/XRHandModelFactory.js";
 import {
   INTERVENTION_KEYS,
   cueVariantFromInterventions,
@@ -201,6 +202,11 @@ const WORKBENCH_TOUCH_RADIUS = 0.012;
 const WORKBENCH_TOUCH_RELEASE_MARGIN = 0.02;
 const WORKBENCH_TOUCH_PRESS_DEPTH = 0.006;
 const WORKBENCH_KNOB_RESET_PRESS_DEPTH = 0.012;
+const HAND_TOUCH_RADIUS = 0.01;
+const HAND_TOUCH_RELEASE_MARGIN = 0.018;
+const HAND_KNOB_GRAB_RADIUS = 0.035;
+const HAND_FIGURE_MOVE_EPSILON = 0.0005;
+const HAND_TASK_SCROLL_SCALE = 620;
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const WORKBENCH_VIEWER_DISTANCE = boundedUrlNumber(URL_PARAMS.get("benchDistance"), 1.05, 0.9, 1.45);
 const WORKBENCH_VIEWER_VERTICAL_OFFSET = boundedUrlNumber(
@@ -377,6 +383,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   const figureInspector = createFigureInspector(stage);
   const rankingSet = createRankingSet(stage);
   const controllers = createControllers(renderer, scene);
+  const hands = createHands(renderer, scene);
   const raycaster = new THREE.Raycaster();
   const clock = new THREE.Clock();
   const pointer = new THREE.Vector2();
@@ -395,6 +402,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   let hoverControl = null;
   let dragState = null;
   const directTouchStates = new Map();
+  const handPinchStates = new Map();
+  let handFigureGesture = null;
   let figureInspection = {
     open: false,
     kind: "map",
@@ -514,7 +523,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       }
       const session = await navigator.xr.requestSession("immersive-vr", {
         requiredFeatures: ["local-floor"],
-        optionalFeatures: ["bounded-floor"],
+        optionalFeatures: ["bounded-floor", "hand-tracking"],
       });
       currentSession = session;
       updateInWorldControlVisibility(
@@ -534,6 +543,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         currentSession = null;
         dragState = null;
         directTouchStates.clear();
+        handPinchStates.clear();
+        handFigureGesture = null;
         figureInspectorCloseButtonArmed = true;
         missionControlWasActive = false;
         missionControlNeedsAnchor = false;
@@ -600,6 +611,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     };
     hoverControl = null;
     dragState = null;
+    handFigureGesture = null;
     updateFigureInspector(figureInspector, figureInspection, sceneState, currentState, Boolean(currentSession), hoverControl);
     updateInspectablePanelFrames(panels, hoverControl, figureInspection);
   }
@@ -608,6 +620,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     figureInspection.open = false;
     hoverControl = null;
     dragState = null;
+    handFigureGesture = null;
+    for (const [index, state] of handPinchStates) {
+      if (state.kind === "figure") handPinchStates.delete(index);
+    }
     figureInspectorCloseButtonArmed = false;
     figureInspector.group.visible = false;
     updateInspectablePanelFrames(panels, hoverControl, figureInspection);
@@ -643,7 +659,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         ...workbenchInteractiveObjects(),
       ];
     }
-    const objects = [...interactive];
+    const objects = [...interactive, panels.task];
     if (isModelWorkbenchActive()) objects.push(...missionControlWorkbench.getInteractiveMeshes());
     return objects;
   }
@@ -762,6 +778,98 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     beginControllerInteraction(controller);
   }
 
+  function beginHandPinch(hand, controller) {
+    if (!currentSession || !hand.visible) return;
+    const handIndex = hand.userData.index ?? 0;
+    const pinchPoint = handPinchPoint(hand);
+    if (!pinchPoint) return;
+
+    const knobHit = isModelWorkbenchActive()
+      ? intersectPointContact(
+          pinchPoint,
+          getVisibleInteractiveObjects(missionControlWorkbench.getDirectTouchMeshes()),
+          HAND_KNOB_GRAB_RADIUS,
+          "mission-control:knob-main",
+        )
+      : null;
+    if (knobHit && beginMissionControlKnobHandDrag(hand)) {
+      handPinchStates.set(handIndex, { kind: "knob", hand });
+      directTouchStates.delete(`hand:${handIndex}`);
+      return;
+    }
+
+    if (figureInspection.open) {
+      const existingFigurePinch = [...handPinchStates.values()].some((state) => state.kind === "figure");
+      const hit = intersectController(
+        controller,
+        raycaster,
+        getVisibleInteractiveObjects([figureInspector.close, figureInspector.surface]),
+      );
+      if (hit?.object.userData.kind === "figure-inspector-close") {
+        closeVrFigureInspector();
+        return;
+      }
+      if (existingFigurePinch || hit?.object.userData.kind === "figure-inspector-surface") {
+        handPinchStates.set(handIndex, { kind: "figure", hand });
+        resetHandFigureGesture();
+      }
+      return;
+    }
+
+    const hit = intersectController(
+      controller,
+      raycaster,
+      getVisibleInteractiveObjects(currentInteractiveObjects()),
+    );
+    if (hit?.object.userData.kind === "figure-panel") {
+      openVrFigureInspector(hit.object.userData.figureKind ?? "map");
+      handPinchStates.set(handIndex, { kind: "selection", hand });
+      return;
+    }
+    if (hit?.object.userData.kind === "task-panel") {
+      handPinchStates.set(handIndex, {
+        kind: "task-scroll",
+        hand,
+        lastPoint: panels.task.worldToLocal(pinchPoint.clone()),
+      });
+      return;
+    }
+
+    handPinchStates.set(handIndex, { kind: "selection", hand, controller });
+    beginControllerInteraction(controller);
+  }
+
+  function endHandPinch(hand) {
+    const handIndex = hand.userData.index ?? 0;
+    const pinchState = handPinchStates.get(handIndex);
+    handPinchStates.delete(handIndex);
+
+    if (pinchState?.kind === "selection" && pinchState.controller) {
+      endControllerInteraction(pinchState.controller);
+    }
+
+    if (dragState?.type === "mission-control-hand-knob" && dragState.hand === hand) {
+      dragState = null;
+    }
+    if (pinchState?.kind === "figure") resetHandFigureGesture();
+  }
+
+  function updateHandTaskPanelScroll() {
+    const state = [...handPinchStates.values()].find((item) => item.kind === "task-scroll");
+    if (!state?.hand.visible || !panels.task.visible) return false;
+    const pinchPoint = handPinchPoint(state.hand);
+    if (!pinchPoint) return false;
+    const localPoint = panels.task.worldToLocal(pinchPoint.clone());
+    const dy = localPoint.y - state.lastPoint.y;
+    state.lastPoint.copy(localPoint);
+    if (Math.abs(dy) < HAND_FIGURE_MOVE_EPSILON) return false;
+    const next = clamp(taskScroll + dy * HAND_TASK_SCROLL_SCALE, 0, TASK_SCROLL_MAX);
+    if (Math.abs(next - taskScroll) < 0.1) return false;
+    taskScroll = next;
+    updatePanel(panels.task, "task", moduleScenes[currentState.sceneIndex], panelStateWithScroll(currentState));
+    return true;
+  }
+
   function updateWorkbenchDirectTouch() {
     if (!currentSession) {
       directTouchStates.clear();
@@ -777,110 +885,140 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     let activeControlId = null;
     controllers.forEach((controller) => {
       const controllerIndex = controller.userData.index ?? 0;
-      if (!controller.visible) {
+      if (!controller.visible || controller.inputSource?.hand) {
         directTouchStates.delete(controllerIndex);
         return;
       }
-
-      const previous = directTouchStates.get(controllerIndex);
-      let hit = intersectControllerContact(controller, touchObjects, WORKBENCH_TOUCH_RADIUS);
-      if (!hit && previous?.controlId) {
-        hit = intersectControllerContact(
-          controller,
-          touchObjects,
-          WORKBENCH_TOUCH_RADIUS + WORKBENCH_TOUCH_RELEASE_MARGIN,
-          previous.controlId,
-        );
-      }
-      const target = hit?.object;
-      if (!target || target.userData.disabled) {
-        directTouchStates.delete(controllerIndex);
-        return;
-      }
-
-      const controlId = target.userData.controlId ?? null;
+      const controlId = updateWorkbenchTouchSource({
+        key: controllerIndex,
+        touchPoint: controllerTouchPoint(controller),
+        touchObjects,
+        radius: WORKBENCH_TOUCH_RADIUS,
+        releaseMargin: WORKBENCH_TOUCH_RELEASE_MARGIN,
+        feedback: (intensity, duration) => pulseController(controller, intensity, duration),
+      });
       if (controlId && !activeControlId) activeControlId = controlId;
+    });
 
-      if (target.userData.kind === "slider") {
-        directTouchStates.set(controllerIndex, { controlId, kind: "slider" });
-        if (updateSliderFromWorldPoint(hit.touchPoint)) pulseController(controller, 0.18, 24);
+    hands.forEach((hand) => {
+      const handIndex = hand.userData.index ?? 0;
+      const key = `hand:${handIndex}`;
+      if (!hand.visible || handPinchStates.has(handIndex)) {
+        directTouchStates.delete(key);
         return;
       }
+      const controlId = updateWorkbenchTouchSource({
+        key,
+        touchPoint: handJointWorldPoint(hand, "index-finger-tip"),
+        touchObjects,
+        radius: HAND_TOUCH_RADIUS,
+        releaseMargin: HAND_TOUCH_RELEASE_MARGIN,
+      });
+      if (controlId && !activeControlId) activeControlId = controlId;
+    });
 
-      if (target.userData.kind === "mission-control") {
-        const missionControlId = missionControlWorkbench.controlIdFromObject(target);
-        if (missionControlId === "knob-main") {
-          const axis = missionControlWorkbench.controlWorldAxis(missionControlId);
-          const projection = axis ? hit.touchPoint.dot(axis) : 0;
-          const state = previous?.controlId === controlId
-            ? previous
-            : {
-                controlId,
-                kind: "mission-control-knob",
-                resetActivated: false,
-                entryProjection: projection,
-              };
-          const pressDepth = state.entryProjection - projection;
-          if (!state.resetActivated && pressDepth >= WORKBENCH_KNOB_RESET_PRESS_DEPTH) {
-            if (missionControlWorkbench.pressRotary(missionControlId)) {
-              state.resetActivated = true;
-              pulseController(controller, 0.5, 85);
-            }
-          }
-          directTouchStates.set(controllerIndex, state);
-          return;
-        }
+    return activeControlId;
+  }
 
-        const control = missionControlWorkbench.getControl(missionControlId);
-        const axis = missionControlWorkbench.controlWorldAxis(missionControlId);
-        const projection = axis ? hit.touchPoint.dot(axis) : 0;
-        if (control?.userData.interaction === "hinged_cover") {
-          if (previous?.controlId !== controlId && activateMissionControlTarget(target)) {
-            pulseController(controller);
-          }
-          directTouchStates.set(controllerIndex, {
-            controlId,
-            kind: "mission-control",
-            target,
-            activated: true,
-            entryProjection: projection,
-          });
-          return;
-        }
+  function updateWorkbenchTouchSource({
+    key,
+    touchPoint,
+    touchObjects,
+    radius,
+    releaseMargin,
+    feedback = () => {},
+  }) {
+    if (!touchPoint) {
+      directTouchStates.delete(key);
+      return null;
+    }
 
+    const previous = directTouchStates.get(key);
+    let hit = intersectPointContact(touchPoint, touchObjects, radius);
+    if (!hit && previous?.controlId) {
+      hit = intersectPointContact(touchPoint, touchObjects, radius + releaseMargin, previous.controlId);
+    }
+    const target = hit?.object;
+    if (!target || target.userData.disabled) {
+      directTouchStates.delete(key);
+      return null;
+    }
+
+    const controlId = target.userData.controlId ?? null;
+    if (target.userData.kind === "slider") {
+      directTouchStates.set(key, { controlId, kind: "slider" });
+      if (updateSliderFromWorldPoint(hit.touchPoint)) feedback(0.18, 24);
+      return controlId;
+    }
+
+    if (target.userData.kind === "mission-control") {
+      const missionControlId = missionControlWorkbench.controlIdFromObject(target);
+      const axis = missionControlWorkbench.controlWorldAxis(missionControlId);
+      const projection = axis ? hit.touchPoint.dot(axis) : 0;
+      if (missionControlId === "knob-main") {
         const state = previous?.controlId === controlId
           ? previous
           : {
               controlId,
-              kind: "mission-control",
-              target,
-              activated: false,
+              kind: "mission-control-knob",
+              resetActivated: false,
               entryProjection: projection,
             };
         const pressDepth = state.entryProjection - projection;
-        if (!state.activated && pressDepth >= WORKBENCH_TOUCH_PRESS_DEPTH) {
-          if (activateMissionControlTarget(target)) {
-            state.activated = true;
-            pulseController(controller);
+        if (!state.resetActivated && pressDepth >= WORKBENCH_KNOB_RESET_PRESS_DEPTH) {
+          if (missionControlWorkbench.pressRotary(missionControlId)) {
+            state.resetActivated = true;
+            feedback(0.5, 85);
           }
         }
-        directTouchStates.set(controllerIndex, state);
-        return;
+        directTouchStates.set(key, state);
+        return controlId;
       }
 
-      if (!target.userData.action) {
-        directTouchStates.set(controllerIndex, { controlId, kind: target.userData.kind ?? "touch" });
-        return;
+      const control = missionControlWorkbench.getControl(missionControlId);
+      if (control?.userData.interaction === "hinged_cover") {
+        if (previous?.controlId !== controlId && activateMissionControlTarget(target)) feedback(0.35, 60);
+        directTouchStates.set(key, {
+          controlId,
+          kind: "mission-control",
+          target,
+          activated: true,
+          entryProjection: projection,
+        });
+        return controlId;
       }
 
-      if (previous?.controlId !== controlId) {
-        pulseController(controller);
-        selectAction(target.userData.action, target.userData.payload ?? {});
+      const state = previous?.controlId === controlId
+        ? previous
+        : {
+            controlId,
+            kind: "mission-control",
+            target,
+            activated: false,
+            entryProjection: projection,
+          };
+      const pressDepth = state.entryProjection - projection;
+      if (!state.activated && pressDepth >= WORKBENCH_TOUCH_PRESS_DEPTH) {
+        if (activateMissionControlTarget(target)) {
+          state.activated = true;
+          feedback(0.35, 60);
+        }
       }
-      directTouchStates.set(controllerIndex, { controlId, kind: target.userData.kind ?? "button" });
-    });
+      directTouchStates.set(key, state);
+      return controlId;
+    }
 
-    return activeControlId;
+    if (!target.userData.action) {
+      directTouchStates.set(key, { controlId, kind: target.userData.kind ?? "touch" });
+      return controlId;
+    }
+
+    if (previous?.controlId !== controlId) {
+      selectAction(target.userData.action, target.userData.payload ?? {});
+      feedback(0.35, 60);
+    }
+    directTouchStates.set(key, { controlId, kind: target.userData.kind ?? "button" });
+    return controlId;
   }
 
   function endControllerInteraction(controller) {
@@ -911,6 +1049,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
     if (activeDrag.type === "mission-control-knob") {
       updateMissionControlKnobFromController(activeDrag);
+      return;
+    }
+    if (activeDrag.type === "mission-control-hand-knob") {
+      updateMissionControlKnobFromHand(activeDrag);
       return;
     }
     if (activeDrag.type === "rank-card") {
@@ -995,6 +1137,32 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     return true;
   }
 
+  function beginMissionControlKnobHandDrag(hand, controlId = "mission-control:knob-main") {
+    if (!missionControlWorkbench) return false;
+    const axis = missionControlWorkbench.controlWorldAxis("knob-main");
+    const orientationSource = hand.joints?.wrist;
+    const control = missionControlWorkbench.getControl("knob-main");
+    if (!axis || !control || !orientationSource?.visible) return false;
+    const reference = controllerOrientationReference(orientationSource, axis);
+    if (!reference) return false;
+    const minDegrees = Number(control.userData.min_degrees);
+    const maxDegrees = Number(control.userData.max_degrees);
+    dragState = {
+      type: "mission-control-hand-knob",
+      hand,
+      orientationSource,
+      axis,
+      basisIndex: reference.basisIndex,
+      startVector: reference.vector,
+      startDegrees: THREE.MathUtils.lerp(minDegrees, maxDegrees, Number(control.userData.value ?? 0)),
+      minDegrees,
+      maxDegrees,
+      lastIndex: clampStressTestIndex(currentState.workbench.stressTestIndex),
+    };
+    hoverControl = controlId;
+    return true;
+  }
+
   function updateMissionControlKnobFromController(activeDrag) {
     if (!missionControlWorkbench) return false;
     const currentVector = controllerOrientationVector(
@@ -1020,6 +1188,36 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
       selectAction("setStressTest", { index });
       pulseController(activeDrag.controller, 0.2, 28);
+      activeDrag.lastIndex = index;
+      return true;
+    }
+    return false;
+  }
+
+  function updateMissionControlKnobFromHand(activeDrag) {
+    if (!missionControlWorkbench || !activeDrag.orientationSource?.visible) return false;
+    const currentVector = controllerOrientationVector(
+      activeDrag.orientationSource,
+      activeDrag.axis,
+      activeDrag.basisIndex,
+    );
+    if (!currentVector) return false;
+    const cross = activeDrag.startVector.clone().cross(currentVector);
+    const deltaRadians = Math.atan2(
+      activeDrag.axis.dot(cross),
+      THREE.MathUtils.clamp(activeDrag.startVector.dot(currentVector), -1, 1),
+    );
+    const degrees = THREE.MathUtils.clamp(
+      activeDrag.startDegrees + THREE.MathUtils.radToDeg(deltaRadians),
+      activeDrag.minDegrees,
+      activeDrag.maxDegrees,
+    );
+    const normalized = (degrees - activeDrag.minDegrees) / (activeDrag.maxDegrees - activeDrag.minDegrees);
+    const index = Math.round(THREE.MathUtils.clamp(normalized, 0, 1) * (stressTests.length - 1));
+    const snapped = stressTests.length <= 1 ? 0 : index / (stressTests.length - 1);
+    missionControlWorkbench.setKnobNormalized("knob-main", snapped, { emit: false, animate: false });
+    if (index !== clampStressTestIndex(currentState.workbench.stressTestIndex)) {
+      selectAction("setStressTest", { index });
       activeDrag.lastIndex = index;
       return true;
     }
@@ -1181,8 +1379,89 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     updateFigureInspector(figureInspector, figureInspection, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession), hoverControl);
   }
 
+  function resetHandFigureGesture() {
+    const activeHands = [...handPinchStates.values()]
+      .filter((state) => state.kind === "figure" && state.hand.visible)
+      .map((state) => state.hand)
+      .slice(0, 2);
+    if (!figureInspection.open || activeHands.length === 0) {
+      handFigureGesture = null;
+      return;
+    }
+
+    const localPoints = activeHands
+      .map((hand) => handPinchPoint(hand))
+      .filter(Boolean)
+      .map((point) => figureInspector.surface.worldToLocal(point.clone()));
+    if (localPoints.length === 0) {
+      handFigureGesture = null;
+      return;
+    }
+
+    handFigureGesture = {
+      handIndices: activeHands.map((hand) => hand.userData.index ?? 0),
+      lastCenter: averagePoints(localPoints),
+      lastDistance: localPoints.length > 1 ? localPoints[0].distanceTo(localPoints[1]) : 0,
+    };
+  }
+
+  function updateHandFigureInspectionGesture() {
+    if (!figureInspection.open || !handFigureGesture) return false;
+    const activeStates = handFigureGesture.handIndices
+      .map((index) => handPinchStates.get(index))
+      .filter((state) => state?.kind === "figure" && state.hand.visible);
+    if (activeStates.length !== handFigureGesture.handIndices.length) {
+      resetHandFigureGesture();
+      return false;
+    }
+
+    const localPoints = activeStates
+      .map((state) => handPinchPoint(state.hand))
+      .filter(Boolean)
+      .map((point) => figureInspector.surface.worldToLocal(point.clone()));
+    if (localPoints.length !== activeStates.length) return false;
+
+    const center = averagePoints(localPoints);
+    const dx = center.x - handFigureGesture.lastCenter.x;
+    const dy = center.y - handFigureGesture.lastCenter.y;
+    let changed = Math.abs(dx) > HAND_FIGURE_MOVE_EPSILON || Math.abs(dy) > HAND_FIGURE_MOVE_EPSILON;
+    if (changed) {
+      figureInspection.panX += (dx / FIGURE_INSPECTOR_W) * FIGURE_INSPECTOR_TEXTURE_W;
+      figureInspection.panY -= (dy / FIGURE_INSPECTOR_H) * FIGURE_INSPECTOR_TEXTURE_H;
+    }
+
+    if (localPoints.length > 1) {
+      const distance = localPoints[0].distanceTo(localPoints[1]);
+      if (handFigureGesture.lastDistance > 0.001 && distance > 0.001) {
+        const nextZoom = clamp(
+          figureInspection.zoom * (distance / handFigureGesture.lastDistance),
+          FIGURE_INSPECTOR_MIN_ZOOM,
+          FIGURE_INSPECTOR_MAX_ZOOM,
+        );
+        if (Math.abs(nextZoom - figureInspection.zoom) > 0.001) {
+          figureInspection.zoom = nextZoom;
+          changed = true;
+        }
+      }
+      handFigureGesture.lastDistance = distance;
+    }
+    handFigureGesture.lastCenter.copy(center);
+
+    if (changed) {
+      updateFigureInspector(
+        figureInspector,
+        figureInspection,
+        moduleScenes[currentState.sceneIndex],
+        currentState,
+        Boolean(currentSession),
+        hoverControl,
+      );
+    }
+    return changed;
+  }
+
   function updateFigureInspectionZoom() {
-    if (!currentSession || !figureInspection.open) return false;
+    if (!currentSession || !figureInspection.open || handFigureGesture) return false;
     const axis = getTaskScrollAxis(currentSession.inputSources);
     if (Math.abs(axis) < TASK_SCROLL_THRESHOLD) return false;
     const nextZoom = clamp(
@@ -1317,10 +1596,23 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   window.addEventListener("resize", onResize);
 
   controllers.forEach((controller) => {
-    controller.addEventListener("selectstart", () => beginControllerInteraction(controller));
-    controller.addEventListener("selectend", () => endControllerInteraction(controller));
-    controller.addEventListener("squeezestart", () => beginControllerSqueeze(controller));
-    controller.addEventListener("squeezeend", () => endControllerInteraction(controller));
+    controller.addEventListener("selectstart", () => {
+      if (!controller.inputSource?.hand) beginControllerInteraction(controller);
+    });
+    controller.addEventListener("selectend", () => {
+      if (!controller.inputSource?.hand) endControllerInteraction(controller);
+    });
+    controller.addEventListener("squeezestart", () => {
+      if (!controller.inputSource?.hand) beginControllerSqueeze(controller);
+    });
+    controller.addEventListener("squeezeend", () => {
+      if (!controller.inputSource?.hand) endControllerInteraction(controller);
+    });
+  });
+
+  hands.forEach((hand, index) => {
+    hand.addEventListener("pinchstart", () => beginHandPinch(hand, controllers[index]));
+    hand.addEventListener("pinchend", () => endHandPinch(hand));
   });
 
   renderer.setAnimationLoop(() => {
@@ -1337,6 +1629,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       missionControlNeedsAnchor = false;
     }
     if (dragState) updateDragState(dragState);
+    if (handFigureGesture) updateHandFigureInspectionGesture();
+    updateHandTaskPanelScroll();
     applyPanelLayout(panels, moduleScenes[currentState.sceneIndex], currentState, Boolean(currentSession));
     if (updateTaskPanelScroll()) {
       updatePanel(panels.task, "task", moduleScenes[currentState.sceneIndex], panelStateWithScroll(currentState));
@@ -1505,6 +1799,8 @@ function createPanels(scene) {
   chart.userData.kind = "figure-panel";
   chart.userData.controlId = "inspect-chart";
   chart.userData.figureKind = "chart";
+  task.userData.kind = "task-panel";
+  task.userData.controlId = "task-panel-scroll";
   [map, task, chart].forEach((panel) => group.add(panel));
   return { group, map, task, chart };
 }
@@ -1971,6 +2267,32 @@ function createControllers(renderer, scene) {
     controllers.push(controller);
   }
   return controllers;
+}
+
+function createHands(renderer, scene) {
+  const factory = new XRHandModelFactory();
+  const hands = [];
+  for (let index = 0; index < 2; index += 1) {
+    const hand = renderer.xr.getHand(index);
+    hand.userData.index = index;
+    const model = factory.createHandModel(hand, "spheres");
+    hand.add(model);
+    hand.addEventListener("connected", (event) => {
+      hand.inputSource = event.data;
+      const material = model.motionController?.handMesh?.material;
+      if (material) {
+        material.color.set("#d7e8e3");
+        material.roughness = 0.82;
+        material.metalness = 0;
+      }
+    });
+    hand.addEventListener("disconnected", () => {
+      hand.inputSource = null;
+    });
+    scene.add(hand);
+    hands.push(hand);
+  }
+  return hands;
 }
 
 function updatePanel(mesh, kind, sceneState, state) {
@@ -2575,8 +2897,7 @@ function intersectController(controller, raycaster, objects) {
   return raycaster.intersectObjects(objects, false)[0] ?? null;
 }
 
-function intersectControllerContact(controller, objects, radius, preferredControlId = null) {
-  const touchPoint = controllerTouchPoint(controller);
+function intersectPointContact(touchPoint, objects, radius, preferredControlId = null) {
   if (!touchPoint) return null;
 
   let bestHit = null;
@@ -2609,6 +2930,26 @@ function intersectControllerContact(controller, objects, radius, preferredContro
   });
 
   return bestHit;
+}
+
+function handJointWorldPoint(hand, jointName) {
+  const joint = hand.joints?.[jointName];
+  if (!joint?.visible) return null;
+  joint.updateWorldMatrix(true, false);
+  return joint.getWorldPosition(new THREE.Vector3());
+}
+
+function handPinchPoint(hand) {
+  const indexTip = handJointWorldPoint(hand, "index-finger-tip");
+  const thumbTip = handJointWorldPoint(hand, "thumb-tip");
+  if (!indexTip || !thumbTip) return null;
+  return indexTip.add(thumbTip).multiplyScalar(0.5);
+}
+
+function averagePoints(points) {
+  const average = new THREE.Vector3();
+  points.forEach((point) => average.add(point));
+  return average.multiplyScalar(1 / Math.max(points.length, 1));
 }
 
 function controllerTouchPoint(controller) {
