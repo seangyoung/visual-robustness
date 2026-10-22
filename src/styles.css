@@ -731,7 +731,14 @@ input[type="range"]:disabled {
 }
 
 .takeaway-controls {
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.takeaway-controls::before {
+  content: "Module complete. Restart to draw another transfer challenge.";
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .ranking-panel {
@@ -1287,7 +1294,8 @@ body.is-immersive #xr-canvas {
     grid-template-columns: 1fr;
   }
 
-  .intro-controls::before {
+  .intro-controls::before,
+  .takeaway-controls::before {
     content: none;
   }
 

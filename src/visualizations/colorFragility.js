@@ -148,8 +148,11 @@ export function createPanelTexture(kind, scene, state, targetCanvas = null) {
   const canvas = targetCanvas ?? document.createElement("canvas");
   const phase = state.modulePhase ?? MODULE_PHASES.INTRO;
   const wideIntro = phase === MODULE_PHASES.INTRO && kind === "intro";
-  const width = wideIntro ? 1800 : 1400;
-  const height = wideIntro ? 720 : 980;
+  const compactBrowserSheet = typeof window !== "undefined" && window.innerWidth <= 840;
+  const compactIntro = compactBrowserSheet && wideIntro;
+  const compactTakeaways = compactBrowserSheet && phase === MODULE_PHASES.TAKEAWAYS && kind === "map";
+  const width = compactIntro || compactTakeaways ? 1000 : wideIntro ? 1800 : 1400;
+  const height = compactIntro ? 1250 : compactTakeaways ? 900 : wideIntro ? 720 : 980;
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
@@ -316,48 +319,77 @@ function drawIntroPanel(ctx, canvas, kind, state) {
   }
 
   if (kind === "map") {
-    drawIntroOverviewPanel(ctx, canvas, state);
+    drawIntroOverviewPanel(ctx, canvas, state, { integratedHeader: true });
     return;
   }
 
   drawIntroOverviewPanel(ctx, canvas, state);
 }
 
-function drawIntroOverviewPanel(ctx, canvas, state) {
+function drawIntroOverviewPanel(ctx, canvas, state, { integratedHeader = false } = {}) {
   const wide = canvas.width / canvas.height > 2;
-  panelBase(ctx, canvas, "Before you begin", "Goal, mechanics, and flow", state);
+  const stacked = canvas.height > canvas.width;
+  const sheetTop = integratedHeader ? 254 : 0;
+  const header = drawStudioSheetBase(ctx, canvas, {
+    eyebrow: "Studio brief",
+    title: "Before you begin",
+    subtitle: "Goal, mechanics, and flow",
+    top: sheetTop,
+  }, state);
+
+  if (integratedHeader) {
+    ctx.fillStyle = state.settings.highContrast ? "#0f1618" : "#131b1e";
+    ctx.fillRect(0, 0, canvas.width, sheetTop);
+    ctx.fillStyle = "#55c6ba";
+    ctx.font = "900 27px Arial";
+    ctx.fillText(introCopy.kicker.toUpperCase(), 78, 64);
+    ctx.fillStyle = "#f8f6ee";
+    ctx.font = "900 52px Arial";
+    wrapText(ctx, introCopy.title, 78, 128, canvas.width - 156, 58);
+    ctx.fillStyle = "#e8eee8";
+    ctx.font = "500 25px Arial";
+    wrapText(ctx, introCopy.goal, 78, 205, canvas.width - 156, 34);
+    ctx.fillStyle = "#55c6ba";
+    ctx.fillRect(0, sheetTop - 8, canvas.width, 8);
+  }
 
   ctx.fillStyle = "#151d20";
-  ctx.font = wide ? "800 31px Arial" : "800 28px Arial";
-  wrapText(ctx, introCopy.lead, 92, wide ? 174 : 190, canvas.width - 184, wide ? 40 : 38);
+  ctx.font = wide ? "800 29px Arial" : "800 25px Arial";
+  wrapText(ctx, introCopy.lead, 92, header.contentTop, canvas.width - 184, wide ? 38 : 34);
 
   const columnGap = 48;
   const columnWidth = (canvas.width - 184 - columnGap) / 2;
+  const sectionY = header.contentTop + (stacked ? 114 : wide ? 88 : 94);
+  const stackedWidth = canvas.width - 184;
+  const mechanicsItemHeight = stacked ? 126 : wide ? 112 : 118;
+  const mechanicsGap = stacked ? 16 : 12;
   drawIntroSection(ctx, {
     title: "Mechanics",
     items: introCopy.mechanics,
     x: 92,
-    y: wide ? 258 : 294,
-    width: columnWidth,
+    y: sectionY,
+    width: stacked ? stackedWidth : columnWidth,
     marker: "control",
-    itemHeight: wide ? 108 : 132,
-    gap: wide ? 14 : 20,
-    itemFontSize: wide ? 27 : 25,
-    lineHeight: wide ? 33 : 32,
-    textTop: wide ? 36 : 42,
+    itemHeight: mechanicsItemHeight,
+    gap: mechanicsGap,
+    itemFontSize: stacked ? 29 : wide ? 26 : 24,
+    lineHeight: stacked ? 35 : wide ? 32 : 30,
   });
+  const flowY = stacked
+    ? sectionY + 42 + introCopy.mechanics.length * mechanicsItemHeight
+      + (introCopy.mechanics.length - 1) * mechanicsGap + 62
+    : sectionY;
   drawIntroSection(ctx, {
     title: "Flow",
     items: introCopy.flow,
-    x: 92 + columnWidth + columnGap,
-    y: wide ? 258 : 294,
-    width: columnWidth,
+    x: stacked ? 92 : 92 + columnWidth + columnGap,
+    y: flowY,
+    width: stacked ? stackedWidth : columnWidth,
     marker: "number",
-    itemHeight: wide ? 86 : 112,
-    gap: wide ? 10 : 16,
-    itemFontSize: wide ? 23 : 25,
-    lineHeight: wide ? 27 : 32,
-    textTop: wide ? 28 : 42,
+    itemHeight: stacked ? 92 : wide ? 78 : 86,
+    gap: stacked ? 8 : wide ? 8 : 7,
+    itemFontSize: stacked ? 27 : wide ? 22 : 23,
+    lineHeight: stacked ? 33 : wide ? 27 : 29,
   });
 }
 
@@ -372,14 +404,15 @@ function drawIntroSection(ctx, {
   gap,
   itemFontSize,
   lineHeight,
-  textTop,
 }) {
   ctx.fillStyle = "#151d20";
-  ctx.font = "900 38px Arial";
+  ctx.font = "900 34px Arial";
   ctx.fillText(title, x, y);
+  ctx.fillStyle = "#2d837b";
+  ctx.fillRect(x, y + 17, width, 5);
 
   items.forEach((item, index) => {
-    const itemY = y + 56 + index * (itemHeight + gap);
+    const itemY = y + 42 + index * (itemHeight + gap);
     const markerLabel = marker === "number" ? String(index + 1) : "";
     drawIntroListItem(ctx, {
       text: item,
@@ -391,7 +424,6 @@ function drawIntroSection(ctx, {
       markerLabel,
       itemFontSize,
       lineHeight,
-      textTop,
     });
   });
 }
@@ -406,28 +438,19 @@ function drawIntroListItem(ctx, {
   markerLabel,
   itemFontSize,
   lineHeight,
-  textTop,
 }) {
-  const markerX = x + 34;
+  const markerX = x + 27;
   const markerY = y + height / 2;
 
-  ctx.fillStyle = "#eef2ee";
-  roundRect(ctx, x, y, width, height, 16);
-  ctx.fill();
-  ctx.strokeStyle = "#cfd6cf";
-  ctx.lineWidth = 3;
-  roundRect(ctx, x, y, width, height, 16);
-  ctx.stroke();
+  ctx.strokeStyle = "#d8ddd8";
+  ctx.lineWidth = 2;
+  line(ctx, x, y + height, x + width, y + height);
 
   ctx.fillStyle = "#2d837b";
   if (marker === "number") {
-    ctx.beginPath();
-    ctx.arc(markerX, markerY, 28, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#f8f6ee";
     ctx.font = "900 28px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(markerLabel, markerX, markerY + 9);
+    ctx.fillText(markerLabel, markerX, markerY + 10);
     ctx.textAlign = "start";
   } else {
     drawIntroControlIcon(ctx, markerX, markerY);
@@ -435,17 +458,21 @@ function drawIntroListItem(ctx, {
 
   ctx.fillStyle = "#151d20";
   ctx.font = `800 ${itemFontSize}px Arial`;
-  wrapText(ctx, text, x + 88, y + textTop, width - 118, lineHeight);
+  const lines = wrappedTextLines(ctx, text, width - 82);
+  const textTop = y + (height - lines.length * lineHeight) / 2 + lineHeight - 4;
+  lines.forEach((textLine, lineIndex) => {
+    ctx.fillText(textLine, x + 68, textTop + lineIndex * lineHeight);
+  });
 }
 
 function drawIntroControlIcon(ctx, x, y) {
-  ctx.lineWidth = 8;
+  ctx.lineWidth = 6;
   ctx.strokeStyle = "#2d837b";
-  roundRect(ctx, x - 28, y - 28, 56, 56, 10);
+  roundRect(ctx, x - 21, y - 21, 42, 42, 7);
   ctx.stroke();
   ctx.fillStyle = "#2d837b";
   ctx.beginPath();
-  ctx.arc(x + 14, y, 8, 0, Math.PI * 2);
+  ctx.arc(x + 10, y, 6, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -623,49 +650,63 @@ function drawTakeawayPanel(ctx, canvas, kind, state) {
   }
 
   if (kind === "map") {
-    panelBase(ctx, canvas, "Principles", "Use during design review", state);
-    const boxX = 94;
-    const boxW = canvas.width - 188;
+    const header = drawStudioSheetBase(ctx, canvas, {
+      eyebrow: "Design review",
+      title: "Principles",
+      subtitle: "Carry these into your next visualization",
+    }, state);
+    const itemX = 94;
+    const itemW = canvas.width - 188;
     const textX = 182;
     const textW = canvas.width - 300;
     const lineHeight = 38;
-    let y = 210;
+    let y = header.contentTop + 10;
 
     finalTakeaways.forEach((takeaway, index) => {
       ctx.font = "800 31px Arial";
       const lines = wrappedTextLines(ctx, takeaway, textW);
-      const boxH = Math.max(82, lines.length * lineHeight + 34);
-      const textY = y + Math.max(0, (boxH - lines.length * lineHeight) / 2) + lineHeight - 5;
+      const itemH = Math.max(92, lines.length * lineHeight + 32);
+      const textY = y + Math.max(0, (itemH - lines.length * lineHeight) / 2) + lineHeight - 5;
 
-      ctx.fillStyle = "#eef2ee";
-      roundRect(ctx, boxX, y, boxW, boxH, 16);
-      ctx.fill();
-      ctx.strokeStyle = "#ccd4cf";
+      ctx.strokeStyle = "#d8ddd8";
       ctx.lineWidth = 3;
-      roundRect(ctx, boxX, y, boxW, boxH, 16);
-      ctx.stroke();
+      line(ctx, itemX, y + itemH, itemX + itemW, y + itemH);
       ctx.fillStyle = "#2d837b";
       ctx.font = "900 32px Arial";
-      ctx.fillText(String(index + 1), 128, y + boxH / 2 + 11);
+      ctx.fillText(String(index + 1).padStart(2, "0"), 106, y + itemH / 2 + 11);
       ctx.fillStyle = "#151d20";
       ctx.font = "800 31px Arial";
       wrapText(ctx, takeaway, textX, textY, textW, lineHeight);
-      y += boxH + 24;
+      y += itemH + 12;
     });
     return;
   }
 
-  panelBase(ctx, canvas, "Next", "Restart or continue elsewhere", state);
+  const header = drawStudioSheetBase(ctx, canvas, {
+    eyebrow: "Module complete",
+    title: "Test another design",
+    subtitle: "Restart or continue elsewhere",
+  }, state);
   ctx.fillStyle = "#151d20";
   ctx.font = "900 42px Arial";
-  wrapText(ctx, "Restart the module to draw another transfer challenge.", 92, 244, canvas.width - 184, 54);
+  wrapText(
+    ctx,
+    "Restart the module to work through the examples and draw another transfer challenge.",
+    92,
+    header.contentTop + 72,
+    canvas.width - 184,
+    54,
+  );
+  ctx.strokeStyle = "#d8ddd8";
+  ctx.lineWidth = 3;
+  line(ctx, 92, header.contentTop + 230, canvas.width - 92, header.contentTop + 230);
   ctx.fillStyle = "#536164";
   ctx.font = "700 30px Arial";
   wrapText(
     ctx,
     "Future versions can add navigation to other visualization accessibility modules here.",
     92,
-    410,
+    header.contentTop + 302,
     canvas.width - 184,
     44,
   );
@@ -1450,6 +1491,36 @@ function drawComparisonThumbnail(ctx, id, x, y, w, h) {
 
 function colorForCategory(category, state) {
   return simulateColor(recommendedVisible(state) ? category.redesign : category.baseline, state);
+}
+
+function drawStudioSheetBase(ctx, canvas, {
+  eyebrow,
+  title,
+  subtitle,
+  top = 0,
+}, state) {
+  const height = canvas.height - top;
+  ctx.fillStyle = state.settings.highContrast ? "#ffffff" : "#f8f6ee";
+  ctx.fillRect(0, top, canvas.width, height);
+  ctx.fillStyle = "#2d837b";
+  ctx.fillRect(0, top, 14, height);
+  ctx.fillStyle = "#d8ddd8";
+  ctx.fillRect(14, top, canvas.width - 14, 5);
+
+  ctx.fillStyle = "#2d837b";
+  ctx.font = "900 23px Arial";
+  ctx.fillText(eyebrow.toUpperCase(), 84, top + 34);
+  ctx.fillStyle = "#151d20";
+  ctx.font = "900 48px Arial";
+  ctx.fillText(title, 84, top + 78);
+  ctx.fillStyle = "#536164";
+  ctx.font = "700 27px Arial";
+  ctx.fillText(subtitle, 86, top + 116);
+  ctx.strokeStyle = "#cfd6d1";
+  ctx.lineWidth = 3;
+  line(ctx, 84, top + 144, canvas.width - 84, top + 144);
+
+  return { contentTop: top + 188 };
 }
 
 function panelBase(ctx, canvas, title, subtitle, state) {
