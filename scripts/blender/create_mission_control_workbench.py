@@ -27,8 +27,8 @@ DECK_TILT = math.radians(6)
 SCREEN_TILT = DECK_TILT + math.radians(30)
 ARC_ANGLES = (-26, -13, 0, 13, 26)
 ARC_RADIUS = 2.18
-ARC_START = -34
-ARC_END = 34
+ARC_START = -31
+ARC_END = 31
 SHELL_INNER_RADIUS = 1.82
 SHELL_OUTER_RADIUS = 2.52
 KNOB_CONTROL_Z = 0.094
@@ -526,7 +526,7 @@ def create_asset():
     root = empty(
         "Mission_Control_Workbench",
         props={
-            "asset_version": "2.1.1",
+            "asset_version": "2.2.0",
             "units": "meters",
             "up_axis": "Y after glTF export",
             "target_runtime": "Three.js WebXR",

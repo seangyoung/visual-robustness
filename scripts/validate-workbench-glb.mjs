@@ -70,6 +70,15 @@ assert(
   "The stress knob touch target must support a natural two-finger grasp",
 );
 
+const workbenchRoot = nodes.get("Mission_Control_Workbench");
+assert.equal(workbenchRoot?.extras?.asset_version, "2.2.0", "The workbench asset version must match the compact shell");
+const deck = nodes.get("Workbench_Continuous_Deck");
+const deckPrimitive = gltf.meshes?.[deck?.mesh]?.primitives?.[0];
+const deckPositionAccessor = gltf.accessors?.[deckPrimitive?.attributes?.POSITION];
+assert(deckPositionAccessor?.min && deckPositionAccessor?.max, "The workbench deck must expose mesh bounds");
+const deckWidth = deckPositionAccessor.max[0] - deckPositionAccessor.min[0];
+assert(deckWidth >= 2.5 && deckWidth <= 2.7, "The workbench shell should use the compact 62-degree span");
+
 const grabHandle = nodes.get("Workbench_Grab_Handle");
 assert(grabHandle, "Missing workbench grab handle");
 assert.equal(grabHandle.extras?.role, "workbench_grab_handle", "The workbench grab handle has the wrong role");

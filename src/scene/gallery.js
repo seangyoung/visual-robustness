@@ -220,9 +220,10 @@ const WORKBENCH_MIN_VERTICAL_OFFSET = 0.95;
 const WORKBENCH_MAX_VERTICAL_OFFSET = 1.75;
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const WORKBENCH_VIEWER_DISTANCE = boundedUrlNumber(URL_PARAMS.get("benchDistance"), 1.05, 0.9, 1.45);
+const WORKBENCH_MODEL_SCALE = boundedUrlNumber(URL_PARAMS.get("benchScale"), 0.84, 0.72, 1);
 const WORKBENCH_VIEWER_VERTICAL_OFFSET = boundedUrlNumber(
   URL_PARAMS.get("benchHeight"),
-  1.48,
+  1.38,
   1.3,
   1.75,
 );
@@ -455,7 +456,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       .then((workbench) => {
         missionControlWorkbench = workbench;
         missionControlWorkbench.root.position.set(0, -0.36, -WORKBENCH_VIEWER_DISTANCE);
-        missionControlWorkbench.root.scale.setScalar(0.94);
+        missionControlWorkbench.root.scale.setScalar(WORKBENCH_MODEL_SCALE);
         missionControlWorkbench.root.visible = false;
         stage.add(missionControlWorkbench.root);
         renderState(currentState);
@@ -1784,6 +1785,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         : null,
       configuredWorkbenchDistance: WORKBENCH_VIEWER_DISTANCE,
       configuredWorkbenchHeight: WORKBENCH_VIEWER_VERTICAL_OFFSET,
+      configuredWorkbenchScale: WORKBENCH_MODEL_SCALE,
       hoveredControl: hoverControl,
       dragType: dragState?.type ?? null,
       dragActivation: dragState?.activation ?? null,

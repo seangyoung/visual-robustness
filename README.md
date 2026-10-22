@@ -132,6 +132,7 @@ specific configuration. Common parameters include:
 - `challenge=<transfer-challenge-id>`
 - `benchDistance=0.90..1.45`
 - `benchHeight=<vertical-offset>`
+- `benchScale=0.72..1.00`
 - `vrDebug=1`
 
 For example:

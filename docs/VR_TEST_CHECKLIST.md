@@ -6,7 +6,8 @@ remote browser-console frame diagnostics are useful.
 The default workbench distance is `1.05` meters from its origin to the headset.
 For placement comparisons, use `?benchDistance=0.98` or another value from
 `0.90` through `1.45`. Use `benchHeight` to override the vertical offset below
-the headset, for example `?benchDistance=0.98&benchHeight=1.44`.
+the headset. Use `benchScale` to test a uniform model scale from `0.72` through
+`1.00`, for example `?benchDistance=0.98&benchHeight=1.38&benchScale=0.84`.
 
 ## Session setup
 
@@ -15,6 +16,7 @@ the headset, for example `?benchDistance=0.98&benchHeight=1.44`.
 - Switch between controllers and hands during a session; confirm both input paths recover cleanly.
 - Start facing slightly left or right of the room center.
 - Confirm the workbench appears centered, within comfortable reach, and below the displays.
+- Confirm the far-left dial and far-right guarded controls are reachable from a neutral seated posture without leaning or turning the torso.
 - Confirm every control can be touched from a relaxed seated posture without leaning forward.
 - Use the Quest system recenter action and confirm the complete scene remains aligned.
 
