@@ -98,6 +98,7 @@ changing controls.
 - optional WebXR hand tracking for fingertip presses, pinch selection, rotary
   manipulation, and one- or two-hand figure inspection;
 - session-local workbench translation through the model's dedicated grab handle;
+- explicit in-world WebXR session exit without changing module state;
 - Stress Test knob manipulation and reset;
 - figure inspection in VR; and
 - phase-specific visibility and placement.

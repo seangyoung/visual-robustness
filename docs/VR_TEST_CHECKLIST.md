@@ -19,6 +19,8 @@ the headset. Use `benchScale` to test a uniform model scale from `0.72` through
 - Confirm the far-left dial and far-right guarded controls are reachable from a neutral seated posture without leaning or turning the torso.
 - Confirm every control can be touched from a relaxed seated posture without leaning forward.
 - Use the Quest system recenter action and confirm the complete scene remains aligned.
+- Select `Exit VR` from the intro, example, transfer, and takeaway phases; confirm each returns to the browser without closing it or resetting module progress.
+- Open a figure in inspection mode and confirm `Exit VR` remains available there.
 
 ## Workbench input
 

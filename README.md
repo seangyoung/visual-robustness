@@ -57,6 +57,8 @@ Both modes use the same lesson state and visualization assets.
 - Optional controller-free hand tracking: fingertip button presses, pinch or
   natural two-finger grasp dial control, and deliberate pinch selection for
   figures and panel actions.
+- A persistent in-world Exit VR control that ends the immersive session and
+  returns to the browser module without resetting lesson progress.
 - Direct controller touch for workbench controls, with controller-ray selection
   as a fallback.
 - Figure inspection with one-hand pinch-drag panning and two-hand pinch zoom, plus

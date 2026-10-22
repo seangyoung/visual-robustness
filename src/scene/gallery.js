@@ -75,6 +75,17 @@ const TRANSFER_BUTTON_Y = LAYOUT.panelY - PANEL_H / 2 + 0.12;
 const TASK_ACTION_Y = TASK_PANEL_CENTER_Y - TASK_PANEL_H / 2 + 0.16;
 const BUTTONS = [
   {
+    id: "exit-vr",
+    action: "exitVr",
+    label: "Exit VR",
+    x: 0,
+    y: LAYOUT.panelY + PANEL_H / 2 + 0.14,
+    z: LAYOUT.panelZ + PANEL_BUTTON_Z_OFFSET,
+    width: 0.62,
+    height: 0.2,
+    rotationX: 0,
+  },
+  {
     id: "start-module",
     action: "startModule",
     label: introCopy.startLabel,
@@ -582,6 +593,21 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
   }
 
+  async function exitVr() {
+    const session = currentSession;
+    if (!session) return;
+    const exitButton = mainButtons.find((button) => button.id === "exit-vr");
+    if (exitButton) exitButton.mesh.userData.disabled = true;
+    updateButtonTextures(inWorldButtons, hoverControl, currentState);
+    try {
+      await session.end();
+    } catch (error) {
+      if (exitButton) exitButton.mesh.userData.disabled = false;
+      updateButtonTextures(inWorldButtons, hoverControl, currentState);
+      ui.setStatus(`Could not exit VR: ${error.message}`);
+    }
+  }
+
   function handleReferenceSpaceReset() {
     missionControlWasActive = false;
     missionControlNeedsAnchor = true;
@@ -608,6 +634,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   }
 
   function selectAction(action, payload = {}) {
+    if (action === "exitVr") {
+      exitVr();
+      return;
+    }
     onAction(action, payload);
   }
 
@@ -2709,6 +2739,16 @@ function buttonTextureKey(textureSpec, isActive, disabled) {
 }
 
 function buttonTextureSpec(button, state) {
+  if (button.id === "exit-vr") {
+    return {
+      label: "Exit VR",
+      active: false,
+      options: {
+        surface: "light",
+      },
+    };
+  }
+
   if (button.id === "start-module") {
     return {
       label: introCopy.startLabel,
