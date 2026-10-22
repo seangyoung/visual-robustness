@@ -276,6 +276,26 @@ export class MissionControlWorkbench {
     return true;
   }
 
+  setKnobGrabbed(id = "knob-main", grabbed = false) {
+    const control = this.getControl(id);
+    const ring = control?.getObjectByName("Knob_Main_Radial_Ring");
+    if (!ring) return false;
+    if (!ring.userData.grabFeedbackReady) {
+      ring.material = ring.material?.clone?.() ?? ring.material;
+      ring.userData.grabRestScale = ring.scale.clone();
+      ring.userData.grabRestEmissiveIntensity = Number(ring.material?.emissiveIntensity ?? 1);
+      ring.userData.grabFeedbackReady = true;
+    }
+    const scale = grabbed ? 1.14 : 1;
+    ring.scale.copy(ring.userData.grabRestScale).multiplyScalar(scale);
+    if (ring.material && "emissiveIntensity" in ring.material) {
+      ring.material.emissiveIntensity = grabbed
+        ? Math.max(3.5, ring.userData.grabRestEmissiveIntensity)
+        : ring.userData.grabRestEmissiveIntensity;
+    }
+    return true;
+  }
+
   setKnobNormalized(id = "knob-main", normalized, { emit = true, animate = true } = {}) {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary") return;

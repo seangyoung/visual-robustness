@@ -325,7 +325,7 @@ def create_knob(module, mats):
     knob = cylinder("Knob_Main_Grip", 0.027, 0.038, mats["metal"], pivot, (0, 0, 0.036), bevel=0.006)
     knob["hit_target"] = True
     knob["press_part"] = True
-    hit_target = rounded_box("Knob_Main_Touch_Target", (0.085, 0.010, 0.085), mats["hit"], pivot, (0, 0.048, 0), bevel=0.008)
+    hit_target = rounded_box("Knob_Main_Touch_Target", (0.120, 0.024, 0.120), mats["hit"], pivot, (0, 0.048, 0), bevel=0.010)
     hit_target["hit_target"] = True
     indicator = rounded_box("Knob_Main_Indicator", (0.006, 0.030, 0.005), mats["cyan"], pivot, (0, 0.023, 0.032), bevel=0.002)
     indicator["press_part"] = True
@@ -526,7 +526,7 @@ def create_asset():
     root = empty(
         "Mission_Control_Workbench",
         props={
-            "asset_version": "2.1.0",
+            "asset_version": "2.1.1",
             "units": "meters",
             "up_axis": "Y after glTF export",
             "target_runtime": "Three.js WebXR",

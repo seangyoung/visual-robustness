@@ -58,6 +58,17 @@ const knobDiameter = Math.max(
   ...knobPositionAccessor.max.map((maximum, index) => maximum - knobPositionAccessor.min[index]),
 );
 assert(knobDiameter >= 0.045 && knobDiameter <= 0.065, "The stress knob grip should be roughly 5 cm across");
+const knobTouchTarget = nodes.get("Knob_Main_Touch_Target");
+const knobTouchPrimitive = gltf.meshes?.[knobTouchTarget?.mesh]?.primitives?.[0];
+const knobTouchAccessor = gltf.accessors?.[knobTouchPrimitive?.attributes?.POSITION];
+assert(knobTouchAccessor?.min && knobTouchAccessor?.max, "The stress knob touch target must expose mesh bounds");
+const knobTouchDimensions = knobTouchAccessor.max.map(
+  (maximum, index) => maximum - knobTouchAccessor.min[index],
+);
+assert(
+  knobTouchDimensions.filter((dimension) => dimension >= 0.11).length >= 2,
+  "The stress knob touch target must support a natural two-finger grasp",
+);
 
 const grabHandle = nodes.get("Workbench_Grab_Handle");
 assert(grabHandle, "Missing workbench grab handle");

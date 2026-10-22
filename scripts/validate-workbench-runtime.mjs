@@ -20,6 +20,12 @@ control.userData = {
 const grip = new THREE.Object3D();
 grip.userData.press_part = true;
 control.add(grip);
+const ring = new THREE.Mesh(
+  new THREE.TorusGeometry(0.04, 0.005),
+  new THREE.MeshStandardMaterial({ emissive: "#0a6775", emissiveIntensity: 1.5 }),
+);
+ring.name = "Knob_Main_Radial_Ring";
+control.add(ring);
 root.add(control);
 
 const handle = new THREE.Group();
@@ -42,6 +48,12 @@ assert.equal(
   -90,
   "A fingertip on the right side of the knob should resolve to its dial angle",
 );
+assert.equal(workbench.setKnobGrabbed("knob-main", true), true, "The knob should accept grab feedback");
+assert(ring.scale.x > 1, "The knob ring should expand while grabbed");
+assert(ring.material.emissiveIntensity >= 3.5, "The knob ring should brighten while grabbed");
+workbench.setKnobGrabbed("knob-main", false);
+assert.equal(ring.scale.x, 1, "The knob ring should return to its resting scale after release");
+assert.equal(ring.material.emissiveIntensity, 1.5, "The knob ring should restore its resting brightness");
 assert.equal(workbench.pressRotary("knob-main"), true, "The rotary control should accept a push");
 workbench.setKnobNormalized("knob-main", 0, { emit: false });
 

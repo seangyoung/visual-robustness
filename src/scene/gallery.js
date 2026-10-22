@@ -204,7 +204,13 @@ const WORKBENCH_TOUCH_PRESS_DEPTH = 0.006;
 const WORKBENCH_KNOB_RESET_PRESS_DEPTH = 0.012;
 const HAND_TOUCH_RADIUS = 0.01;
 const HAND_TOUCH_RELEASE_MARGIN = 0.018;
-const HAND_KNOB_GRAB_RADIUS = 0.018;
+const HAND_KNOB_GRAB_RADIUS = 0.035;
+const HAND_KNOB_GRASP_MAX_SPREAD = 0.085;
+const HAND_KNOB_GRASP_RELEASE_SPREAD = 0.11;
+const HAND_KNOB_GRASP_RELEASE_RADIUS = 0.055;
+const HAND_KNOB_ROTATION_GAIN = 1.8;
+const HAND_KNOB_MAX_FRAME_DEGREES = 30;
+const HAND_KNOB_MIN_FRAME_DEGREES = 0.12;
 const HAND_WORKBENCH_GRAB_RADIUS = 0.025;
 const HAND_FIGURE_MOVE_EPSILON = 0.0005;
 const HAND_TASK_SCROLL_SCALE = 620;
@@ -821,7 +827,17 @@ export function createGalleryApp({ canvas, ui, onAction }) {
           "mission-control:knob-main",
         )
       : null;
-    if (knobHit && beginMissionControlKnobHandDrag(hand)) {
+    if (
+      knobHit &&
+      dragState?.type === "mission-control-hand-knob" &&
+      dragState.hand === hand
+    ) {
+      dragState.activation = "pinch";
+      handPinchStates.set(handIndex, { kind: "knob", hand });
+      directTouchStates.delete(`hand:${handIndex}`);
+      return;
+    }
+    if (knobHit && beginMissionControlKnobHandDrag(hand, "mission-control:knob-main", "pinch")) {
       handPinchStates.set(handIndex, { kind: "knob", hand });
       directTouchStates.delete(`hand:${handIndex}`);
       return;
@@ -878,6 +894,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
 
     if (dragState?.type === "mission-control-hand-knob" && dragState.hand === hand) {
+      missionControlWorkbench?.setKnobGrabbed("knob-main", false);
       dragState = null;
     }
     if (dragState?.type === "workbench-hand" && dragState.hand === hand) {
@@ -900,6 +917,54 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     taskScroll = next;
     updatePanel(panels.task, "task", moduleScenes[currentState.sceneIndex], panelStateWithScroll(currentState));
     return true;
+  }
+
+  function updateHandKnobGrasp() {
+    const activeDrag = dragState?.type === "mission-control-hand-knob" ? dragState : null;
+    if (!isModelWorkbenchActive()) {
+      if (activeDrag) {
+        missionControlWorkbench?.setKnobGrabbed("knob-main", false);
+        dragState = null;
+      }
+      return false;
+    }
+
+    if (activeDrag) {
+      if (activeDrag.activation !== "grasp") return false;
+      if (handKnobGraspContact(activeDrag.hand, { release: true })) return false;
+      missionControlWorkbench.setKnobGrabbed("knob-main", false);
+      dragState = null;
+      hoverControl = null;
+      return true;
+    }
+
+    if (dragState) return false;
+    for (const hand of hands) {
+      const handIndex = hand.userData.index ?? 0;
+      if (!hand.visible || handPinchStates.has(handIndex)) continue;
+      if (!handKnobGraspContact(hand)) continue;
+      if (beginMissionControlKnobHandDrag(hand, "mission-control:knob-main", "grasp")) return true;
+    }
+    return false;
+  }
+
+  function handKnobGraspContact(hand, { release = false } = {}) {
+    if (!hand?.visible || !missionControlWorkbench) return null;
+    const indexTip = handJointWorldPoint(hand, "index-finger-tip");
+    const thumbTip = handJointWorldPoint(hand, "thumb-tip");
+    if (!indexTip || !thumbTip) return null;
+    const spread = indexTip.distanceTo(thumbTip);
+    const maximumSpread = release ? HAND_KNOB_GRASP_RELEASE_SPREAD : HAND_KNOB_GRASP_MAX_SPREAD;
+    if (spread > maximumSpread) return null;
+    const graspPoint = indexTip.clone().add(thumbTip).multiplyScalar(0.5);
+    const radius = release ? HAND_KNOB_GRASP_RELEASE_RADIUS : HAND_KNOB_GRAB_RADIUS;
+    const hit = intersectPointContact(
+      graspPoint,
+      getVisibleInteractiveObjects(missionControlWorkbench.getDirectTouchMeshes()),
+      radius,
+      "mission-control:knob-main",
+    );
+    return hit ? { hit, graspPoint, spread } : null;
   }
 
   function updateWorkbenchDirectTouch() {
@@ -935,7 +1000,8 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     hands.forEach((hand) => {
       const handIndex = hand.userData.index ?? 0;
       const key = `hand:${handIndex}`;
-      if (!hand.visible || handPinchStates.has(handIndex)) {
+      const isTurningKnob = dragState?.type === "mission-control-hand-knob" && dragState.hand === hand;
+      if (!hand.visible || handPinchStates.has(handIndex) || isTurningKnob) {
         directTouchStates.delete(key);
         return;
       }
@@ -1069,7 +1135,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       return;
     }
 
-    if (endedDrag.type === "mission-control-knob") return;
+    if (endedDrag.type === "mission-control-knob") {
+      missionControlWorkbench?.setKnobGrabbed("knob-main", false);
+      return;
+    }
     if (endedDrag.type === "workbench-controller") return;
 
     updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
@@ -1236,28 +1305,43 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       lastIndex: clampStressTestIndex(currentState.workbench.stressTestIndex),
     };
     hoverControl = controlId;
+    missionControlWorkbench.setKnobGrabbed("knob-main", true);
     pulseController(controller, 0.22, 35);
     return true;
   }
 
-  function beginMissionControlKnobHandDrag(hand, controlId = "mission-control:knob-main") {
+  function beginMissionControlKnobHandDrag(
+    hand,
+    controlId = "mission-control:knob-main",
+    activation = "pinch",
+  ) {
     if (!missionControlWorkbench) return false;
     const control = missionControlWorkbench.getControl("knob-main");
+    const axis = missionControlWorkbench.controlWorldAxis("knob-main");
     const indexTip = handJointWorldPoint(hand, "index-finger-tip");
     const gestureDegrees = missionControlWorkbench.knobDegreesFromWorldPoint("knob-main", indexTip);
-    if (!control || gestureDegrees === null) return false;
+    const wrist = hand.joints?.wrist;
+    const wristReference = wrist?.visible ? controllerOrientationReference(wrist, axis) : null;
+    if (!control || !axis || (gestureDegrees === null && !wristReference)) return false;
     const minDegrees = Number(control.userData.min_degrees);
     const maxDegrees = Number(control.userData.max_degrees);
     dragState = {
       type: "mission-control-hand-knob",
       hand,
-      startGestureDegrees: gestureDegrees,
+      activation,
+      axis,
+      wrist,
+      wristBasisIndex: wristReference?.basisIndex ?? null,
+      lastWristVector: wristReference?.vector ?? null,
+      lastGestureDegrees: gestureDegrees,
       startDegrees: THREE.MathUtils.lerp(minDegrees, maxDegrees, Number(control.userData.value ?? 0)),
+      accumulatedDegrees: 0,
       minDegrees,
       maxDegrees,
       lastIndex: clampStressTestIndex(currentState.workbench.stressTestIndex),
     };
     hoverControl = controlId;
+    missionControlWorkbench.setKnobGrabbed("knob-main", true);
     return true;
   }
 
@@ -1294,12 +1378,37 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   function updateMissionControlKnobFromHand(activeDrag) {
     if (!missionControlWorkbench || !activeDrag.hand.visible) return false;
+    let fingertipDelta = 0;
     const indexTip = handJointWorldPoint(activeDrag.hand, "index-finger-tip");
     const gestureDegrees = missionControlWorkbench.knobDegreesFromWorldPoint("knob-main", indexTip);
-    if (gestureDegrees === null) return false;
-    const deltaDegrees = shortestDegreeDelta(gestureDegrees, activeDrag.startGestureDegrees);
+    if (gestureDegrees !== null && activeDrag.lastGestureDegrees !== null) {
+      fingertipDelta = shortestDegreeDelta(gestureDegrees, activeDrag.lastGestureDegrees);
+    }
+    if (gestureDegrees !== null) activeDrag.lastGestureDegrees = gestureDegrees;
+
+    let wristDelta = 0;
+    if (activeDrag.wrist?.visible && activeDrag.lastWristVector && activeDrag.wristBasisIndex !== null) {
+      const currentWristVector = controllerOrientationVector(
+        activeDrag.wrist,
+        activeDrag.axis,
+        activeDrag.wristBasisIndex,
+      );
+      if (currentWristVector) {
+        wristDelta = signedAngleDegrees(activeDrag.lastWristVector, currentWristVector, activeDrag.axis);
+        activeDrag.lastWristVector.copy(currentWristVector);
+      }
+    }
+
+    const preferredDelta = activeDrag.activation === "grasp" ? wristDelta : fingertipDelta;
+    const alternateDelta = activeDrag.activation === "grasp" ? fingertipDelta : wristDelta;
+    const rawDelta = Math.abs(preferredDelta) >= HAND_KNOB_MIN_FRAME_DEGREES
+      ? preferredDelta
+      : alternateDelta;
+    if (!Number.isFinite(rawDelta) || Math.abs(rawDelta) < HAND_KNOB_MIN_FRAME_DEGREES) return false;
+    if (Math.abs(rawDelta) > HAND_KNOB_MAX_FRAME_DEGREES) return false;
+    activeDrag.accumulatedDegrees += rawDelta * HAND_KNOB_ROTATION_GAIN;
     const degrees = THREE.MathUtils.clamp(
-      activeDrag.startDegrees + deltaDegrees,
+      activeDrag.startDegrees + activeDrag.accumulatedDegrees,
       activeDrag.minDegrees,
       activeDrag.maxDegrees,
     );
@@ -1424,7 +1533,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
         title: "Stress Test",
         primary: stressTest.shortLabel,
         secondary: stressTest.frequency ?? "",
-        footer: `${stressIndex + 1} of ${stressTests.length}  ·  Push knob to reset`,
+        footer: `${stressIndex + 1} of ${stressTests.length}  ·  Hold + twist  ·  Push to reset`,
       }),
     );
     optionGroups.forEach((group, index) => {
@@ -1677,6 +1786,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       configuredWorkbenchHeight: WORKBENCH_VIEWER_VERTICAL_OFFSET,
       hoveredControl: hoverControl,
       dragType: dragState?.type ?? null,
+      dragActivation: dragState?.activation ?? null,
     });
     debugElapsed = 0;
     debugFrames = 0;
@@ -1719,6 +1829,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       anchorMissionControlWorkbenchToViewer();
       missionControlNeedsAnchor = false;
     }
+    updateHandKnobGrasp();
     if (dragState) updateDragState(dragState);
     if (handFigureGesture) updateHandFigureInspectionGesture();
     updateHandTaskPanelScroll();
@@ -3045,6 +3156,16 @@ function averagePoints(points) {
 
 function shortestDegreeDelta(currentDegrees, startDegrees) {
   return ((currentDegrees - startDegrees + 540) % 360) - 180;
+}
+
+function signedAngleDegrees(fromVector, toVector, axis) {
+  const cross = fromVector.clone().cross(toVector);
+  return THREE.MathUtils.radToDeg(
+    Math.atan2(
+      axis.dot(cross),
+      THREE.MathUtils.clamp(fromVector.dot(toVector), -1, 1),
+    ),
+  );
 }
 
 function controllerGrabPoint(controller) {

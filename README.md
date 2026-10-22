@@ -54,8 +54,9 @@ Both modes use the same lesson state and visualization assets.
 - A rotary Stress Test control with discrete detents and push-to-reset.
 - A dedicated illuminated grab rail for repositioning the workbench closer,
   farther away, higher, or lower during the current VR session.
-- Optional controller-free hand tracking: fingertip button presses, pinch-and-dial
-  knob control, and deliberate pinch selection for figures and panel actions.
+- Optional controller-free hand tracking: fingertip button presses, pinch or
+  natural two-finger grasp dial control, and deliberate pinch selection for
+  figures and panel actions.
 - Direct controller touch for workbench controls, with controller-ray selection
   as a fallback.
 - Figure inspection with one-hand pinch-drag panning and two-hand pinch zoom, plus

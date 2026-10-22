@@ -34,7 +34,8 @@ the headset, for example `?benchDistance=0.98&benchHeight=1.44`.
 - Press every workbench radio button with the index fingertip; each should activate once per press.
 - Brush the workbench, button rims, and adjacent controls; none should activate accidentally.
 - Push the Stress Test knob with one fingertip and confirm it resets to baseline.
-- Pinch the Stress Test knob, sweep the index fingertip around the dial in both directions, and confirm each detent is reachable.
+- Hold the Stress Test knob between the thumb and index finger without fully pinching, twist the wrist in both directions, and confirm each detent is reachable.
+- Fully pinch the knob and sweep the index fingertip around the dial; confirm this alternate gesture also reaches each detent.
 - Confirm a pinch begun away from the knob does not rotate or reset it.
 - Pinch and hold the illuminated rail under the front lip, then pull the workbench closer and change its height.
 - Release the rail and confirm the workbench remains at the chosen position throughout all three examples.
