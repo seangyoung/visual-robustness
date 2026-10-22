@@ -204,9 +204,14 @@ const WORKBENCH_TOUCH_PRESS_DEPTH = 0.006;
 const WORKBENCH_KNOB_RESET_PRESS_DEPTH = 0.012;
 const HAND_TOUCH_RADIUS = 0.01;
 const HAND_TOUCH_RELEASE_MARGIN = 0.018;
-const HAND_KNOB_GRAB_RADIUS = 0.035;
+const HAND_KNOB_GRAB_RADIUS = 0.018;
+const HAND_WORKBENCH_GRAB_RADIUS = 0.025;
 const HAND_FIGURE_MOVE_EPSILON = 0.0005;
 const HAND_TASK_SCROLL_SCALE = 620;
+const WORKBENCH_MIN_VIEWER_DISTANCE = 0.72;
+const WORKBENCH_MAX_VIEWER_DISTANCE = 1.5;
+const WORKBENCH_MIN_VERTICAL_OFFSET = 0.95;
+const WORKBENCH_MAX_VERTICAL_OFFSET = 1.75;
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const WORKBENCH_VIEWER_DISTANCE = boundedUrlNumber(URL_PARAMS.get("benchDistance"), 1.05, 0.9, 1.45);
 const WORKBENCH_VIEWER_VERTICAL_OFFSET = boundedUrlNumber(
@@ -635,7 +640,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       robustnessSlider.hitArea,
       robustnessSlider.handle,
     ];
-    if (isModelWorkbenchActive()) objects.push(...missionControlWorkbench.getInteractiveMeshes());
+    if (isModelWorkbenchActive()) {
+      objects.push(...missionControlWorkbench.getInteractiveMeshes());
+      objects.push(...missionControlWorkbench.getGrabHandleMeshes());
+    }
     return objects;
   }
 
@@ -660,7 +668,10 @@ export function createGalleryApp({ canvas, ui, onAction }) {
       ];
     }
     const objects = [...interactive, panels.task];
-    if (isModelWorkbenchActive()) objects.push(...missionControlWorkbench.getInteractiveMeshes());
+    if (isModelWorkbenchActive()) {
+      objects.push(...missionControlWorkbench.getInteractiveMeshes());
+      objects.push(...missionControlWorkbench.getGrabHandleMeshes());
+    }
     return objects;
   }
 
@@ -710,6 +721,11 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const target = hit?.object;
     if (!target) return;
     if (target.userData.disabled) return;
+
+    if (target.userData.kind === "workbench-grab-handle") {
+      if (beginWorkbenchControllerDrag(controller)) pulseController(controller, 0.24, 40);
+      return;
+    }
 
     if (target.userData.kind === "figure-panel") {
       openVrFigureInspector(target.userData.figureKind ?? "map");
@@ -784,6 +800,19 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     const pinchPoint = handPinchPoint(hand);
     if (!pinchPoint) return;
 
+    const handleHit = isModelWorkbenchActive()
+      ? intersectPointContact(
+          pinchPoint,
+          getVisibleInteractiveObjects(missionControlWorkbench.getGrabHandleMeshes()),
+          HAND_WORKBENCH_GRAB_RADIUS,
+        )
+      : null;
+    if (handleHit && beginWorkbenchHandDrag(hand, pinchPoint)) {
+      handPinchStates.set(handIndex, { kind: "workbench", hand });
+      directTouchStates.delete(`hand:${handIndex}`);
+      return;
+    }
+
     const knobHit = isModelWorkbenchActive()
       ? intersectPointContact(
           pinchPoint,
@@ -849,6 +878,9 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
 
     if (dragState?.type === "mission-control-hand-knob" && dragState.hand === hand) {
+      dragState = null;
+    }
+    if (dragState?.type === "workbench-hand" && dragState.hand === hand) {
       dragState = null;
     }
     if (pinchState?.kind === "figure") resetHandFigureGesture();
@@ -1038,6 +1070,7 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
 
     if (endedDrag.type === "mission-control-knob") return;
+    if (endedDrag.type === "workbench-controller") return;
 
     updateRobustnessSlider(robustnessSlider, currentState.workbench.stressTestIndex, hoverControl, dragState);
   }
@@ -1053,6 +1086,14 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     }
     if (activeDrag.type === "mission-control-hand-knob") {
       updateMissionControlKnobFromHand(activeDrag);
+      return;
+    }
+    if (activeDrag.type === "workbench-controller") {
+      updateWorkbenchPositionFromPoint(activeDrag, controllerGrabPoint(activeDrag.controller));
+      return;
+    }
+    if (activeDrag.type === "workbench-hand") {
+      updateWorkbenchPositionFromPoint(activeDrag, handPinchPoint(activeDrag.hand));
       return;
     }
     if (activeDrag.type === "rank-card") {
@@ -1113,6 +1154,68 @@ export function createGalleryApp({ canvas, ui, onAction }) {
     missionControlWorkbench.root.updateWorldMatrix(true, true);
   }
 
+  function beginWorkbenchControllerDrag(controller) {
+    if (!isModelWorkbenchActive()) return false;
+    const point = controllerGrabPoint(controller);
+    if (!point) return false;
+    dragState = {
+      type: "workbench-controller",
+      controller,
+      lastPoint: point,
+    };
+    hoverControl = "workbench-grab-handle";
+    return true;
+  }
+
+  function beginWorkbenchHandDrag(hand, pinchPoint = handPinchPoint(hand)) {
+    if (!isModelWorkbenchActive() || !pinchPoint) return false;
+    dragState = {
+      type: "workbench-hand",
+      hand,
+      lastPoint: pinchPoint.clone(),
+    };
+    hoverControl = "workbench-grab-handle";
+    return true;
+  }
+
+  function updateWorkbenchPositionFromPoint(activeDrag, point) {
+    if (!missionControlWorkbench || !point || !activeDrag.lastPoint) return false;
+    const delta = point.clone().sub(activeDrag.lastPoint);
+    activeDrag.lastPoint.copy(point);
+    if (delta.lengthSq() < 0.000001) return false;
+
+    missionControlWorkbench.root.updateWorldMatrix(true, false);
+    const nextWorldPosition = missionControlWorkbench.root
+      .getWorldPosition(new THREE.Vector3())
+      .add(delta);
+    constrainWorkbenchPositionToViewer(nextWorldPosition);
+    stage.updateWorldMatrix(true, false);
+    missionControlWorkbench.root.position.copy(stage.worldToLocal(nextWorldPosition));
+    missionControlWorkbench.root.updateWorldMatrix(true, true);
+    return true;
+  }
+
+  function constrainWorkbenchPositionToViewer(worldPosition) {
+    const xrCamera = renderer.xr.getCamera(camera);
+    const headPosition = xrCamera.getWorldPosition(new THREE.Vector3());
+    worldPosition.y = clamp(
+      worldPosition.y,
+      headPosition.y - WORKBENCH_MAX_VERTICAL_OFFSET,
+      headPosition.y - WORKBENCH_MIN_VERTICAL_OFFSET,
+    );
+
+    const horizontalOffset = worldPosition.clone().sub(headPosition);
+    horizontalOffset.y = 0;
+    const distance = horizontalOffset.length();
+    if (distance < 0.0001) horizontalOffset.set(0, 0, -1);
+    else horizontalOffset.multiplyScalar(1 / distance);
+    horizontalOffset.multiplyScalar(
+      clamp(distance, WORKBENCH_MIN_VIEWER_DISTANCE, WORKBENCH_MAX_VIEWER_DISTANCE),
+    );
+    worldPosition.x = headPosition.x + horizontalOffset.x;
+    worldPosition.z = headPosition.z + horizontalOffset.z;
+  }
+
   function beginMissionControlKnobDrag(controller, controlId = "mission-control:knob-main") {
     if (!missionControlWorkbench) return false;
     const axis = missionControlWorkbench.controlWorldAxis("knob-main");
@@ -1139,21 +1242,16 @@ export function createGalleryApp({ canvas, ui, onAction }) {
 
   function beginMissionControlKnobHandDrag(hand, controlId = "mission-control:knob-main") {
     if (!missionControlWorkbench) return false;
-    const axis = missionControlWorkbench.controlWorldAxis("knob-main");
-    const orientationSource = hand.joints?.wrist;
     const control = missionControlWorkbench.getControl("knob-main");
-    if (!axis || !control || !orientationSource?.visible) return false;
-    const reference = controllerOrientationReference(orientationSource, axis);
-    if (!reference) return false;
+    const indexTip = handJointWorldPoint(hand, "index-finger-tip");
+    const gestureDegrees = missionControlWorkbench.knobDegreesFromWorldPoint("knob-main", indexTip);
+    if (!control || gestureDegrees === null) return false;
     const minDegrees = Number(control.userData.min_degrees);
     const maxDegrees = Number(control.userData.max_degrees);
     dragState = {
       type: "mission-control-hand-knob",
       hand,
-      orientationSource,
-      axis,
-      basisIndex: reference.basisIndex,
-      startVector: reference.vector,
+      startGestureDegrees: gestureDegrees,
       startDegrees: THREE.MathUtils.lerp(minDegrees, maxDegrees, Number(control.userData.value ?? 0)),
       minDegrees,
       maxDegrees,
@@ -1195,20 +1293,13 @@ export function createGalleryApp({ canvas, ui, onAction }) {
   }
 
   function updateMissionControlKnobFromHand(activeDrag) {
-    if (!missionControlWorkbench || !activeDrag.orientationSource?.visible) return false;
-    const currentVector = controllerOrientationVector(
-      activeDrag.orientationSource,
-      activeDrag.axis,
-      activeDrag.basisIndex,
-    );
-    if (!currentVector) return false;
-    const cross = activeDrag.startVector.clone().cross(currentVector);
-    const deltaRadians = Math.atan2(
-      activeDrag.axis.dot(cross),
-      THREE.MathUtils.clamp(activeDrag.startVector.dot(currentVector), -1, 1),
-    );
+    if (!missionControlWorkbench || !activeDrag.hand.visible) return false;
+    const indexTip = handJointWorldPoint(activeDrag.hand, "index-finger-tip");
+    const gestureDegrees = missionControlWorkbench.knobDegreesFromWorldPoint("knob-main", indexTip);
+    if (gestureDegrees === null) return false;
+    const deltaDegrees = shortestDegreeDelta(gestureDegrees, activeDrag.startGestureDegrees);
     const degrees = THREE.MathUtils.clamp(
-      activeDrag.startDegrees + THREE.MathUtils.radToDeg(deltaRadians),
+      activeDrag.startDegrees + deltaDegrees,
       activeDrag.minDegrees,
       activeDrag.maxDegrees,
     );
@@ -2950,6 +3041,18 @@ function averagePoints(points) {
   const average = new THREE.Vector3();
   points.forEach((point) => average.add(point));
   return average.multiplyScalar(1 / Math.max(points.length, 1));
+}
+
+function shortestDegreeDelta(currentDegrees, startDegrees) {
+  return ((currentDegrees - startDegrees + 540) % 360) - 180;
+}
+
+function controllerGrabPoint(controller) {
+  const grip = controller.userData.grip;
+  const source = grip?.visible ? grip : controller;
+  if (!source.visible) return null;
+  source.updateWorldMatrix(true, false);
+  return source.getWorldPosition(new THREE.Vector3());
 }
 
 function controllerTouchPoint(controller) {

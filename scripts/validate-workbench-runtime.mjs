@@ -22,8 +22,26 @@ grip.userData.press_part = true;
 control.add(grip);
 root.add(control);
 
+const handle = new THREE.Group();
+handle.userData = {
+  role: "workbench_grab_handle",
+  interaction: "translate",
+  control_id: "workbench-grab-handle",
+};
+const handleHitTarget = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.1));
+handleHitTarget.userData.hit_target = true;
+handle.add(handleHitTarget);
+root.add(handle);
+
 const events = [];
 const workbench = new MissionControlWorkbench(root, (event) => events.push(event));
+assert.equal(workbench.getGrabHandleMeshes().length, 1, "The workbench should expose one grab-handle hit target");
+assert.equal(handleHitTarget.userData.kind, "workbench-grab-handle", "The grab handle must be tagged for runtime input");
+assert.equal(
+  Math.round(workbench.knobDegreesFromWorldPoint("knob-main", new THREE.Vector3(0.03, 0, 0))),
+  -90,
+  "A fingertip on the right side of the knob should resolve to its dial angle",
+);
 assert.equal(workbench.pressRotary("knob-main"), true, "The rotary control should accept a push");
 workbench.setKnobNormalized("knob-main", 0, { emit: false });
 

@@ -52,7 +52,9 @@ Both modes use the same lesson state and visualization assets.
 - Stationary gallery with no required locomotion.
 - A modeled workbench with three physical radio-control groups.
 - A rotary Stress Test control with discrete detents and push-to-reset.
-- Optional controller-free hand tracking: fingertip button presses, pinch-and-turn
+- A dedicated illuminated grab rail for repositioning the workbench closer,
+  farther away, higher, or lower during the current VR session.
+- Optional controller-free hand tracking: fingertip button presses, pinch-and-dial
   knob control, and deliberate pinch selection for figures and panel actions.
 - Direct controller touch for workbench controls, with controller-ray selection
   as a fallback.

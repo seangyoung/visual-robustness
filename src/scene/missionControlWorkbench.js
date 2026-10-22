@@ -29,6 +29,7 @@ export class MissionControlWorkbench {
     this.controls = new Map();
     this.screens = new Map();
     this.radioGroups = new Map();
+    this.grabHandle = null;
     this.disabledControls = new Set();
     this.activeTweens = [];
 
@@ -69,6 +70,10 @@ export class MissionControlWorkbench {
         }
         this.screens.set(id, object);
       }
+
+      if (object.userData?.role === "workbench_grab_handle") {
+        this.grabHandle = object;
+      }
     });
 
     for (const [groupId, controls] of this.radioGroups) {
@@ -79,10 +84,16 @@ export class MissionControlWorkbench {
     root.traverse((object) => {
       if (!object.isMesh) return;
       const control = this.resolveControl(object);
-      if (!control) return;
-      object.userData.kind = "mission-control";
-      object.userData.controlId = `mission-control:${control.userData.control_id}`;
-      object.userData.missionControlId = control.userData.control_id;
+      if (control) {
+        object.userData.kind = "mission-control";
+        object.userData.controlId = `mission-control:${control.userData.control_id}`;
+        object.userData.missionControlId = control.userData.control_id;
+        return;
+      }
+      if (this.resolveGrabHandle(object)) {
+        object.userData.kind = "workbench-grab-handle";
+        object.userData.controlId = "workbench-grab-handle";
+      }
     });
   }
 
@@ -112,10 +123,27 @@ export class MissionControlWorkbench {
     return meshes;
   }
 
+  getGrabHandleMeshes() {
+    const meshes = [];
+    this.grabHandle?.traverse((object) => {
+      if (object.isMesh && object.userData?.hit_target) meshes.push(object);
+    });
+    return meshes;
+  }
+
   resolveControl(object) {
     let current = object;
     while (current && current !== this.root.parent) {
       if (current.userData?.role === "interactive_control") return current;
+      current = current.parent;
+    }
+    return null;
+  }
+
+  resolveGrabHandle(object) {
+    let current = object;
+    while (current && current !== this.root.parent) {
+      if (current.userData?.role === "workbench_grab_handle") return current;
       current = current.parent;
     }
     return null;
@@ -270,17 +298,24 @@ export class MissionControlWorkbench {
   setKnobFromWorldPoint(id = "knob-main", worldPoint, { emit = true, animate = true, steps = 0 } = {}) {
     const control = this.getControl(id);
     if (!control || control.userData.interaction !== "rotary" || !worldPoint) return false;
-    const local = restLocalPointFromWorldPoint(control, worldPoint);
-    const { u, v } = controlPlaneCoordinates(control, local);
-    const radius = Math.hypot(u, v);
-    if (radius < 0.025) return false;
+    const degreesAtPoint = this.knobDegreesFromWorldPoint(id, worldPoint);
+    if (degreesAtPoint === null) return false;
     const min = Number(control.userData.min_degrees);
     const max = Number(control.userData.max_degrees);
-    const degrees = THREE.MathUtils.clamp(-THREE.MathUtils.radToDeg(Math.atan2(u, v)), min, max);
+    const degrees = THREE.MathUtils.clamp(degreesAtPoint, min, max);
     let normalized = (degrees - min) / (max - min);
     if (steps > 1) normalized = Math.round(normalized * (steps - 1)) / (steps - 1);
     this.setKnobNormalized(id, normalized, { emit, animate });
     return true;
+  }
+
+  knobDegreesFromWorldPoint(id = "knob-main", worldPoint) {
+    const control = this.getControl(id);
+    if (!control || control.userData.interaction !== "rotary" || !worldPoint) return null;
+    const local = restLocalPointFromWorldPoint(control, worldPoint);
+    const { u, v } = controlPlaneCoordinates(control, local);
+    if (Math.hypot(u, v) < 0.012) return null;
+    return -THREE.MathUtils.radToDeg(Math.atan2(u, v));
   }
 
   controlPlane(id) {

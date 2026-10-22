@@ -97,6 +97,7 @@ changing controls.
 - controller rays, direct-touch hit testing, haptics, and snap turn;
 - optional WebXR hand tracking for fingertip presses, pinch selection, rotary
   manipulation, and one- or two-hand figure inspection;
+- session-local workbench translation through the model's dedicated grab handle;
 - Stress Test knob manipulation and reset;
 - figure inspection in VR; and
 - phase-specific visibility and placement.

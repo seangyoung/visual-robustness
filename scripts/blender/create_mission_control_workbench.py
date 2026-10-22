@@ -320,16 +320,62 @@ def create_knob(module, mats):
             "screen_id": "knob-feedback",
         },
     )
-    torus("Knob_Main_Radial_Ring", 0.148, 0.010, mats["cyan"], pivot, (0, 0, 0.010))
-    cylinder("Knob_Main_Base", 0.136, 0.026, mats["black"], pivot, (0, 0, 0.014))
-    knob = cylinder("Knob_Main_Grip", 0.106, 0.052, mats["metal"], pivot, (0, 0, 0.050), bevel=0.012)
+    torus("Knob_Main_Radial_Ring", 0.041, 0.005, mats["cyan"], pivot, (0, 0, 0.010))
+    cylinder("Knob_Main_Base", 0.037, 0.020, mats["black"], pivot, (0, 0, 0.012), bevel=0.006)
+    knob = cylinder("Knob_Main_Grip", 0.027, 0.038, mats["metal"], pivot, (0, 0, 0.036), bevel=0.006)
     knob["hit_target"] = True
     knob["press_part"] = True
-    hit_target = rounded_box("Knob_Main_Touch_Target", (0.36, 0.012, 0.36), mats["hit"], pivot, (0, 0.065, 0), bevel=0.01)
+    hit_target = rounded_box("Knob_Main_Touch_Target", (0.085, 0.010, 0.085), mats["hit"], pivot, (0, 0.048, 0), bevel=0.008)
     hit_target["hit_target"] = True
-    indicator = rounded_box("Knob_Main_Indicator", (0.011, 0.068, 0.007), mats["cyan"], pivot, (0, 0.031, 0.079), bevel=0.003)
+    indicator = rounded_box("Knob_Main_Indicator", (0.006, 0.030, 0.005), mats["cyan"], pivot, (0, 0.023, 0.032), bevel=0.002)
     indicator["press_part"] = True
     return pivot
+
+
+def create_workbench_grab_handle(root, mats):
+    handle = empty(
+        "Workbench_Grab_Handle",
+        root,
+        (0, -0.425, 0.675),
+        props={
+            "role": "workbench_grab_handle",
+            "interaction": "translate",
+            "control_id": "workbench-grab-handle",
+        },
+    )
+    rounded_box(
+        "Workbench_Grab_Handle_Bar",
+        (0.72, 0.060, 0.050),
+        mats["cyan"],
+        handle,
+        bevel=0.018,
+    )
+    rounded_box(
+        "Workbench_Grab_Handle_Left_Mount",
+        (0.065, 0.135, 0.120),
+        mats["metal"],
+        handle,
+        (-0.285, 0.052, 0.052),
+        bevel=0.014,
+    )
+    rounded_box(
+        "Workbench_Grab_Handle_Right_Mount",
+        (0.065, 0.135, 0.120),
+        mats["metal"],
+        handle,
+        (0.285, 0.052, 0.052),
+        bevel=0.014,
+    )
+    hit_target = rounded_box(
+        "Workbench_Grab_Handle_Hit_Target",
+        (0.82, 0.125, 0.115),
+        mats["hit"],
+        handle,
+        (0, 0, 0.008),
+        bevel=0.018,
+    )
+    hit_target["hit_target"] = True
+    return handle
 
 
 def create_radio_button(parent, index, group_index, option_index, x, mats):
@@ -480,7 +526,7 @@ def create_asset():
     root = empty(
         "Mission_Control_Workbench",
         props={
-            "asset_version": "2.0.0",
+            "asset_version": "2.1.0",
             "units": "meters",
             "up_axis": "Y after glTF export",
             "target_runtime": "Three.js WebXR",
@@ -523,6 +569,7 @@ def create_asset():
         root,
         bevel=0.012,
     )
+    create_workbench_grab_handle(root, mats)
 
     stations = [create_control_station(root, index, angle) for index, angle in enumerate(ARC_ANGLES)]
     knob_station = create_knob_station(root)

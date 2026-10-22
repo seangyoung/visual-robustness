@@ -34,8 +34,12 @@ the headset, for example `?benchDistance=0.98&benchHeight=1.44`.
 - Press every workbench radio button with the index fingertip; each should activate once per press.
 - Brush the workbench, button rims, and adjacent controls; none should activate accidentally.
 - Push the Stress Test knob with one fingertip and confirm it resets to baseline.
-- Pinch the Stress Test knob, rotate the hand in both directions, and confirm each detent is reachable.
+- Pinch the Stress Test knob, sweep the index fingertip around the dial in both directions, and confirm each detent is reachable.
 - Confirm a pinch begun away from the knob does not rotate or reset it.
+- Pinch and hold the illuminated rail under the front lip, then pull the workbench closer and change its height.
+- Release the rail and confirm the workbench remains at the chosen position throughout all three examples.
+- Move the workbench with a controller trigger or grip on the same rail and confirm the hand and controller paths agree.
+- Confirm the workbench stops before intersecting the viewer and cannot be moved beyond a recoverable distance.
 - Aim at each map and chart, make a deliberate index-thumb pinch, and confirm the intended figure opens.
 - In figure inspection, pinch-drag with one hand to pan in the same direction as the hand movement.
 - Pinch with both hands, move them apart and together to zoom, and move them together to pan.

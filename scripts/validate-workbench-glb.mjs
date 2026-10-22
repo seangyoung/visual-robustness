@@ -50,6 +50,19 @@ assert(
 );
 assert.equal(nodes.get("Knob_Main_Grip")?.extras?.press_part, true, "The stress knob grip must depress");
 assert.equal(nodes.get("Knob_Main_Indicator")?.extras?.press_part, true, "The stress knob indicator must depress");
+const knobGrip = nodes.get("Knob_Main_Grip");
+const knobPrimitive = gltf.meshes?.[knobGrip?.mesh]?.primitives?.[0];
+const knobPositionAccessor = gltf.accessors?.[knobPrimitive?.attributes?.POSITION];
+assert(knobPositionAccessor?.min && knobPositionAccessor?.max, "The stress knob grip must expose mesh bounds");
+const knobDiameter = Math.max(
+  ...knobPositionAccessor.max.map((maximum, index) => maximum - knobPositionAccessor.min[index]),
+);
+assert(knobDiameter >= 0.045 && knobDiameter <= 0.065, "The stress knob grip should be roughly 5 cm across");
+
+const grabHandle = nodes.get("Workbench_Grab_Handle");
+assert(grabHandle, "Missing workbench grab handle");
+assert.equal(grabHandle.extras?.role, "workbench_grab_handle", "The workbench grab handle has the wrong role");
+assert.equal(grabHandle.extras?.interaction, "translate", "The workbench grab handle must translate the workbench");
 
 for (const shellName of ["Workbench_Continuous_Body", "Workbench_Continuous_Deck", "Workbench_Front_Trim"]) {
   assert(nodes.has(shellName), `Missing continuous shell node ${shellName}`);
@@ -131,6 +144,7 @@ const requiredDirectTouchTargets = [
   "Guard_Cover_Clear_Shell",
   "Knob_Main_Grip",
   "Knob_Main_Touch_Target",
+  "Workbench_Grab_Handle_Hit_Target",
 ];
 for (const nodeName of requiredDirectTouchTargets) {
   assert.equal(nodes.get(nodeName)?.extras?.hit_target, true, `${nodeName} must be a direct-touch target`);
